@@ -37,6 +37,13 @@ class Settings(BaseSettings):
     # can trigger a full rebuild.
     job_token: str = ""
 
+    # ── FPL response cache ───────────────────────────────────────────────────
+    # Collapses the duplicate manager lookups one dashboard load produces. Kept
+    # short because the picks response also carries live points and rank; see
+    # services/cache.py for why the bootstrap is never cached.
+    cache_enabled: bool = True
+    fpl_cache_ttl_seconds: int = 90
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

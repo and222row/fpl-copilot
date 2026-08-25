@@ -650,6 +650,52 @@ then bails out of hydration and **silently strips every event handler off the
 page** — effects still run, so data loads and the page looks fine, but no click
 does anything. Gate locale-dependent output behind a `mounted` flag.
 
+## The Redis cache, and what it deliberately does not cache
+
+Redis had been carrying nothing. The only operations against it were two health
+check pings — 22 commands and 0 B stored in a month — so it was a credential to
+manage in exchange for nothing.
+
+What it caches now is the per-request manager endpoints. Loading the dashboard
+once fans out into four handlers that each resolve the squad from scratch — the
+squad view, the state banner, the recommendation and the planner — so FPL was
+receiving four identical requests for the same picks within a second or two.
+`fetch_manager_picks` and `fetch_manager_info` are wrapped, which means all four
+call sites benefit without any of them changing.
+
+### Why the bootstrap is never cached
+
+It is the biggest payload and looks like the obvious win, which is exactly the
+trap. The bootstrap is read only by the sync, and the sync's purpose is to spot
+what changed: `detect_changes` diffs the incoming snapshot against the stored
+one to find injuries, suspensions and price moves. Serve it a cached snapshot
+and it concludes that nothing moved. The 30-minute cron would keep running,
+keep reporting success, and never surface another piece of news.
+
+That failure is silent, which is what makes it worth a test rather than a
+comment. `test_bootstrap_is_never_cached` asserts two consecutive calls both
+reach FPL and that Redis is not touched.
+
+### Why the TTL is only 90 seconds
+
+A manager's picks are immutable once a deadline has passed, which argues for a
+long TTL. But the same response carries `entry_history` — points, overall rank,
+bank, squad value — and those move while matches are being played. Ninety
+seconds absorbs one page load's duplicates without live points ever looking
+stuck.
+
+### It fails open
+
+Every operation swallows Redis errors and falls through to the loader. A read
+failure, a write failure, or Redis being entirely unreachable costs latency and
+nothing else. This is load-bearing in the other direction: the app worked
+without Redis before, and adding a cache must not quietly turn it into a hard
+dependency. Three tests cover those paths, and `CACHE_ENABLED=false` bypasses
+Redis completely.
+
+`GET /api/v1/health/cache` reports hit rate. Counters are process-local and
+reset on restart.
+
 ## Deployment
 
 Three hosts, all free. Supabase and Upstash already run in the cloud, so the

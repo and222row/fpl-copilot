@@ -22,6 +22,12 @@ os.environ.setdefault("ENVIRONMENT", "test")
 os.environ["SCHEDULER_ENABLED"] = "false"
 os.environ["JOB_TOKEN"] = ""
 
+# Off by default too. With it on, whether a test saw a cached response would
+# depend on whether the developer happened to have Redis running locally —
+# passing on one machine and failing on another. test_cache.py turns it back on
+# explicitly and supplies its own Redis double.
+os.environ["CACHE_ENABLED"] = "false"
+
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession  # noqa: E402
 from app.database import Base, get_db  # noqa: E402
 from app.models.fpl import Team, Player, Gameweek, Fixture  # noqa: E402

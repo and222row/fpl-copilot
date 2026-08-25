@@ -1,6 +1,9 @@
 import httpx
 from typing import Any
 
+from app.services import cache
+from app.services.cache import cached_json
+
 FPL_BASE = "https://fantasy.premierleague.com/api"
 
 HEADERS = {
@@ -41,23 +44,39 @@ async def fetch_bootstrap() -> dict:
     """
     Returns all players, teams, gameweeks and season metadata.
     This is the main FPL data endpoint — call it on every sync.
+
+    Never cached. It is only read by the sync, and the sync's job is to spot
+    what changed since the last one; a cached snapshot would report that
+    nothing did. See services/cache.py.
     """
     return await _get("/bootstrap-static/")
 
 
 async def fetch_fixtures() -> list[dict]:
-    """Returns all fixtures for the season."""
+    """Returns all fixtures for the season. Never cached, as above."""
     return await _get("/fixtures/")
 
 
 async def fetch_manager_picks(manager_id: int, gameweek: int) -> dict:
-    """Returns a manager's picks for a given gameweek."""
-    return await _get(f"/entry/{manager_id}/event/{gameweek}/picks/")
+    """
+    Returns a manager's picks for a given gameweek.
+
+    Cached briefly. One dashboard load resolves the squad four times over
+    (squad view, state banner, recommendation, planner), and this collapses
+    those into a single upstream request.
+    """
+    return await cached_json(
+        cache.key_picks(manager_id, gameweek),
+        lambda: _get(f"/entry/{manager_id}/event/{gameweek}/picks/"),
+    )
 
 
 async def fetch_manager_info(manager_id: int) -> dict:
-    """Returns a manager's profile and history."""
-    return await _get(f"/entry/{manager_id}/")
+    """Returns a manager's profile and history. Cached briefly."""
+    return await cached_json(
+        cache.key_entry(manager_id),
+        lambda: _get(f"/entry/{manager_id}/"),
+    )
 
 
 async def fetch_live_points(gameweek: int) -> dict:

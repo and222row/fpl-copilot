@@ -6,6 +6,7 @@ from app.database import get_db
 from app.redis_client import ping_redis
 from app.models.fpl import Player, Fixture, Gameweek
 from app.models.projections import Projection, TeamStrength, ScoringRules
+from app.services import cache
 
 router = APIRouter(tags=["health"])
 
@@ -113,3 +114,16 @@ async def data_freshness(db: AsyncSession = Depends(get_db)):
             "/projections/rebuild to refresh."
         ) if overall != "fresh" else None,
     }
+
+
+@router.get("/health/cache")
+async def cache_stats():
+    """
+    Hit rate for the FPL response cache.
+
+    Counters are process-local and reset when the service restarts, so treat
+    them as indicative. A low hit rate right after a deploy is normal; a hit
+    rate near zero once warm means the TTL is shorter than the gap between
+    duplicate requests.
+    """
+    return cache.stats()
