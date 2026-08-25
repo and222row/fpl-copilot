@@ -88,15 +88,20 @@ jobs:
 
       - run: npm ci
 
-      - name: Type check
-        run: npx tsc --noEmit
-
       - run: npm run lint
 
+      # Must precede the standalone type check. `LayoutProps` and friends are
+      # generated into .next/types and reached via next-env.d.ts — both
+      # gitignored, so a fresh checkout has neither and `tsc` fails with
+      # "Cannot find name 'LayoutProps'". Running the build first emits them.
+      # It also type-checks on its own, so a type error fails here regardless.
       - name: Production build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8000
         run: npm run build
+
+      - name: Type check
+        run: npx tsc --noEmit
 
   secrets:
     name: Secret scan
