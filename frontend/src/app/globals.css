@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Long unbroken strings (player news, URLs) must not force the page wider than
+   the phone it is on. */
+body {
+  overflow-wrap: break-word;
+}
+
+/* iOS Safari zooms the whole page when a focused control's text is under 16px.
+   Hold controls at 16px on phones; Tailwind shrinks them again from `sm` up,
+   where there is no zoom behaviour to trip over. */
+@media (width < 40rem) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

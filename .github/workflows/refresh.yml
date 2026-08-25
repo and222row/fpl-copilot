@@ -1,0 +1,116 @@
+name: Scheduled refresh
+
+# Keeps the data fresh and alerts flowing without the app needing to stay awake.
+#
+# The in-process scheduler (SCHEDULER_ENABLED) only works where the process
+# lives. Free hosting tiers idle out after inactivity, so the loop dies with
+# them — this workflow calls the API from outside instead, which works either
+# way and costs nothing.
+#
+# Setup:
+#   1. Deploy the backend somewhere reachable.
+#   2. Repo → Settings → Secrets → Actions, add:
+#        API_BASE_URL   e.g. https://fpl-copilot.onrender.com
+#        JOB_TOKEN      must match JOB_TOKEN in the backend environment
+#
+# Without those secrets the job skips rather than failing, so a fork or a
+# pre-deploy repo stays green.
+
+on:
+  schedule:
+    # Every 30 minutes. FPL price changes settle around 01:30 UK, and press
+    # conferences land through the afternoon, so a uniform interval is simpler
+    # than trying to predict news.
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      horizon:
+        description: "Gameweeks to project"
+        default: "5"
+        required: false
+
+concurrency:
+  # A refresh takes a couple of minutes; never let two overlap.
+  group: scheduled-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check configuration
+        id: check
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+        run: |
+          if [ -z "$API_BASE_URL" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::API_BASE_URL secret is not set — skipping. Add it once the backend is deployed."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Trigger refresh
+        if: steps.check.outputs.configured == 'true'
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          JOB_TOKEN: ${{ secrets.JOB_TOKEN }}
+          HORIZON: ${{ github.event.inputs.horizon || '5' }}
+        run: |
+          set -euo pipefail
+
+          # Free tiers cold-start, so the first call can take a while.
+          response=$(curl -sS --max-time 600 \
+            --retry 2 --retry-delay 30 --retry-connrefused \
+            -w '\n%{http_code}' \
+            -X POST \
+            -H "X-Job-Token: ${JOB_TOKEN}" \
+            "${API_BASE_URL}/api/v1/jobs/refresh?horizon=${HORIZON}")
+
+          body=$(echo "$response" | sed '$d')
+          code=$(echo "$response" | tail -n1)
+
+          echo "HTTP $code"
+          echo "$body" | head -c 4000
+
+          if [ "$code" != "200" ]; then
+            echo "::error::Refresh failed with HTTP $code"
+            exit 1
+          fi
+
+          # Surface a readable summary on the run page
+          python3 - "$body" <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, sys
+          try:
+              d = json.loads(sys.argv[1])
+          except Exception:
+              print("Could not parse the response body.")
+              sys.exit()
+
+          print("### Refresh " + ("succeeded" if d.get("ok") else "completed with errors"))
+          print(f"- Duration: {d.get('duration_seconds')}s")
+
+          steps = d.get("steps") or {}
+          alerts = (steps.get("alerts") or {}).get("alerts_created")
+          if alerts is not None:
+              print(f"- Alerts created: {alerts}")
+
+          detect = steps.get("detect_changes") or {}
+          if detect.get("events_detected") is not None:
+              print(f"- Changes detected: {detect['events_detected']}")
+              by_type = detect.get("by_type") or {}
+              for k, v in by_type.items():
+                  print(f"  - {k}: {v}")
+
+          for err in d.get("errors") or []:
+              print(f"- :warning: {err}")
+          PY
+
+      - name: Report health
+        if: steps.check.outputs.configured == 'true'
+        continue-on-error: true
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+        run: |
+          curl -sS --max-time 60 "${API_BASE_URL}/api/v1/health/freshness" \
+            | head -c 2000

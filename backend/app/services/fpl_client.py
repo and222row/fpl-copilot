@@ -1,0 +1,70 @@
+import httpx
+from typing import Any
+
+FPL_BASE = "https://fantasy.premierleague.com/api"
+
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (compatible; FPLCopilot/1.0)",
+}
+
+# Shared async client — reused across requests
+_client: httpx.AsyncClient | None = None
+
+
+async def get_client() -> httpx.AsyncClient:
+    global _client
+    if _client is None or _client.is_closed:
+        _client = httpx.AsyncClient(
+            base_url=FPL_BASE,
+            headers=HEADERS,
+            timeout=30.0,
+            follow_redirects=True,
+        )
+    return _client
+
+
+async def close_client() -> None:
+    global _client
+    if _client and not _client.is_closed:
+        await _client.aclose()
+    _client = None
+
+
+async def _get(path: str) -> Any:
+    client = await get_client()
+    response = await client.get(path)
+    response.raise_for_status()
+    return response.json()
+
+
+async def fetch_bootstrap() -> dict:
+    """
+    Returns all players, teams, gameweeks and season metadata.
+    This is the main FPL data endpoint — call it on every sync.
+    """
+    return await _get("/bootstrap-static/")
+
+
+async def fetch_fixtures() -> list[dict]:
+    """Returns all fixtures for the season."""
+    return await _get("/fixtures/")
+
+
+async def fetch_manager_picks(manager_id: int, gameweek: int) -> dict:
+    """Returns a manager's picks for a given gameweek."""
+    return await _get(f"/entry/{manager_id}/event/{gameweek}/picks/")
+
+
+async def fetch_manager_info(manager_id: int) -> dict:
+    """Returns a manager's profile and history."""
+    return await _get(f"/entry/{manager_id}/")
+
+
+async def fetch_live_points(gameweek: int) -> dict:
+    """Returns live points for all players in a given gameweek."""
+    return await _get(f"/event/{gameweek}/live/")
+
+
+async def fetch_player_detail(player_id: int) -> dict:
+    """Returns detailed history and fixture list for a single player."""
+    return await _get(f"/element-summary/{player_id}/")

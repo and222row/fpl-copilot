@@ -1,0 +1,72 @@
+
+# Render Blueprint — backend only. The frontend goes to Vercel.
+#
+# Render → New → Blueprint → point it at this repo. It reads this file, creates
+# the service, and prompts for every value marked `sync: false`.
+#
+# Postgres and Redis are deliberately NOT declared here: they already live on
+# Supabase and Upstash free tiers, which is where the data must stay. Declaring
+# them would have Render provision a second, empty pair.
+
+services:
+  - type: web
+    name: fpl-copilot-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+
+    # Supabase is in eu-west-1 (Ireland) and Upstash alongside it. A backend in
+    # Render's default Oregon region would pay a transatlantic round trip on
+    # every query, and a single request makes several — Frankfurt is the closest
+    # Render region and keeps that in the same continent.
+    region: frankfurt
+
+    # Returns HTTP 200 whenever the process is alive, reporting "degraded" in
+    # the body if a dependency is unreachable. That is the right split for a
+    # health check: a Redis hiccup must not fail an otherwise good deploy.
+    healthCheckPath: /api/v1/health
+
+    envVars:
+      # ── Set once here, identical for every deploy ──────────────────────────
+      - key: ENVIRONMENT
+        # Switches on rate limiting — see backend/app/rate_limit.py:19, which
+        # disables it in development and test.
+        value: production
+
+      - key: SCHEDULER_ENABLED
+        # Deliberately false. The in-process scheduler is an asyncio loop, and
+        # a free Render service is suspended after ~15 minutes without inbound
+        # traffic — a suspended process runs no loop, so it would stop silently
+        # with nothing in the logs. .github/workflows/refresh.yml calls
+        # POST /api/v1/jobs/refresh from GitHub's cron instead, which works
+        # whether the service is awake or cold.
+        value: "false"
+
+      - key: SQL_ECHO
+        value: "false"
+
+      # ── Prompted on first deploy, then stored encrypted by Render ──────────
+      - key: DATABASE_URL
+        # Supabase → Connect → session pooler URI, with the driver changed to
+        # postgresql+asyncpg://
+        sync: false
+
+      - key: REDIS_URL
+        # Upstash → rediss:// (TLS). Note the double 's'.
+        sync: false
+
+      - key: SECRET_KEY
+        sync: false
+
+      - key: JOB_TOKEN
+        # Must match the JOB_TOKEN secret in the GitHub repo, or the scheduled
+        # refresh gets a 401. Without it set, /api/v1/jobs/refresh is
+        # unauthenticated and anyone could trigger a full rebuild.
+        sync: false
+
+      - key: CORS_ORIGINS
+        # The Vercel production domain, e.g. https://fpl-copilot.vercel.app
+        # Comma-separated for more than one. Vercel's per-deploy preview URLs
+        # are not covered by this — add them only if you need them.
+        sync: false

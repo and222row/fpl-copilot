@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Env files (never commit secrets).
+# `.env.local` needs its own entry: `*.env.local` relies on the glob matching
+# an empty prefix, which is too subtle to bet a credential on.
+.env
+.env.local
+.env*.local
+*.env.local
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.vercel/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Docker volumes (if mapped locally)
+postgres_data/
+redis_data/
+
+# Claude Code local settings (machine-specific)
+.claude/settings.local.json
