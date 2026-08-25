@@ -7,10 +7,24 @@ name: Scheduled refresh
 # them — this workflow calls the API from outside instead, which works either
 # way and costs nothing.
 #
+# GitHub's scheduler is explicitly best-effort. Observed on this repo: the 17:30
+# slot ran at 17:38 and the 18:00 slot never ran at all. Nothing here can make
+# GitHub punctual, so the design assumes slots will be missed and limits the
+# damage instead:
+#
+#   * runs four times an hour rather than twice, so a skipped slot leaves a
+#     30-minute gap instead of an hour;
+#   * runs six times an hour through the price-change window;
+#   * retries the call itself when the API answers with anything but 200;
+#   * fails loudly if the data is not actually fresh afterwards, so a refresh
+#     that returns 200 without achieving anything cannot pass silently;
+#   * reports how stale the data was on arrival, which is the only way a
+#     skipped slot becomes visible at all.
+#
 # Setup:
 #   1. Deploy the backend somewhere reachable.
 #   2. Repo → Settings → Secrets → Actions, add:
-#        API_BASE_URL   e.g. https://fpl-copilot.onrender.com
+#        API_BASE_URL   e.g. https://fpl-copilot-api.onrender.com
 #        JOB_TOKEN      must match JOB_TOKEN in the backend environment
 #
 # Without those secrets the job skips rather than failing, so a fork or a
@@ -18,10 +32,14 @@ name: Scheduled refresh
 
 on:
   schedule:
-    # Every 30 minutes. FPL price changes settle around 01:30 UK, and press
-    # conferences land through the afternoon, so a uniform interval is simpler
-    # than trying to predict news.
-    - cron: "*/30 * * * *"
+    # Every 15 minutes for most of the day. Public repositories get unmetered
+    # Actions minutes, so frequency here is free.
+    - cron: "*/15 2-23 * * *"
+    # Every 10 minutes through 00:00–01:59 UTC. FPL prices settle around 01:30
+    # UK, and a missed slot in this window loses a price crossing outright —
+    # everywhere else it only delays news by a few minutes. The hour ranges do
+    # not overlap, so no slot is triggered twice.
+    - cron: "*/10 0-1 * * *"
   workflow_dispatch:
     inputs:
       horizon:
@@ -30,7 +48,7 @@ on:
         required: false
 
 concurrency:
-  # A refresh takes a couple of minutes; never let two overlap.
+  # A refresh takes about a minute; never let two overlap.
   group: scheduled-refresh
   cancel-in-progress: false
 
@@ -50,6 +68,37 @@ jobs:
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # How stale was the data when we arrived? On a 15-minute schedule
+      # anything past ~40 minutes means a slot was skipped. The refresh below
+      # fixes it either way; this exists so the skip is visible rather than
+      # being quietly repaired.
+      - name: Measure staleness on arrival
+        if: steps.check.outputs.configured == 'true'
+        continue-on-error: true
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+        run: |
+          before=$(curl -sS --max-time 120 "${API_BASE_URL}/api/v1/health/freshness" || echo '{}')
+          echo "$before" > /tmp/before.json
+          python3 - <<'PY'
+          import json
+          try:
+              d = json.load(open('/tmp/before.json'))
+          except Exception:
+              print("::notice::could not read freshness (cold start is normal)")
+              raise SystemExit
+          ages = [v.get('age_minutes') for v in (d.get('data_sets') or {}).values()
+                  if isinstance(v.get('age_minutes'), (int, float))]
+          if not ages:
+              raise SystemExit
+          worst = max(ages)
+          print(f"Oldest data set on arrival: {worst:.1f} minutes")
+          if worst > 40:
+              print(f"::warning::Data was {worst:.1f} minutes old — a scheduled "
+                    f"slot was skipped. GitHub's cron is best-effort; this run "
+                    f"is catching up.")
+          PY
+
       - name: Trigger refresh
         if: steps.check.outputs.configured == 'true'
         env:
@@ -57,35 +106,51 @@ jobs:
           JOB_TOKEN: ${{ secrets.JOB_TOKEN }}
           HORIZON: ${{ github.event.inputs.horizon || '5' }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
 
-          # Free tiers cold-start, so the first call can take a while.
-          response=$(curl -sS --max-time 600 \
-            --retry 2 --retry-delay 30 --retry-connrefused \
-            -w '\n%{http_code}' \
-            -X POST \
-            -H "X-Job-Token: ${JOB_TOKEN}" \
-            "${API_BASE_URL}/api/v1/jobs/refresh?horizon=${HORIZON}")
+          # Application-level retry, on top of curl's connection-level one. A
+          # free instance that is mid-restart answers 502 rather than refusing
+          # the connection, and --retry alone does not cover that.
+          attempt=0
+          max=3
+          code=000
+          while [ "$attempt" -lt "$max" ]; do
+            attempt=$((attempt + 1))
+            code=$(curl -sS --max-time 600 \
+              --retry 2 --retry-delay 30 --retry-connrefused \
+              -o /tmp/resp.json -w '%{http_code}' \
+              -X POST \
+              -H "X-Job-Token: ${JOB_TOKEN}" \
+              "${API_BASE_URL}/api/v1/jobs/refresh?horizon=${HORIZON}" || echo 000)
 
-          body=$(echo "$response" | sed '$d')
-          code=$(echo "$response" | tail -n1)
+            if [ "$code" = "200" ]; then
+              [ "$attempt" -gt 1 ] && echo "::notice::succeeded on attempt ${attempt}"
+              break
+            fi
 
-          echo "HTTP $code"
-          echo "$body" | head -c 4000
+            echo "::warning::attempt ${attempt}/${max} returned HTTP ${code}"
+            head -c 500 /tmp/resp.json || true
+            echo
+            [ "$attempt" -lt "$max" ] && sleep 45
+          done
 
+          echo "HTTP $code after ${attempt} attempt(s)"
           if [ "$code" != "200" ]; then
-            echo "::error::Refresh failed with HTTP $code"
+            echo "::error::Refresh failed with HTTP $code after ${max} attempts"
             exit 1
           fi
 
+          head -c 4000 /tmp/resp.json
+          echo
+
           # Surface a readable summary on the run page
-          python3 - "$body" <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import json, sys
+          python3 - >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
           try:
-              d = json.loads(sys.argv[1])
+              d = json.load(open('/tmp/resp.json'))
           except Exception:
               print("Could not parse the response body.")
-              sys.exit()
+              raise SystemExit
 
           print("### Refresh " + ("succeeded" if d.get("ok") else "completed with errors"))
           print(f"- Duration: {d.get('duration_seconds')}s")
@@ -98,19 +163,46 @@ jobs:
           detect = steps.get("detect_changes") or {}
           if detect.get("events_detected") is not None:
               print(f"- Changes detected: {detect['events_detected']}")
-              by_type = detect.get("by_type") or {}
-              for k, v in by_type.items():
+              for k, v in (detect.get("by_type") or {}).items():
                   print(f"  - {k}: {v}")
 
           for err in d.get("errors") or []:
               print(f"- :warning: {err}")
           PY
 
-      - name: Report health
+          # A refresh that reports per-step errors still returns 200 overall.
+          # Fail the run so it is not mistaken for a clean pass.
+          python3 - <<'PY'
+          import json, sys
+          d = json.load(open('/tmp/resp.json'))
+          errs = d.get("errors") or []
+          if errs:
+              for e in errs:
+                  print(f"::error::refresh step failed: {e}")
+              sys.exit(1)
+          PY
+
+      # The refresh returning 200 does not prove the data moved. Without this,
+      # a backend that accepts the job and quietly does nothing would show a
+      # green tick every 15 minutes.
+      - name: Verify the data is actually fresh
         if: steps.check.outputs.configured == 'true'
-        continue-on-error: true
         env:
           API_BASE_URL: ${{ secrets.API_BASE_URL }}
         run: |
-          curl -sS --max-time 60 "${API_BASE_URL}/api/v1/health/freshness" \
-            | head -c 2000
+          curl -sS --max-time 120 "${API_BASE_URL}/api/v1/health/freshness" \
+            -o /tmp/after.json
+          head -c 2000 /tmp/after.json
+          echo
+          python3 - <<'PY'
+          import json, sys
+          d = json.load(open('/tmp/after.json'))
+          status = d.get("status")
+          print(f"freshness: {status}")
+          if status != "fresh":
+              stale = {k: v.get("age_minutes")
+                       for k, v in (d.get("data_sets") or {}).items()
+                       if v.get("status") != "fresh"}
+              print(f"::error::Refresh returned 200 but data is '{status}': {stale}")
+              sys.exit(1)
+          PY
