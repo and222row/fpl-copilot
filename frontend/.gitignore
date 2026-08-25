@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.vercel
+.env*
+# ...but the template carries no secrets and documents NEXT_PUBLIC_API_URL,
+# so it must stay tracked. Vercel's CLI adds the blanket rule above on link.
+!.env.example
