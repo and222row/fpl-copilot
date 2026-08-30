@@ -847,9 +847,22 @@ and a 30-minute cron keeps yours awake.
    prompts for `DATABASE_URL`, `REDIS_URL`, `SECRET_KEY`, `JOB_TOKEN` and
    `CORS_ORIGINS`. Take the first four from `backend/.env`; leave
    `CORS_ORIGINS` until step 3 gives you the domain.
-3. **Vercel** -> import the repo, root directory `frontend`, and set
-   `NEXT_PUBLIC_API_URL` to the Render URL. Then put the Vercel domain into
-   Render's `CORS_ORIGINS` and redeploy the API.
+3. **Vercel** -> import the repo, and in Project Settings -> Build and
+   Deployment set **Root Directory to `frontend`**. Set `NEXT_PUBLIC_API_URL`
+   to the Render URL. Then put the Vercel domain into Render's `CORS_ORIGINS`
+   and redeploy the API.
+
+   The root directory is the setting that decides whether git-triggered builds
+   work at all. The repository root holds no `package.json` — only the two app
+   folders and this file — so a build from `.` finds nothing and fails. A CLI
+   deploy run from inside `frontend/` uploads that folder as the root and
+   succeeds regardless, which is what makes the mistake easy to miss: manual
+   deploys keep working while automatic ones break.
+
+   Until the Vercel account is linked to GitHub, there are no automatic
+   deploys at all. Pushing updates Render and silently leaves the frontend on
+   its previous build — a Telegram settings panel sat committed, CI-green and
+   invisible for an hour because of exactly this.
 4. **GitHub** -> Settings -> Secrets -> Actions: add `API_BASE_URL` (the Render
    URL) and `JOB_TOKEN` (byte-identical to Render's, or the refresh gets a
    401). Run the workflow once with *Run workflow* to confirm.
