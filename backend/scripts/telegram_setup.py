@@ -115,10 +115,17 @@ def main() -> None:
     if not settings.telegram_bot_token:
         sys.exit(f"TELEGRAM_BOT_TOKEN is not set in {ENV_PATH}")
 
-    try:
-        asyncio.run(args.func())
-    finally:
-        asyncio.run(telegram.close_client())
+    # Command and cleanup share one event loop. Closing the httpx client from a
+    # second asyncio.run() tears down a transport belonging to a loop that has
+    # already closed, which raises "Event loop is closed" after the command has
+    # in fact succeeded.
+    async def run() -> None:
+        try:
+            await args.func()
+        finally:
+            await telegram.close_client()
+
+    asyncio.run(run())
 
 
 if __name__ == "__main__":
