@@ -30,6 +30,7 @@ from app.services.fpl_sync import (
 )
 from app.services.change_detection import detect_changes, generate_alerts
 from app.services import notifications
+from app.services import chips
 from app.services.team_strength import rebuild_team_strength
 from app.services.projection import rebuild_projections
 from app.services.squad_state import resolve_squad
@@ -104,6 +105,8 @@ async def refresh_everything(
 
     if include_alerts:
         report.steps["alerts"] = await _alerts_for_tracked(db)
+        # Model-free, and the one chip signal nobody spots by eye.
+        await step("gameweek_shape", chips.alert_on_shape_changes(db))
         # Push whatever that produced to anyone who opted in. Wrapped in the
         # same step() isolation as everything else: a Telegram outage must not
         # fail a refresh whose actual work already succeeded, and the alerts

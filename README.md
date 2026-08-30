@@ -696,6 +696,62 @@ Redis completely.
 `GET /api/v1/health/cache` reports hit rate. Counters are process-local and
 reset on restart.
 
+## Chip timing
+
+FPL issues each chip with an expiry — two sets, one per half of the season, and
+an unused chip is simply lost. That makes this a **bounded optimal-stopping**
+problem rather than a scoring one. "Is this a good week to Triple Captain?" is
+the wrong question: a twelve-point captain is a poor use in GW5 and an obvious
+one in GW18, and the number is identical. What matters is whether the current
+opportunity is good enough given how many chances remain.
+
+So every recommendation carries three quantities: what the chip is worth now,
+the best it reaches inside the projection horizon, and how many gameweeks are
+left before it expires.
+
+### Layered by how much each part can be trusted
+
+    fixture shape    counting. Doubles and blanks are facts.
+    availability     FPL's own record of what you have played.
+    valuation        the projection model, with all its uncertainty.
+    the verdict      a heuristic on top of that, so the weakest link.
+
+That ordering is surfaced in the response and the UI, because chip advice
+*compounds* model error: a transfer risks one projection, a wildcard stakes
+fifteen at once, and a triple captain triples the error on one. The model has a
+single accuracy reading and it was poor.
+
+### The double-gameweek watcher is the part worth having
+
+`alert_on_shape_changes` counts fixtures per team per gameweek and raises an
+alert the first time a double or blank appears. It is the only piece here that
+involves no model at all, and the only one you could not work out by eye —
+doubles are created months after the fixture list is published, when postponed
+matches are rearranged, and nobody re-reads a schedule from July. It is
+deduplicated on the alert title, because the refresh runs ninety-six times a
+day.
+
+### Three bugs this shipped with, and what they were
+
+**Wildcard valued at a one-week horizon.** A wildcard is permanent, so solving
+for a single gameweek picks a squad nobody would keep and overstates the chip
+roughly fourfold — 15.9 pts/GW against a true 4.1. It now solves across the
+horizon; a free hit legitimately keeps horizon=1, which is the whole difference
+between the two chips.
+
+**Comparing unlike quantities.** `build_dream_team` reports
+`xi_pts + captain.gw_xpts`, but `LineupResult.starting_xpts` excludes the
+captain's extra copy. Comparing them subtracted a captain from one side only and
+inflated every gap by roughly a premium's score.
+
+**A baseline built from one observation.** The mean of a single value is that
+value, so every ratio came out exactly 1.0 and the reasoning was circular:
+"15.9 is close to a typical 15.9". With one data point there is no typical week,
+so the advisor now says so instead.
+
+    GET /api/v1/chips/{manager_id}       full advice
+    GET /api/v1/chips/fixtures/shape     doubles and blanks, squad-independent
+
 ## Telegram alerts
 
 Everything upstream of this already worked. Change detection ran every fifteen

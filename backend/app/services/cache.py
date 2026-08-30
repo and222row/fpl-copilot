@@ -60,6 +60,10 @@ def key_entry(manager_id: int) -> str:
     return f"{PREFIX}:entry:{manager_id}"
 
 
+def key_history(manager_id: int) -> str:
+    return f"{PREFIX}:history:{manager_id}"
+
+
 async def cached_json(
     key: str,
     loader: Callable[[], Awaitable[Any]],

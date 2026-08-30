@@ -79,6 +79,20 @@ async def fetch_manager_info(manager_id: int) -> dict:
     )
 
 
+async def fetch_manager_history(manager_id: int) -> dict:
+    """
+    Season history, including which chips have already been played.
+
+    Cached alongside the other per-manager reads. Chip advice that recommends a
+    chip already spent is worse than no advice, so this is a hard dependency of
+    the advisor rather than an enrichment.
+    """
+    return await cached_json(
+        cache.key_history(manager_id),
+        lambda: _get(f"/entry/{manager_id}/history/"),
+    )
+
+
 async def fetch_live_points(gameweek: int) -> dict:
     """Returns live points for all players in a given gameweek."""
     return await _get(f"/event/{gameweek}/live/")

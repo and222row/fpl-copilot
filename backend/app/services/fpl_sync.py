@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from app.models.fpl import Team, Player, Gameweek, Fixture, utcnow
-from app.models.projections import ScoringRules
+from app.models.projections import ScoringRules, ChipWindow
 from app.services.fpl_client import fetch_bootstrap, fetch_fixtures
 
 
@@ -154,6 +154,7 @@ async def sync_bootstrap(db: AsyncSession) -> dict:
 
     # ── Scoring rules ────────────────────────────────────────────────────────
     rules_synced = await _sync_scoring_rules(db, data)
+    chips_synced = await _sync_chip_windows(db, data)
 
     await db.commit()
 
@@ -162,7 +163,48 @@ async def sync_bootstrap(db: AsyncSession) -> dict:
         "gameweeks": gws_count,
         "players": players_count,
         "scoring_rules": rules_synced,
+        "chip_windows": chips_synced,
     }
+
+
+async def _sync_chip_windows(db: AsyncSession, bootstrap: dict) -> int:
+    """
+    Persist when each chip may be played.
+
+    FPL issues two sets — one per half of the season — and an unused chip is
+    lost when its window closes. That expiry is what makes chip advice a timing
+    problem rather than a scoring one, so the deadline has to be data we hold
+    rather than a number someone remembered.
+    """
+    chips = bootstrap.get("chips") or []
+    if not chips:
+        return 0
+
+    existing = {
+        (c.name, c.start_event): c
+        for c in (await db.execute(select(ChipWindow))).scalars().all()
+    }
+
+    for chip in chips:
+        name = chip.get("name")
+        start = chip.get("start_event")
+        stop = chip.get("stop_event")
+        if not name or start is None or stop is None:
+            continue
+        row = existing.get((name, start))
+        if row is None:
+            db.add(ChipWindow(
+                name=name,
+                chip_type=chip.get("chip_type") or "",
+                start_event=start,
+                stop_event=stop,
+            ))
+        else:
+            row.stop_event = stop
+            row.chip_type = chip.get("chip_type") or row.chip_type
+
+    await db.commit()
+    return len(chips)
 
 
 async def _sync_scoring_rules(db: AsyncSession, bootstrap: dict) -> str:

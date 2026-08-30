@@ -487,6 +487,40 @@ export interface TelegramLink {
   expires_in_minutes: number;
 }
 
+export interface ChipItem {
+  name: string;
+  label: string;
+  available: boolean;
+  used_in_gameweek: number | null;
+  window: { start: number; end: number };
+  weeks_remaining: number;
+  value_now: number | null;
+  best_value: number | null;
+  best_gameweek: number | null;
+  baseline: number | null;
+  /** use_now | use_soon | consider | hold | used | not_yet | expired | unknown */
+  verdict: string;
+  confidence: string;
+  reasons: string[];
+}
+
+export interface ChipAdvice {
+  manager_id: number;
+  target_gameweek: number;
+  budget: number;
+  horizon: number[];
+  fixture_shape: {
+    doubles: Record<string, string[]>;
+    blanks: Record<string, string[]>;
+    gameweeks_scheduled: number;
+    note: string | null;
+  };
+  squad_this_gameweek: { playing: number; doubling: number; blank: number };
+  chips: ChipItem[];
+  history_available: boolean;
+  caveat: string;
+}
+
 export const api = {
   health: () =>
     request<{ status: string; database: string; redis: string }>("/health"),
@@ -685,4 +719,6 @@ export const api = {
     request<{ sent: boolean }>(`/notifications/${managerId}/telegram/test`, {
       method: "POST",
     }),
+  chipAdvice: (managerId: number, horizon = 5) =>
+    request<ChipAdvice>(`/chips/${managerId}?horizon=${horizon}`),
 };

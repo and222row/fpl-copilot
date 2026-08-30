@@ -124,3 +124,32 @@ class Projection(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
     )
+
+
+class ChipWindow(Base):
+    """
+    When each chip may be played, straight from FPL's bootstrap.
+
+    Chips come in two sets — one for the first half of the season and one for
+    the second — and an unused chip is simply lost when its window closes. That
+    expiry is the whole reason chip advice is a timing problem rather than a
+    scoring one: the question is never "is this a good week" but "is this good
+    enough, given how many chances remain".
+
+    Synced rather than hardcoded, for the same reason the scoring rules are:
+    FPL has changed the chip structure between seasons before, and a constant
+    in our code would quietly describe last season.
+    """
+    __tablename__ = "chip_windows"
+    __table_args__ = (
+        UniqueConstraint("name", "start_event", name="uq_chip_window"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(20), index=True)   # wildcard | freehit | bboost | 3xc
+    chip_type: Mapped[str] = mapped_column(String(20), default="")   # transfer | team
+    start_event: Mapped[int] = mapped_column(Integer)
+    stop_event: Mapped[int] = mapped_column(Integer)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )

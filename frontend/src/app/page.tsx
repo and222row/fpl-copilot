@@ -18,6 +18,7 @@ import { PlannerTree } from "@/components/PlannerTree";
 import { SquadStateBanner } from "@/components/SquadStateBanner";
 import { DreamTeam } from "@/components/DreamTeam";
 import { NotificationSettings } from "@/components/NotificationSettings";
+import { ChipAdvisor } from "@/components/ChipAdvisor";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/lib/ui";
 
 const TEAM_ID_KEY = "fpl-copilot:team-id";
@@ -280,6 +281,13 @@ export default function Dashboard() {
           <p className="text-sm text-slate-500 dark:text-slate-400">
             Enter your FPL Team ID above to see your squad.
           </p>
+        </div>
+      )}
+
+      {/* ── Chips ───────────────────────────────────────────────────── */}
+      {manager && (
+        <div className="mt-8 border-t border-slate-200 pt-6 sm:mt-10 sm:pt-8 dark:border-slate-700">
+          <ChipAdvisor key={`chips-${manager.id}-${refreshKey}`} managerId={manager.id} />
         </div>
       )}
 
