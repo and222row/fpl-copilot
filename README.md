@@ -696,6 +696,76 @@ Redis completely.
 `GET /api/v1/health/cache` reports hit rate. Counters are process-local and
 reset on restart.
 
+## Telegram alerts
+
+Everything upstream of this already worked. Change detection ran every fifteen
+minutes, filtered events down to the ones affecting a particular squad, and
+wrote them to `alerts` — where they sat until someone opened the dashboard,
+which required already suspecting something had happened. This is the last mile.
+
+Telegram over email or push because it costs nothing and needs no
+infrastructure: no SMTP credentials, no SendGrid account, no service worker, no
+VAPID keys. One authenticated POST per message.
+
+### Linking without accounts
+
+There are no user accounts — a manager is an FPL entry id. So a Telegram chat
+and a squad have to be introduced:
+
+    dashboard  -> mint a single-use code, return t.me/<bot>?start=<code>
+    manager    -> opens it, presses Start
+    Telegram   -> POSTs /api/v1/telegram/webhook with that code
+    webhook    -> resolves code to entry id, stores the chat id
+
+Codes are single use and expire in fifteen minutes because they travel through
+a URL. A live leaked code would let someone point their own Telegram at another
+manager's alerts — small blast radius, since an FPL squad is public and the
+alerts reveal nothing the FPL website does not, but a code that never expires is
+a standing invitation.
+
+The webhook's only authentication is the secret token Telegram echoes in
+`X-Telegram-Bot-Api-Secret-Token`. The URL is public; without checking it,
+anyone could forge an update and bind their chat to any squad.
+
+### Consent has two degrees
+
+They are different requests and conflating them is annoying:
+
+    Pause        keep the link, stop sending. Resume from the dashboard alone.
+    Disconnect   forget the chat id. Requires Telegram again to come back.
+
+### Delivered once, not once per refresh
+
+`Alert.notified_at` is the whole reason this is usable. It is deliberately
+distinct from `read_at`, which records a click in the UI — an alert can be
+delivered and never read, or read having never been sent. Without it, an
+unchanged injury would be re-sent on all ninety-six refreshes a day, and the
+channel would be muted by the first afternoon.
+
+It is stamped even when Telegram rejects the message. Retrying a permanently
+failing send every fifteen minutes for ever is worse than dropping one
+notification that is still sitting in the dashboard.
+
+Two further limits: only `critical` and `warning` are pushed (`info` is real but
+not worth a phone buzz), and a single run sends at most six messages before
+collapsing the rest into a "…and N more" line, so a mass FPL status change does
+not arrive as fifty notifications.
+
+### It fails open
+
+Delivery is wrapped in the same `step()` isolation as every other refresh stage.
+A Telegram outage, a revoked token or a manager who blocked the bot must not
+fail a refresh whose real work succeeded — the alert is saved and visible
+regardless. `TELEGRAM_BOT_TOKEN` being empty disables the whole feature
+cleanly, and the UI reports it as unavailable rather than offering a button that
+cannot work.
+
+### Setup
+
+    python scripts/telegram_setup.py whoami        # verify the token
+    python scripts/telegram_setup.py set-webhook   # register, generating a secret
+    python scripts/telegram_setup.py info          # what Telegram thinks
+
 ## Scheduling: why QStash rather than GitHub Actions
 
 GitHub Actions was the original scheduler and it does not keep time. Measured

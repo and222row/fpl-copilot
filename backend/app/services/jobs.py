@@ -29,6 +29,7 @@ from app.services.fpl_sync import (
     get_latest_started_gameweek, get_next_open_gameweek,
 )
 from app.services.change_detection import detect_changes, generate_alerts
+from app.services import notifications
 from app.services.team_strength import rebuild_team_strength
 from app.services.projection import rebuild_projections
 from app.services.squad_state import resolve_squad
@@ -103,6 +104,11 @@ async def refresh_everything(
 
     if include_alerts:
         report.steps["alerts"] = await _alerts_for_tracked(db)
+        # Push whatever that produced to anyone who opted in. Wrapped in the
+        # same step() isolation as everything else: a Telegram outage must not
+        # fail a refresh whose actual work already succeeded, and the alerts
+        # are saved and visible in the dashboard regardless.
+        await step("notifications", notifications.send_pending(db))
 
     report.duration_seconds = time.perf_counter() - started
     logger.info(

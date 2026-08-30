@@ -44,6 +44,21 @@ class Settings(BaseSettings):
     cache_enabled: bool = True
     fpl_cache_ttl_seconds: int = 90
 
+    # ── Telegram alerts (opt-in per manager) ─────────────────────────────────
+    # From @BotFather. Empty disables delivery entirely: the endpoints still
+    # respond and the UI reports it as unavailable rather than erroring.
+    telegram_bot_token: str = ""
+    # Echoed by Telegram in X-Telegram-Bot-Api-Secret-Token on every update.
+    # Without it the webhook would accept anything that found the URL.
+    telegram_webhook_secret: str = ""
+    # Only these severities are pushed. `info` is genuine but not worth a
+    # phone buzz, and sending it would train people to ignore the channel.
+    telegram_min_severities: str = "critical,warning"
+
+    @property
+    def telegram_severities(self) -> set[str]:
+        return {s.strip() for s in self.telegram_min_severities.split(",") if s.strip()}
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

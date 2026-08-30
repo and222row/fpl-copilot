@@ -114,6 +114,17 @@ class Alert(Base):
     payload: Mapped[Any | None] = mapped_column(JSON, nullable=True)
 
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # When this alert was pushed to an external channel. Distinct from
+    # `read_at`, which records the user clicking it in the UI — an alert can be
+    # delivered and never read, or read without ever having been sent.
+    #
+    # Without this the refresh would re-send every open alert on every run:
+    # ninety-six identical injury notifications a day.
+    notified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, index=True
     )
@@ -137,4 +148,47 @@ class TrackedManager(Base):
     )
     last_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    # ── Telegram delivery, opt-in per manager ────────────────────────────────
+    # Null until the manager completes the link from the dashboard. Storing the
+    # chat id here rather than in a separate table keeps "who gets alerts" a
+    # single row lookup during the refresh.
+    telegram_chat_id: Mapped[str | None] = mapped_column(
+        String(32), nullable=True, index=True
+    )
+    # Separate from having a chat id, so "pause my alerts" does not throw away
+    # the link and force the manager through Telegram again to resume.
+    telegram_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
+    telegram_linked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+class TelegramLink(Base):
+    """
+    A short-lived code that ties a Telegram chat to an FPL entry id.
+
+    There is no account system, so the two identities have to be introduced to
+    each other somehow. The dashboard mints a code, hands back a
+    `t.me/<bot>?start=<code>` deep link, and the bot receives that code when the
+    manager presses Start. Resolving it tells us which chat belongs to which
+    squad.
+
+    Single use and short lived on purpose: the code travels through a URL, and
+    anyone holding it could otherwise point their own Telegram at someone
+    else's squad.
+    """
+    __tablename__ = "telegram_links"
+
+    code: Mapped[str] = mapped_column(String(48), primary_key=True)
+    fpl_entry_id: Mapped[int] = mapped_column(Integer, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )

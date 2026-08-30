@@ -470,6 +470,23 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 // ── Endpoints ────────────────────────────────────────────────────────────────
 
+export interface NotificationStatus {
+  manager_id: number;
+  /** False when the server has no bot token, so the UI offers nothing that cannot work. */
+  available: boolean;
+  linked: boolean;
+  enabled: boolean;
+  linked_at: string | null;
+  severities: string[];
+}
+
+export interface TelegramLink {
+  deep_link: string;
+  bot_username: string;
+  expires_at: string;
+  expires_in_minutes: number;
+}
+
 export const api = {
   health: () =>
     request<{ status: string; database: string; redis: string }>("/health"),
@@ -644,4 +661,28 @@ export const api = {
       `/decisions/${managerId}${qs ? `?${qs}` : ""}`,
     );
   },
+  notificationStatus: (managerId: number) =>
+    request<NotificationStatus>(`/notifications/${managerId}`),
+
+  createTelegramLink: (managerId: number) =>
+    request<TelegramLink>(`/notifications/${managerId}/telegram/link`, {
+      method: "POST",
+    }),
+
+  setTelegramEnabled: (managerId: number, enabled: boolean) =>
+    request<NotificationStatus>(
+      `/notifications/${managerId}/telegram/enabled?enabled=${enabled}`,
+      { method: "POST" },
+    ),
+
+  unlinkTelegram: (managerId: number) =>
+    request<NotificationStatus & { unlinked: boolean }>(
+      `/notifications/${managerId}/telegram`,
+      { method: "DELETE" },
+    ),
+
+  testTelegram: (managerId: number) =>
+    request<{ sent: boolean }>(`/notifications/${managerId}/telegram/test`, {
+      method: "POST",
+    }),
 };
