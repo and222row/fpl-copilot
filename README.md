@@ -696,6 +696,45 @@ Redis completely.
 `GET /api/v1/health/cache` reports hit rate. Counters are process-local and
 reset on restart.
 
+## Scheduling: why QStash rather than GitHub Actions
+
+GitHub Actions was the original scheduler and it does not keep time. Measured
+on this repository over four days: **100 runs a day configured, 7.1 actually
+delivered**, a median gap of 157 minutes and a worst gap of 9.5 hours. The
+scheduler is documented as best-effort, and it drops missed slots rather than
+queuing them — so raising the frequency does not help, it only increases the
+number of slots dropped. Going from `*/30` to `*/15` changed nothing measurable.
+
+QStash runs a real schedule against the same `POST /api/v1/jobs/refresh`
+endpoint, and it was already part of the Upstash account this project uses for
+Redis. `scripts/qstash_schedule.py` manages it, so the schedule lives in the
+repository rather than being something someone once clicked in a console:
+
+    python scripts/qstash_schedule.py test      # deliver one refresh now
+    python scripts/qstash_schedule.py create    # create the recurring schedule
+    python scripts/qstash_schedule.py list
+
+At `*/15` that is 96 messages a day against a 500/day free tier.
+
+The GitHub workflow is deliberately left in place. Two schedulers that fail in
+different ways, pointed at an idempotent endpoint, are better than one.
+
+### The timeout is the part that matters
+
+A measured delivery took **87 seconds** — a cold Render instance plus a full
+rebuild. QStash's default timeout is far below that, and a timeout counts as a
+failed delivery, so QStash would retry a refresh that was in fact still running.
+Every scheduled run would become two or three overlapping rebuilds. The script
+sets `Upstash-Timeout: 5m` for that reason.
+
+Retries are set to 3, which is safe only because the refresh is idempotent: it
+upserts the same FPL data rather than appending.
+
+Authentication is the existing `X-Job-Token`, forwarded by QStash via
+`Upstash-Forward-X-Job-Token`. QStash also signs its requests; verifying that
+signature would be worth adding as defence in depth, but the token already
+means an attacker needs a secret rather than just the URL.
+
 ## Deployment
 
 Three hosts, all free. Supabase and Upstash already run in the cloud, so the
