@@ -149,6 +149,78 @@ async def test_alerts_are_not_crossed_between_managers(session):
     assert "For two" in by_chat["chat-2"]
 
 
+async def test_alerts_for_sold_players_are_not_pushed(session):
+    """
+    The bug this shipped with, caught in production on the first real alert.
+
+    The dashboard already hides alerts for players you no longer own, but
+    `send_pending` did not — so a price warning for a sold player arrived on a
+    phone, where there is no surrounding context to make the mistake obvious.
+    This project has now shipped that same stale-squad mistake four times.
+    """
+    await _linked_manager(session, 1)
+    session.add(_alert(1, title="Owned player news", player_id=100))
+    session.add(_alert(1, title="Sold player news", player_id=999))
+    await session.commit()
+
+    with patch.object(notifications, "_owned_player_ids",
+                      AsyncMock(return_value={100, 101})):
+        with patch.object(telegram, "send_message",
+                          AsyncMock(return_value=True)) as send:
+            result = await notifications.send_pending(session)
+
+    sent = " ".join(c.args[1] for c in send.await_args_list)
+    assert "Owned player news" in sent
+    assert "Sold player news" not in sent
+    assert result["skipped_sold"] == 1
+
+
+async def test_a_suppressed_alert_is_not_retried_forever(session):
+    """Skipping is a decision, so it is recorded like any other outcome."""
+    await _linked_manager(session, 1)
+    a = _alert(1, player_id=999)
+    session.add(a)
+    await session.commit()
+
+    with patch.object(notifications, "_owned_player_ids",
+                      AsyncMock(return_value={100})):
+        with patch.object(telegram, "send_message", AsyncMock(return_value=True)):
+            await notifications.send_pending(session)
+
+    await session.refresh(a)
+    assert a.notified_at is not None
+
+
+async def test_an_unresolvable_squad_does_not_suppress_everything(session):
+    """
+    Failing open matters more here than precision. Silently withholding every
+    alert because a squad lookup failed is a worse outcome than one message
+    about a player already sold.
+    """
+    await _linked_manager(session, 1)
+    session.add(_alert(1, player_id=999))
+    await session.commit()
+
+    with patch.object(notifications, "_owned_player_ids", AsyncMock(return_value=None)):
+        with patch.object(telegram, "send_message",
+                          AsyncMock(return_value=True)) as send:
+            await notifications.send_pending(session)
+    assert send.await_count == 1
+
+
+async def test_alerts_without_a_player_are_always_sent(session):
+    """Squad-wide notices are not about any one player."""
+    await _linked_manager(session, 1)
+    session.add(_alert(1, title="Deadline in 2 hours", player_id=None))
+    await session.commit()
+
+    with patch.object(notifications, "_owned_player_ids", AsyncMock(return_value=set())):
+        with patch.object(telegram, "send_message",
+                          AsyncMock(return_value=True)) as send:
+            await notifications.send_pending(session)
+    assert send.await_count == 1
+
+
 # ── Delivered once, not once per refresh ──────────────────────────────────────
 
 async def test_an_alert_is_sent_only_once(session):

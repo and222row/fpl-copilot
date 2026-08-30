@@ -31,6 +31,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models.news import Alert, TelegramLink, TrackedManager
 from app.services import telegram
+from app.services.fpl_sync import get_latest_started_gameweek, get_next_open_gameweek
+from app.services.squad_state import resolve_squad
 
 logger = logging.getLogger("fpl_copilot")
 
@@ -223,8 +225,10 @@ async def send_pending(db: AsyncSession, manager_id: int | None = None) -> dict:
     severities = settings.telegram_severities
     total_sent = 0
     total_failed = 0
+    total_skipped_sold = 0
 
     for manager in managers:
+        owned = await _owned_player_ids(db, manager.fpl_entry_id)
         alerts = (
             await db.execute(
                 select(Alert)
@@ -242,6 +246,15 @@ async def send_pending(db: AsyncSession, manager_id: int | None = None) -> dict:
             continue
 
         for alert in alerts:
+            # A player who has been sold is not news. The dashboard already
+            # hides these; pushing them to a phone is worse, because there is
+            # no context around the message to make the mistake obvious.
+            if owned is not None and alert.player_id is not None \
+                    and alert.player_id not in owned:
+                alert.notified_at = _utcnow()   # settled, never send it
+                total_skipped_sold += 1
+                continue
+
             ok = await telegram.send_message(
                 manager.telegram_chat_id, format_alert(alert)
             )
@@ -269,4 +282,33 @@ async def send_pending(db: AsyncSession, manager_id: int | None = None) -> dict:
             )
 
     await db.commit()
-    return {"sent": total_sent, "failed": total_failed, "managers": len(managers)}
+    return {
+        "sent": total_sent,
+        "failed": total_failed,
+        "skipped_sold": total_skipped_sold,
+        "managers": len(managers),
+    }
+
+
+async def _owned_player_ids(db: AsyncSession, manager_id: int) -> set[int] | None:
+    """
+    The squad the manager holds now, or None if it cannot be determined.
+
+    None means "do not filter": suppressing alerts on the strength of a failed
+    lookup would be a worse failure than sending one about a sold player.
+
+    Goes through `resolve_squad` rather than reading FPL picks directly. That
+    rule exists because reading picks gives the squad locked at the last
+    deadline, and this project has shipped that bug three separate times —
+    every one of them ending with advice about a player already sold.
+    """
+    try:
+        target = await get_next_open_gameweek(db)
+        started = await get_latest_started_gameweek(db)
+        if not (target and started):
+            return None
+        resolved = await resolve_squad(db, manager_id, target.id, started.id)
+        return set(resolved.player_ids)
+    except Exception:
+        logger.debug("could not resolve squad for alert filtering", exc_info=True)
+        return None
