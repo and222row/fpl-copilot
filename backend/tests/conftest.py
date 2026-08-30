@@ -169,12 +169,31 @@ def make_team(team_id: int = 1, short: str = "TST", strength: int = 1150) -> Tea
     )
 
 
+# GW1's deadline sits this far behind now, putting GW2's a few days ahead.
+GW1_DEADLINE_DAYS_AGO = 3
+
+
 def make_gameweek(gw_id: int = 1, *, is_current: bool = False,
                   is_next: bool = False, finished: bool = False) -> Gameweek:
+    """
+    Seed a gameweek whose deadline is positioned relative to now.
+
+    The deadlines used to be pinned to real dates — GW1 on 21 Aug 2026, GW2 a
+    week later. That held until 28 Aug actually arrived, at which point every
+    seeded deadline was in the past, `get_next_open_gameweek` fell back to the
+    active gameweek, and `test_gameweek_returns_the_next_open_deadline` began
+    failing on a nightly run days after anyone had touched the code.
+
+    What those tests mean is relative — "GW1 is locked, GW2 is the one to
+    target" — so the data has to be relative too, or the suite has an expiry
+    date. `kickoff_time` is left absolute deliberately: nothing compares it to
+    the clock, it only orders fixtures.
+    """
     return Gameweek(
         id=gw_id,
         name=f"Gameweek {gw_id}",
-        deadline_time=datetime(2026, 8, 21, 17, 30, tzinfo=timezone.utc)
+        deadline_time=datetime.now(timezone.utc)
+        - timedelta(days=GW1_DEADLINE_DAYS_AGO)
         + timedelta(days=7 * (gw_id - 1)),
         finished=finished,
         is_current=is_current,

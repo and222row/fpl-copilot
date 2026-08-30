@@ -187,6 +187,27 @@ async def test_gameweek_returns_the_next_open_deadline(client, seeded):
     assert body["current_gameweek"] == 1
 
 
+async def test_seeded_deadlines_are_relative_not_pinned_to_real_dates():
+    """
+    Guards against the suite acquiring an expiry date.
+
+    An earlier fixture hardcoded GW1 to 21 Aug 2026 and GW2 a week after. Both
+    were correct when written and both were in the past by 30 Aug, so the
+    "next open gameweek" test started failing on a nightly run with nothing
+    changed. A fixture that only passes during a particular week is not a
+    fixture, so assert the relationship directly rather than trusting a date.
+    """
+    from tests.conftest import make_gameweek
+
+    now = datetime.now(timezone.utc)
+    assert make_gameweek(1).deadline_time < now, "GW1 must always be locked"
+    assert make_gameweek(2).deadline_time > now, "GW2 must always be open"
+
+    # And it has to keep holding, not just today.
+    later = make_gameweek(3).deadline_time
+    assert later > make_gameweek(2).deadline_time
+
+
 async def test_fixtures_resolve_team_names(client, seeded):
     r = await client.get("/api/v1/fpl/fixtures?gameweek=1")
     row = r.json()[0]
