@@ -28,6 +28,28 @@ def _dt(val: str | None) -> datetime | None:
     return datetime.fromisoformat(val.replace("Z", "+00:00"))
 
 
+def _touch_if_changed(db: AsyncSession, row) -> bool:
+    """
+    Stamp `updated_at` only when something else on the row actually changed.
+
+    Assigning it unconditionally makes every row dirty on every sync, because
+    the timestamp always differs. SQLAlchemy then emits an UPDATE for all 612
+    players, 20 teams and 38 gameweeks on each refresh — about 670 writes to a
+    remote Postgres to record that nothing happened. At 96 refreshes a day that
+    is 1.6 million pointless statements in under a month, and it is what
+    exhausted the free bandwidth allowance.
+
+    Returns whether the row was dirty, so callers can report real change counts
+    rather than row totals.
+    """
+    if row in db.new:
+        return True
+    if db.is_modified(row, include_collections=False):
+        row.updated_at = utcnow()
+        return True
+    return False
+
+
 async def sync_bootstrap(db: AsyncSession) -> dict:
     """
     Fetch FPL bootstrap-static and upsert teams, gameweeks and players.
@@ -50,7 +72,7 @@ async def sync_bootstrap(db: AsyncSession) -> dict:
         row.strength_attack_away = _i(t.get("strength_attack_away"))
         row.strength_defence_home = _i(t.get("strength_defence_home"))
         row.strength_defence_away = _i(t.get("strength_defence_away"))
-        row.updated_at = utcnow()
+        _touch_if_changed(db, row)
     teams_count = len(data.get("teams", []))
     await db.flush()
 
@@ -68,7 +90,7 @@ async def sync_bootstrap(db: AsyncSession) -> dict:
         row.is_previous = bool(gw.get("is_previous"))
         row.average_entry_score = _i(gw.get("average_entry_score"))
         row.highest_score = _i(gw.get("highest_score"))
-        row.updated_at = utcnow()
+        _touch_if_changed(db, row)
     gws_count = len(data.get("events", []))
     await db.flush()
 
@@ -149,7 +171,7 @@ async def sync_bootstrap(db: AsyncSession) -> dict:
         row.cost_change_event = _i(p.get("cost_change_event"))
         row.cost_change_start = _i(p.get("cost_change_start"))
 
-        row.updated_at = utcnow()
+        _touch_if_changed(db, row)
     players_count = len(data.get("elements", []))
 
     # ── Scoring rules ────────────────────────────────────────────────────────

@@ -822,6 +822,46 @@ cannot work.
     python scripts/telegram_setup.py set-webhook   # register, generating a secret
     python scripts/telegram_setup.py info          # what Telegram thinks
 
+## Bandwidth: the refresh was rewriting the database to say nothing happened
+
+Render suspended the service on 24 Sep for exhausting the 5 GB free bandwidth
+allowance in twenty-five days. Measured afterwards, FPL traffic accounted for
+only 0.43 GB of that — the bootstrap is 0.16 MB gzipped and fixtures 0.02 MB.
+The rest was the refresh talking to Supabase.
+
+Two causes, both of them work that achieved nothing:
+
+**Every row was updated on every sync.** `row.updated_at = utcnow()` ran
+unconditionally inside each upsert loop, so the timestamp always differed and
+SQLAlchemy emitted an UPDATE for all 612 players, 20 teams and 38 gameweeks —
+about 670 writes per refresh to record that nothing had changed. At 96 refreshes
+a day that is 1.6 million statements in under a month. `_touch_if_changed` now
+stamps the timestamp only when `is_modified` reports the row genuinely dirty.
+Measured on two consecutive syncs with nothing moving in between: **653 writes,
+then 1**.
+
+**Projections were rebuilt regardless.** Team strength and 3,060 projection rows
+were recomputed every run, producing identical numbers, because FPL prices move
+once a day and news a handful of times. The refresh now reads the answer
+`detect_changes` has already produced and skips both when nothing moved.
+
+The skip only applies when the preceding steps succeeded. A failed bootstrap
+also reports zero events — because nothing was written, not because nothing
+moved — and an existing test caught the first version of the gate treating those
+as the same thing.
+
+### What actually caused it
+
+Making the scheduler reliable. While GitHub Actions was dropping ninety-three
+percent of scheduled runs, the waste stayed under the allowance by accident.
+Moving to QStash, which honours the schedule, turned 7 effective refreshes a day
+into 96 and exposed work that had always been pointless. The frequency was the
+trigger; the write amplification was the bug.
+
+Frequency is now every 30 minutes rather than 15 — halving it also keeps the
+retry traffic well inside QStash's 500 messages a day, which 96 scheduled runs
+with three retries each could have breached on its own.
+
 ## Scheduling: why QStash rather than GitHub Actions
 
 GitHub Actions was the original scheduler and it does not keep time. Measured

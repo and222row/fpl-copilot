@@ -79,6 +79,7 @@ async def refresh_everything(
     *,
     horizon: int = 5,
     include_alerts: bool = True,
+    force: bool = False,
 ) -> dict:
     """
     Run the full refresh chain.
@@ -100,8 +101,34 @@ async def refresh_everything(
     await step("bootstrap", sync_bootstrap(db))
     await step("fixtures", sync_fixtures(db))
     await step("detect_changes", detect_changes(db))
-    await step("team_strength", rebuild_team_strength(db))
-    await step("projections", rebuild_projections(db, horizon=horizon))
+
+    # Rebuilding team strength and projections writes ~3,000 rows to a remote
+    # Postgres. At 96 refreshes a day that reached 5 GB of egress in 25 days and
+    # got the service suspended — while producing identical numbers, because FPL
+    # prices move once a day and news a handful of times.
+    #
+    # detect_changes has just established whether anything actually moved, so
+    # use its answer rather than rebuilding on faith. The explicit rebuild
+    # endpoints still force the work when it is genuinely wanted.
+    detected = report.steps.get("detect_changes") or {}
+    nothing_moved = (
+        detected.get("events_detected") == 0
+        and not detected.get("first_run")
+        and not force
+        # Only trustworthy if the steps feeding it succeeded. A failed
+        # bootstrap also yields zero events — because nothing was written,
+        # not because nothing moved — and skipping on that evidence would
+        # leave the dataset stale precisely when a refresh mattered most.
+        and not report.errors
+    )
+
+    if nothing_moved:
+        skipped = {"skipped": "no player data changed since the last refresh"}
+        report.steps["team_strength"] = skipped
+        report.steps["projections"] = skipped
+    else:
+        await step("team_strength", rebuild_team_strength(db))
+        await step("projections", rebuild_projections(db, horizon=horizon))
 
     if include_alerts:
         report.steps["alerts"] = await _alerts_for_tracked(db)

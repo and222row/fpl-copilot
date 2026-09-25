@@ -361,3 +361,101 @@ async def test_scheduler_survives_a_failing_job():
     finally:
         settings.scheduler_enabled = original
         await scheduler.stop()
+
+
+# ── Not rewriting the database to record that nothing happened ───────────────
+
+async def test_quiet_refresh_skips_the_expensive_rebuilds(session):
+    """
+    The bug that suspended the service.
+
+    Rebuilding team strength and projections writes ~3,000 rows to a remote
+    Postgres. Doing it 96 times a day when FPL had not moved reached 5 GB of
+    egress in 25 days — the entire free allowance — to recompute identical
+    numbers.
+    """
+    from unittest.mock import AsyncMock, patch
+    import app.services.jobs as jobs
+
+    with patch.object(jobs, "sync_bootstrap", AsyncMock(return_value={})), \
+         patch.object(jobs, "sync_fixtures", AsyncMock(return_value={})), \
+         patch.object(jobs, "detect_changes",
+                      AsyncMock(return_value={"events_detected": 0, "first_run": False})), \
+         patch.object(jobs, "rebuild_team_strength", AsyncMock()) as ts, \
+         patch.object(jobs, "rebuild_projections", AsyncMock()) as pr:
+        report = await jobs.refresh_everything(session, include_alerts=False)
+
+    ts.assert_not_awaited()
+    pr.assert_not_awaited()
+    assert "skipped" in report["steps"]["projections"]
+    assert report["ok"] is True
+
+
+async def test_a_real_change_still_rebuilds(session):
+    from unittest.mock import AsyncMock, patch
+    import app.services.jobs as jobs
+
+    with patch.object(jobs, "sync_bootstrap", AsyncMock(return_value={})), \
+         patch.object(jobs, "sync_fixtures", AsyncMock(return_value={})), \
+         patch.object(jobs, "detect_changes",
+                      AsyncMock(return_value={"events_detected": 3, "first_run": False})), \
+         patch.object(jobs, "rebuild_team_strength", AsyncMock()) as ts, \
+         patch.object(jobs, "rebuild_projections", AsyncMock()) as pr:
+        await jobs.refresh_everything(session, include_alerts=False)
+
+    ts.assert_awaited_once()
+    pr.assert_awaited_once()
+
+
+async def test_the_first_run_always_rebuilds(session):
+    """A baseline run reports zero events but has everything still to build."""
+    from unittest.mock import AsyncMock, patch
+    import app.services.jobs as jobs
+
+    with patch.object(jobs, "sync_bootstrap", AsyncMock(return_value={})), \
+         patch.object(jobs, "sync_fixtures", AsyncMock(return_value={})), \
+         patch.object(jobs, "detect_changes",
+                      AsyncMock(return_value={"events_detected": 0, "first_run": True})), \
+         patch.object(jobs, "rebuild_team_strength", AsyncMock()) as ts, \
+         patch.object(jobs, "rebuild_projections", AsyncMock()) as pr:
+        await jobs.refresh_everything(session, include_alerts=False)
+
+    ts.assert_awaited_once()
+    pr.assert_awaited_once()
+
+
+async def test_force_overrides_the_skip(session):
+    from unittest.mock import AsyncMock, patch
+    import app.services.jobs as jobs
+
+    with patch.object(jobs, "sync_bootstrap", AsyncMock(return_value={})), \
+         patch.object(jobs, "sync_fixtures", AsyncMock(return_value={})), \
+         patch.object(jobs, "detect_changes",
+                      AsyncMock(return_value={"events_detected": 0, "first_run": False})), \
+         patch.object(jobs, "rebuild_team_strength", AsyncMock()) as ts, \
+         patch.object(jobs, "rebuild_projections", AsyncMock()) as pr:
+        await jobs.refresh_everything(session, include_alerts=False, force=True)
+
+    ts.assert_awaited_once()
+    pr.assert_awaited_once()
+
+
+async def test_a_failed_bootstrap_does_not_trigger_the_skip(session):
+    """
+    Zero events after a failed bootstrap means nothing was *written*, not that
+    nothing moved. Skipping on that evidence would leave the data stale exactly
+    when a refresh mattered.
+    """
+    from unittest.mock import AsyncMock, patch
+    import app.services.jobs as jobs
+
+    with patch.object(jobs, "sync_bootstrap", AsyncMock(side_effect=RuntimeError("FPL down"))), \
+         patch.object(jobs, "sync_fixtures", AsyncMock(return_value=380)), \
+         patch.object(jobs, "detect_changes",
+                      AsyncMock(return_value={"events_detected": 0, "first_run": False})), \
+         patch.object(jobs, "rebuild_team_strength", AsyncMock()) as ts, \
+         patch.object(jobs, "rebuild_projections", AsyncMock()) as pr:
+        await jobs.refresh_everything(session, include_alerts=False)
+
+    ts.assert_awaited_once()
+    pr.assert_awaited_once()
