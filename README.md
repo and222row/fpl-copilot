@@ -850,6 +850,18 @@ also reports zero events — because nothing was written, not because nothing
 moved — and an existing test caught the first version of the gate treating those
 as the same thing.
 
+### A suspended service does not deploy
+
+Render resumed the build it had before suspension rather than pulling the
+newest commit. The fix had been pushed *while* the service was suspended, so
+the auto-deploy webhook had nothing to deploy to, and on resume the old image
+simply restarted. Confirmed after the 1 Oct reset: the refresh response carried
+`gameweek_shape` and `notifications` but no skip marker, which places the
+running build at the commit before the fix.
+
+Worth checking explicitly after any suspension — the service being healthy says
+nothing about which commit it is healthy on.
+
 ### What actually caused it
 
 Making the scheduler reliable. While GitHub Actions was dropping ninety-three
