@@ -379,3 +379,33 @@ def deadline_has_passed(gw: Gameweek) -> bool:
     if deadline.tzinfo is None:
         deadline = deadline.replace(tzinfo=timezone.utc)
     return datetime.now(timezone.utc) >= deadline
+
+
+# ── "Confirmed current", as distinct from "last changed" ─────────────────────
+
+VERIFIED_KEY = "refresh_verified"
+
+
+async def record_verified(db: AsyncSession) -> None:
+    """
+    Stamp the moment a refresh confirmed the data matches FPL.
+
+    Called only when every data step succeeded. A refresh that errored has not
+    confirmed anything, and stamping it anyway would let freshness report
+    current data that might not be.
+    """
+    from app.models.fpl import SyncState
+
+    row = await db.get(SyncState, VERIFIED_KEY)
+    if row is None:
+        db.add(SyncState(key=VERIFIED_KEY, at=utcnow()))
+    else:
+        row.at = utcnow()
+    await db.commit()
+
+
+async def last_verified(db: AsyncSession):
+    from app.models.fpl import SyncState
+
+    row = await db.get(SyncState, VERIFIED_KEY)
+    return row.at if row else None

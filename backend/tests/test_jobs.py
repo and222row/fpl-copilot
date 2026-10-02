@@ -459,3 +459,35 @@ async def test_a_failed_bootstrap_does_not_trigger_the_skip(session):
 
     ts.assert_awaited_once()
     pr.assert_awaited_once()
+
+
+# ── "Confirmed current" versus "last changed" ────────────────────────────────
+
+async def test_a_clean_refresh_records_that_it_verified(session):
+    from unittest.mock import AsyncMock, patch
+    import app.services.jobs as jobs
+    from app.services.fpl_sync import last_verified
+
+    with patch.object(jobs, "sync_bootstrap", AsyncMock(return_value={})), \
+         patch.object(jobs, "sync_fixtures", AsyncMock(return_value={})), \
+         patch.object(jobs, "detect_changes",
+                      AsyncMock(return_value={"events_detected": 0, "first_run": False})):
+        await jobs.refresh_everything(session, include_alerts=False)
+
+    assert await last_verified(session) is not None
+
+
+async def test_a_failed_refresh_does_not_claim_verification(session):
+    """A refresh that errored has confirmed nothing; freshness must not say otherwise."""
+    from unittest.mock import AsyncMock, patch
+    import app.services.jobs as jobs
+    from app.services.fpl_sync import last_verified
+
+    with patch.object(jobs, "sync_bootstrap", AsyncMock(side_effect=RuntimeError("down"))), \
+         patch.object(jobs, "sync_fixtures", AsyncMock(return_value={})), \
+         patch.object(jobs, "detect_changes", AsyncMock(return_value={"events_detected": 0})), \
+         patch.object(jobs, "rebuild_team_strength", AsyncMock()), \
+         patch.object(jobs, "rebuild_projections", AsyncMock()):
+        await jobs.refresh_everything(session, include_alerts=False)
+
+    assert await last_verified(session) is None

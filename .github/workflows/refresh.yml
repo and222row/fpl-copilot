@@ -87,16 +87,20 @@ jobs:
           except Exception:
               print("::notice::could not read freshness (cold start is normal)")
               raise SystemExit
-          ages = [v.get('age_minutes') for v in (d.get('data_sets') or {}).values()
-                  if isinstance(v.get('age_minutes'), (int, float))]
-          if not ages:
+          # Time since the last refresh that confirmed the data — not the age
+          # of the newest row. Unchanged rows are no longer rewritten, so row
+          # age grows through any quiet spell and would read as a missed slot
+          # when nothing was missed at all.
+          since = (d.get('last_verified') or {}).get('age_minutes')
+          if not isinstance(since, (int, float)):
+              print("::notice::no verified refresh recorded yet")
               raise SystemExit
-          worst = max(ages)
-          print(f"Oldest data set on arrival: {worst:.1f} minutes")
-          if worst > 40:
-              print(f"::warning::Data was {worst:.1f} minutes old — a scheduled "
-                    f"slot was skipped. GitHub's cron is best-effort; this run "
-                    f"is catching up.")
+          print(f"Last confirmed refresh: {since:.1f} minutes ago")
+          # QStash runs every 30 minutes; past 45 means a delivery was missed.
+          if since > 45:
+              print(f"::warning::Last confirmed refresh was {since:.1f} minutes "
+                    f"ago — a scheduled delivery was missed. This run is "
+                    f"catching up.")
           PY
 
       - name: Trigger refresh

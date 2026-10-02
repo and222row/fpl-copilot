@@ -390,3 +390,42 @@ async def test_deadline_check_handles_a_naive_timestamp():
 
 async def test_missing_deadline_is_not_treated_as_passed():
     assert deadline_has_passed(Gameweek(id=1, name="GW1", deadline_time=None)) is False
+
+
+async def test_quiet_data_confirmed_recently_reads_as_fresh(client, session, seeded):
+    """
+    The regression that failed every quiet-period refresh.
+
+    Unchanged rows are no longer rewritten, so their timestamps stop moving.
+    Data last changed three hours ago but confirmed a minute ago is current, and
+    reporting it as "aging" failed refreshes that had succeeded.
+    """
+    from datetime import datetime, timedelta, timezone
+    from app.models.fpl import Player, SyncState
+    from sqlalchemy import update
+
+    three_hours_ago = datetime.now(timezone.utc) - timedelta(hours=3)
+    await session.execute(update(Player).values(updated_at=three_hours_ago))
+    session.add(SyncState(key="refresh_verified",
+                          at=datetime.now(timezone.utc) - timedelta(minutes=1)))
+    await session.commit()
+
+    body = (await client.get("/api/v1/health/freshness")).json()
+    players = body["data_sets"]["players"]
+    assert players["status"] == "fresh"
+    assert players["changed_at"] is not None and players["verified_at"] is not None
+    assert body["last_verified"]["age_minutes"] < 5
+
+
+async def test_without_a_verification_freshness_falls_back_to_row_age(client, session, seeded):
+    from datetime import datetime, timedelta, timezone
+    from app.models.fpl import Player
+    from sqlalchemy import update
+
+    await session.execute(update(Player).values(
+        updated_at=datetime.now(timezone.utc) - timedelta(hours=3)))
+    await session.commit()
+
+    body = (await client.get("/api/v1/health/freshness")).json()
+    assert body["data_sets"]["players"]["status"] == "aging"
+    assert body["last_verified"]["at"] is None

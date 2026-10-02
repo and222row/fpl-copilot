@@ -227,3 +227,23 @@ class PlayerGameweekStat(Base):
     expected_goals_conceded: Mapped[float] = mapped_column(Float, default=0.0)
     value: Mapped[int] = mapped_column(Integer, default=0)   # price at the time
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class SyncState(Base):
+    """
+    When the app last confirmed its data against FPL.
+
+    Deliberately separate from each table's `updated_at`, which records when a
+    row last *changed*. The two used to be the same moment, because every
+    refresh rewrote every row. Once unchanged rows stopped being rewritten — to
+    stop burning bandwidth — they diverged: three quiet hours made perfectly
+    current projections look three hours old, and the freshness check began
+    failing refreshes that had succeeded.
+
+    "Changed 3 hours ago, confirmed current 2 minutes ago" is the truthful
+    answer, and it needs both timestamps to give it.
+    """
+    __tablename__ = "sync_state"
+
+    key: Mapped[str] = mapped_column(String(40), primary_key=True)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

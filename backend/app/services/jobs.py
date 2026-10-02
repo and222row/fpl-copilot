@@ -26,7 +26,7 @@ from sqlalchemy import select
 from app.models.news import TrackedManager, utcnow
 from app.services.fpl_sync import (
     sync_bootstrap, sync_fixtures, get_active_gameweek,
-    get_latest_started_gameweek, get_next_open_gameweek,
+    get_latest_started_gameweek, get_next_open_gameweek, record_verified,
 )
 from app.services.change_detection import detect_changes, generate_alerts
 from app.services import notifications
@@ -129,6 +129,13 @@ async def refresh_everything(
     else:
         await step("team_strength", rebuild_team_strength(db))
         await step("projections", rebuild_projections(db, horizon=horizon))
+
+    # The data is now confirmed current — rebuilt, or checked and found
+    # unchanged. Record that separately from row timestamps, which only move
+    # when something changes; freshness reads this. Not stamped on any data
+    # error, because a failed refresh has confirmed nothing.
+    if not report.errors:
+        await step("verified", record_verified(db))
 
     if include_alerts:
         report.steps["alerts"] = await _alerts_for_tracked(db)

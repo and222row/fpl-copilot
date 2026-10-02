@@ -7,6 +7,7 @@ from app.redis_client import ping_redis
 from app.models.fpl import Player, Fixture, Gameweek
 from app.models.projections import Projection, TeamStrength, ScoringRules
 from app.services import cache
+from app.services.fpl_sync import last_verified
 
 router = APIRouter(tags=["health"])
 
@@ -50,12 +51,30 @@ async def data_freshness(db: AsyncSession = Depends(get_db)):
     async def count(model) -> int:
         return (await db.execute(select(func.count()).select_from(model))).scalar() or 0
 
-    def age(ts: datetime | None) -> dict:
-        if ts is None:
-            return {"updated_at": None, "age_minutes": None, "status": "missing"}
-        if ts.tzinfo is None:
+    def _utc(ts: datetime | None) -> datetime | None:
+        if ts is not None and ts.tzinfo is None:
             ts = ts.replace(tzinfo=timezone.utc)
-        minutes = (now - ts).total_seconds() / 60
+        return ts
+
+    verified = _utc(await last_verified(db))
+
+    def age(changed: datetime | None) -> dict:
+        """
+        Judge freshness by when the data was last *confirmed*, not changed.
+
+        Unchanged rows are no longer rewritten on every refresh, so a table's
+        newest `updated_at` stops moving during a quiet spell. Reading that as
+        age made three quiet hours look like three stale hours and failed
+        refreshes that had succeeded. The effective time is whichever is more
+        recent: the last change, or the last refresh that confirmed it.
+        """
+        changed = _utc(changed)
+        if changed is None:
+            # Confirmation cannot make an empty table current.
+            return {"changed_at": None, "verified_at": None,
+                    "age_minutes": None, "status": "missing"}
+        effective = max(t for t in (changed, verified) if t is not None)
+        minutes = (now - effective).total_seconds() / 60
         if minutes < 60:
             status = "fresh"
         elif minutes < 60 * 24:
@@ -63,7 +82,8 @@ async def data_freshness(db: AsyncSession = Depends(get_db)):
         else:
             status = "stale"
         return {
-            "updated_at": ts.isoformat(),
+            "changed_at": changed.isoformat(),
+            "verified_at": verified.isoformat() if verified else None,
             "age_minutes": round(minutes, 1),
             "status": status,
         }
@@ -105,6 +125,12 @@ async def data_freshness(db: AsyncSession = Depends(get_db)):
     return {
         "status": overall,
         "checked_at": now.isoformat(),
+        # Time since the last refresh that confirmed the data. This, not
+        # row age, is what reveals a skipped schedule slot.
+        "last_verified": {
+            "at": verified.isoformat() if verified else None,
+            "age_minutes": round((now - verified).total_seconds() / 60, 1) if verified else None,
+        },
         "data_sets": sets,
         "row_counts": counts,
         "matches_played": matches_played,
