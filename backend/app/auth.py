@@ -213,8 +213,8 @@ async def require_manager_access(
     """
     Gate any route keyed by an FPL team id to the account that connected it.
 
-    Anonymous callers pass only while AUTH_REQUIRED is off (the legacy web
-    dashboard has no login). A token, when present, is always enforced.
+    Anonymous callers pass only while AUTH_REQUIRED is off, which production
+    never is. A token, when present, is always enforced.
     """
     if user is None:
         if settings.auth_required:

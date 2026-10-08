@@ -129,6 +129,7 @@ async def revenuecat_webhook(
     x_revenuecat_webhook_signature: str | None = Header(None),
     db: AsyncSession = Depends(get_db),
 ):
+    """Subscription events from RevenueCat, used as a cue to re-read the customer."""
     if not settings.revenuecat_webhook_auth:
         raise HTTPException(503, "Billing webhook is not configured")
     # In production an unsigned delivery could be replayed, so signing is

@@ -95,6 +95,7 @@ async def _owned(db: AsyncSession, user: AuthUser) -> list[FplAccount]:
 
 @router.get("")
 async def me(user: AuthUser = Depends(current_user), db: AsyncSession = Depends(get_db)):
+    """The caller's identity (from the token) and connected FPL team."""
     return {
         "id": str(user.id),
         "email": user.email,
@@ -242,6 +243,7 @@ async def disconnect_fpl_account(
     user: AuthUser = Depends(current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Disconnect a team and drop its private state (overrides, alert links)."""
     account = await db.scalar(
         select(FplAccount).where(
             FplAccount.user_id == user.id, FplAccount.fpl_entry_id == fpl_entry_id
@@ -324,6 +326,7 @@ async def unregister_device(
 
 @router.get("/notifications")
 async def get_notification_settings(user: AuthUser = Depends(current_user), db: AsyncSession = Depends(get_db)):
+    """Which push notification kinds are on (all on until changed)."""
     return _prefs_dict(await db.get(NotificationPreference, user.id))
 
 
@@ -333,6 +336,7 @@ async def update_notification_settings(
     user: AuthUser = Depends(current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Switch push notification kinds on or off; omitted kinds are unchanged."""
     prefs = await db.get(NotificationPreference, user.id)
     if prefs is None:
         prefs = NotificationPreference(user_id=user.id)

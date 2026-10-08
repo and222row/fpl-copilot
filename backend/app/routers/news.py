@@ -205,6 +205,7 @@ async def mark_alerts_read(
     alert_id: int | None = Query(None, description="Omit to mark all as read"),
     db: AsyncSession = Depends(get_db),
 ):
+    """Mark one alert, or all of them, as read."""
     stmt = update(Alert).where(
         Alert.fpl_entry_id == manager_id, Alert.read_at.is_(None)
     )

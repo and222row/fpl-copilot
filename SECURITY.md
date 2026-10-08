@@ -5,6 +5,15 @@
 Email the maintainer rather than opening a public issue. Include steps to
 reproduce. Do not test against production data you do not own.
 
+## Where the controls are described
+
+- Sign-in, token verification, authorisation, team ownership, account
+  deletion: [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md)
+- Purchases, entitlements, webhook verification: [docs/PAYMENTS.md](docs/PAYMENTS.md)
+- Logging, redaction and what reaches third-party monitoring:
+  [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md)
+- Secrets and where each one lives: [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md)
+
 ## Pre-release security review — 2026-10-08
 
 Scope: FastAPI backend, Expo mobile app, Next.js dashboard, CI, and the
@@ -95,7 +104,7 @@ web, retire it, or limit it to free data), sign-in was chosen:
 | Network | HTTPS-only release builds; ATS on iOS; no pinning (L7). |
 | Platform | Deep links pass through the same access gate; destructive actions need confirmation; no WebViews. |
 | Code | Dependency audits in CI; no secrets in the bundle. |
-| Privacy | Minimal PII (no email/phone stored by the backend); account deletion removes personal data. Crash and error reports (Sentry) carry no user identity, IP, request bodies, local variables or screenshots; see OBSERVABILITY.md. |
+| Privacy | Minimal PII (no email/phone stored by the backend); account deletion removes personal data. Crash and error reports (Sentry) carry no user identity, IP, request bodies, local variables or screenshots; see [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md). |
 
 ### Before release (security)
 
@@ -107,7 +116,7 @@ web, retire it, or limit it to free data), sign-in was chosen:
       `AUTH_REQUIRED=true`. Confirm the production response carries the
       `Content-Security-Policy` header.
 - [ ] Supabase → Authentication → URL Configuration: the web site's URL as the
-      Site URL and in Redirect URLs (plus `http://localhost:3001` for
+      Site URL and in Redirect URLs (plus your local origin for
       development). Apple sign-in on the web needs an Apple **Services ID**
       with Supabase's callback URL as its return URL.
 - [ ] Set in production: `JOB_TOKEN`, `REVENUECAT_WEBHOOK_AUTH`,
@@ -117,7 +126,7 @@ web, retire it, or limit it to free data), sign-in was chosen:
 - [ ] Supabase: JWT expiry 15 min; email sign-in off in production; Apple and
       Google providers configured.
 - [ ] RevenueCat: Restore Behavior "transfer if no active subscriptions".
-- [ ] Monitoring (OBSERVABILITY.md): `SENTRY_DSN` on Render,
+- [ ] Monitoring ([docs/OBSERVABILITY.md](docs/OBSERVABILITY.md)): `SENTRY_DSN` on Render,
       `EXPO_PUBLIC_SENTRY_DSN` in EAS, `SENTRY_AUTH_TOKEN` in EAS as a
       sensitive variable only, `HEALTHCHECKS_PING_URL` on Render. Set a
       per-key rate limit on each Sentry project.

@@ -89,6 +89,7 @@ async def list_players(
     limit: int = Query(50, ge=1, le=300),
     db: AsyncSession = Depends(get_db),
 ):
+    """Players from the synced FPL data, filtered and sorted."""
     sort_col = {
         "total_points": Player.total_points,
         "form": Player.form,
@@ -114,6 +115,7 @@ async def list_players(
 
 @router.get("/players/{player_id}")
 async def get_player(player_id: int, db: AsyncSession = Depends(get_db)):
+    """One player's synced FPL data."""
     row = (await db.execute(
         select(Player, Team.name, Team.short_name)
         .join(Team, Player.team_id == Team.id)
@@ -152,6 +154,7 @@ async def get_player(player_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.get("/teams")
 async def list_teams(db: AsyncSession = Depends(get_db)):
+    """All 20 clubs with their strength ratings."""
     rows = (await db.execute(select(Team).order_by(Team.name))).scalars().all()
     return [
         {
@@ -177,6 +180,7 @@ async def list_fixtures(
     limit: int = Query(50, ge=1, le=400),
     db: AsyncSession = Depends(get_db),
 ):
+    """Fixtures, optionally for one gameweek or club."""
     q = select(Fixture)
     if gameweek:
         q = q.where(Fixture.gameweek_id == gameweek)
