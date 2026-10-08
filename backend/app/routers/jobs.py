@@ -55,7 +55,7 @@ async def refresh(
     )
 
 
-@router.get("/status")
+@router.get("/status", dependencies=[Depends(require_job_token)])
 async def status(db: AsyncSession = Depends(get_db)):
     """Whether background refresh is on, and who it generates alerts for."""
     managers = (await db.execute(
@@ -84,7 +84,7 @@ async def status(db: AsyncSession = Depends(get_db)):
     }
 
 
-@router.post("/track/{manager_id}")
+@router.post("/track/{manager_id}", dependencies=[Depends(require_job_token)])
 async def track(
     manager_id: int,
     team_name: str = Query("", description="Optional label"),
@@ -100,7 +100,7 @@ async def track(
     return {"tracked": manager_id, "alerts_enabled": True}
 
 
-@router.delete("/track/{manager_id}")
+@router.delete("/track/{manager_id}", dependencies=[Depends(require_job_token)])
 async def untrack(manager_id: int, db: AsyncSession = Depends(get_db)):
     """Stop generating background alerts for a team ID."""
     row = await db.get(TrackedManager, manager_id)
