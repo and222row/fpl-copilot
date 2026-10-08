@@ -59,6 +59,15 @@ async def test_the_real_app_has_the_limit(client, monkeypatch):
     assert r.status_code == 413
 
 
+async def test_middleware_rejections_still_carry_request_id_and_headers(client):
+    """Request context and security headers wrap every other middleware."""
+    r = await client.post("/api/v1/me/fpl-accounts", content=b"x" * (settings.max_request_bytes + 1),
+                          headers={"Content-Type": "application/json", "X-Request-ID": "big-body-1"})
+    assert r.status_code == 413
+    assert r.headers["x-request-id"] == "big-body-1"
+    assert r.headers["x-content-type-options"] == "nosniff"
+
+
 # ── Headers ──────────────────────────────────────────────────────────────────
 
 async def test_responses_are_not_cacheable(client):

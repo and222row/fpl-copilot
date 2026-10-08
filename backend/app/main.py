@@ -70,9 +70,9 @@ app = FastAPI(
 
 app.state.limiter = limiter
 
-# Order matters: request context is outermost so its ID covers everything,
-# including rate-limit rejections.
-app.add_middleware(RequestContextMiddleware)
+# Starlette makes the LAST middleware added the OUTERMOST. Added here, inner
+# to outer: rate limits, body size, CORS, then the security headers below and
+# the request context last of all.
 app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_request_bytes)
 app.add_middleware(
@@ -103,6 +103,12 @@ async def security_headers(request: Request, call_next):
             "max-age=31536000; includeSubDomains"
         )
     return response
+
+
+# Outermost, so its request ID and log line cover every response, including
+# ones refused by the middleware inside it (413 body too large, 429 default
+# rate limit).
+app.add_middleware(RequestContextMiddleware)
 
 
 @app.exception_handler(RateLimitExceeded)
@@ -156,6 +162,7 @@ app.include_router(billing.router, prefix="/api/v1")
 
 @app.get("/")
 async def root():
+    """Service name and version."""
     return {
         "service": "FPL Copilot API",
         "version": app.version,
