@@ -132,7 +132,7 @@ by `app.config.ts` at build time and do not reach the bundle.
 | `EXPO_PUBLIC_SENTRY_DSN` | yes | Sentry React Native DSN. Empty disables crash reporting. |
 | `EXPO_PUBLIC_E2E` | yes | `true` only in the `e2e` EAS profile: shows the email sign-in used by Maestro. CI fails if any other profile sets it; production pins `false`. |
 | `GOOGLE_IOS_URL_SCHEME` | no | The reversed iOS client ID, for the Google sign-in config plugin. |
-| `EAS_PROJECT_ID` | no | From `npx eas-cli@latest init`. Push tokens are issued per EAS project. |
+| `EAS_PROJECT_ID` | no | Overrides the EAS project ID in `app.config.ts` (@and2row/fpl-copilot), e.g. to build under another Expo account. Push tokens are issued per EAS project. |
 | `SENTRY_ORG`, `SENTRY_PROJECT` | no | Turn on source map and debug symbol upload in EAS builds. |
 | `SENTRY_URL` | no | Sentry host for uploads; defaults to `https://sentry.io/`. |
 | `SENTRY_AUTH_TOKEN` | no, **secret** | Sentry organisation token for the upload. EAS environment only, as a sensitive variable. Never in `.env` or an `EXPO_PUBLIC_` name. |

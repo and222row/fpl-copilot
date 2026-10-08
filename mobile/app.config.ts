@@ -25,6 +25,7 @@ const sentryPlugin: [string, Record<string, string>][] =
 const config: ExpoConfig = {
   name: 'FPL Copilot',
   slug: 'fpl-copilot',
+  owner: 'and2row',
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
@@ -81,9 +82,10 @@ const config: ExpoConfig = {
     reactCompiler: true,
   },
   extra: {
-    // From `npx eas-cli@latest init`. Push tokens are issued per EAS project;
-    // without it the app reports push as unavailable instead of failing.
-    eas: { projectId: process.env.EAS_PROJECT_ID || undefined },
+    // @and2row/fpl-copilot on expo.dev. Not a secret: it identifies the
+    // project for builds and push tokens. EAS_PROJECT_ID overrides it, e.g.
+    // for a fork building under another Expo account.
+    eas: { projectId: process.env.EAS_PROJECT_ID || '8b7f22a6-4f1f-481f-b1a8-9a02f5e4d4ee' },
     // Tags crash reports with the EAS build profile (production, preview...).
     sentryEnvironment: process.env.EAS_BUILD_PROFILE ?? 'local',
   },

@@ -142,7 +142,9 @@ difference from the models.
 ### One-time
 
 1. Developer accounts: Apple Developer Program and Google Play Console.
-2. `cd mobile && npx eas-cli@latest init`, then set `EAS_PROJECT_ID`.
+2. The Expo project exists (@and2row/fpl-copilot) and its ID is in
+   `app.config.ts`. Under another account, run `npx eas-cli@latest init` and
+   set `EAS_PROJECT_ID` (or replace the ID).
 3. Confirm the bundle id `com.fplcopilot.app` in `app.config.ts`. It is
    permanent once either store has a build.
 4. Credentials: `npx eas-cli@latest credentials` for signing, the APNs key
