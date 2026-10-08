@@ -26,6 +26,9 @@ const config: ExpoConfig = {
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
     predictiveBackGestureEnabled: false,
+    // The session is encrypted and its key never leaves the Keystore, but
+    // nothing here needs backing up, so keep app data out of device backups.
+    allowBackup: false,
   },
   web: {
     output: 'static',

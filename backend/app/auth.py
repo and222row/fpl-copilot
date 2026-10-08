@@ -261,11 +261,14 @@ async def require_job_token(
 
     Each one rewrites thousands of rows or fans out to the unofficial FPL API,
     so anyone able to trigger them could get us IP-blocked by FPL or burn the
-    database bandwidth allowance. Open only while JOB_TOKEN is unset (local
-    development). compare_digest so timing leaks neither length nor content.
+    database bandwidth allowance. Open without JOB_TOKEN only outside
+    production; a production deploy missing it fails closed rather than open.
+    compare_digest so timing leaks neither length nor content.
     """
     expected = settings.job_token
     if not expected:
+        if settings.is_production:
+            raise HTTPException(503, "Operator endpoints are disabled until JOB_TOKEN is set")
         return
     if not x_job_token or not secrets.compare_digest(x_job_token, expected):
         raise HTTPException(401, "Invalid or missing X-Job-Token header")

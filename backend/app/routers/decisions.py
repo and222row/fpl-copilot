@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +28,7 @@ from app.services.squad_state import resolve_squad
 from app.services.transfer_reasons import explain_plans
 
 router = APIRouter(prefix="/decisions", tags=["decisions"])
+logger = logging.getLogger("fpl_copilot.decisions")
 
 POS_NAME = {1: "GKP", 2: "DEF", 3: "MID", 4: "FWD"}
 
@@ -69,11 +71,12 @@ async def _load_squad(
     # made for a gameweek that has not started yet.
     try:
         resolved = await resolve_squad(db, manager_id, target_gw, picks_gw)
-    except Exception as e:
+    except Exception:
+        logger.warning("squad lookup failed", exc_info=True, extra={"manager_id": manager_id})
         raise HTTPException(
             404,
             f"Could not fetch picks for manager {manager_id} GW{picks_gw}. "
-            f"That gameweek may not have started. ({e})",
+            "That gameweek may not have started.",
         )
 
     player_ids = resolved.player_ids

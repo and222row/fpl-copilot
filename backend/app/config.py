@@ -10,7 +10,15 @@ class Settings(BaseSettings):
 
     # Core
     environment: str = "development"
-    secret_key: str = "change-me-in-production"
+
+    # How many proxies sit in front of the app and append to X-Forwarded-For.
+    # 0 trusts nothing and uses the socket peer (local development). On Render
+    # set 1: the entry its proxy appends is the real client; anything to its
+    # left was written by the client and can be forged.
+    trusted_proxy_hops: int = 0
+
+    # Requests larger than this are refused before the body is read.
+    max_request_bytes: int = 1_000_000
 
     # Database
     database_url: str = "postgresql+asyncpg://fpl_user:fpl_password@localhost:5432/fpl_copilot"
@@ -102,6 +110,10 @@ class Settings(BaseSettings):
     @property
     def is_development(self) -> bool:
         return self.environment == "development"
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment == "production"
 
 
 settings = Settings()

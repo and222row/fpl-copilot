@@ -8,6 +8,7 @@ endpoint cannot be traced through the services it calls.
 """
 import json
 import logging
+import re
 import sys
 import time
 import uuid
@@ -96,6 +97,8 @@ def configure_logging() -> None:
 
 logger = logging.getLogger("fpl_copilot")
 
+_SAFE_REQUEST_ID = re.compile(r"[A-Za-z0-9._-]{1,64}")
+
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
     """
@@ -106,7 +109,10 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
     """
 
     async def dispatch(self, request: Request, call_next):
-        rid = request.headers.get("X-Request-ID") or uuid.uuid4().hex[:16]
+        # A caller's ID is reused only if it is short and plain: it goes into
+        # logs and back out in a response header.
+        supplied = request.headers.get("X-Request-ID", "")
+        rid = supplied if _SAFE_REQUEST_ID.fullmatch(supplied) else uuid.uuid4().hex[:16]
         token = request_id_var.set(rid)
         started = time.perf_counter()
 

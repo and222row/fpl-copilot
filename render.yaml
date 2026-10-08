@@ -56,9 +56,6 @@ services:
         # Upstash → rediss:// (TLS). Note the double 's'.
         sync: false
 
-      - key: SECRET_KEY
-        sync: false
-
       - key: JOB_TOKEN
         # Must match the JOB_TOKEN secret in the GitHub repo, or the scheduled
         # refresh gets a 401. Without it set, /api/v1/jobs/refresh is
@@ -78,6 +75,12 @@ services:
       - key: SUPABASE_JWT_SECRET
         # Only if the Supabase project still uses the legacy HS256 secret.
         sync: false
+
+      - key: TRUSTED_PROXY_HOPS
+        # Render's proxy appends the real client IP to X-Forwarded-For. Without
+        # this every anonymous caller shares the proxy's address and one rate
+        # limit.
+        value: "1"
 
       - key: AUTH_REQUIRED
         # Flip to "true" once the web dashboard has sign-in or is retired.

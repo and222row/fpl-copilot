@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import ManagerAccess, Premium
@@ -11,6 +12,7 @@ from app.services.squad_state import resolve_squad
 from app.services.planner import plan_horizon, serialise, MAX_FREE_TRANSFERS
 
 router = APIRouter(prefix="/planner", tags=["planner"])
+logger = logging.getLogger("fpl_copilot.planner")
 
 
 @router.get("/{manager_id}", dependencies=[ManagerAccess, Premium])
@@ -60,8 +62,9 @@ async def build_plan(
 
     try:
         resolved = await resolve_squad(db, manager_id, target_gw, picks_gw)
-    except Exception as e:
-        raise HTTPException(404, f"Could not fetch squad for manager {manager_id}: {e}")
+    except Exception:
+        logger.warning("squad lookup failed", exc_info=True, extra={"manager_id": manager_id})
+        raise HTTPException(404, f"Could not fetch the squad for manager {manager_id} from FPL.")
 
     if not resolved.player_ids:
         raise HTTPException(404, f"No squad found for manager {manager_id}")

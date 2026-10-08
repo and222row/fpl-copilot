@@ -11,6 +11,7 @@ from app.observability import (
 )
 from app.rate_limit import limiter
 from app.redis_client import close_redis
+from app.security import BodySizeLimitMiddleware, run_startup_checks
 from app.services.fpl_client import close_client as close_fpl_client
 from app.routers import (
     health, fpl, projections, decisions, news, feedback, planner, jobs,
@@ -28,6 +29,7 @@ async def lifespan(app: FastAPI):
         "starting up",
         extra={"environment": settings.environment, "version": app.version},
     )
+    await run_startup_checks()
     # Background refresh, if enabled. Off by default — see app/scheduler.py.
     scheduler.start()
     yield
@@ -46,8 +48,11 @@ app = FastAPI(
         "Deterministic optimisation makes the numerical decision; every "
         "recommendation carries a computed confidence and its evidence."
     ),
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
+    # The schema maps every route, operator endpoints included; no need to
+    # publish it from production.
+    docs_url=None if settings.is_production else "/api/docs",
+    redoc_url=None if settings.is_production else "/api/redoc",
+    openapi_url=None if settings.is_production else "/openapi.json",
     lifespan=lifespan,
 )
 
@@ -57,11 +62,13 @@ app.state.limiter = limiter
 # including rate-limit rejections.
 app.add_middleware(RequestContextMiddleware)
 app.add_middleware(SlowAPIMiddleware)
+app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_request_bytes)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    # Bearer tokens, never cookies, so credentialed CORS is not needed.
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
     expose_headers=["X-Request-ID", "X-Response-Time-ms"],
 )
@@ -77,6 +84,8 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
+    # Responses carry account and squad data; nothing in between should keep them.
+    response.headers.setdefault("Cache-Control", "no-store")
     if not settings.is_development:
         response.headers["Strict-Transport-Security"] = (
             "max-age=31536000; includeSubDomains"

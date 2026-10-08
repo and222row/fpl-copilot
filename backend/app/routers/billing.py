@@ -99,6 +99,10 @@ async def revenuecat_webhook(
 ):
     if not settings.revenuecat_webhook_auth:
         raise HTTPException(503, "Billing webhook is not configured")
+    # In production an unsigned delivery could be replayed, so signing is
+    # required there rather than optional.
+    if settings.is_production and not settings.revenuecat_webhook_signing_secret:
+        raise HTTPException(503, "Billing webhook signing is not configured")
     if not authorization or not secrets.compare_digest(authorization, settings.revenuecat_webhook_auth):
         raise HTTPException(401, "Invalid webhook authorization")
 

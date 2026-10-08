@@ -40,7 +40,6 @@ jobs:
       - name: Check migrations match the models
         env:
           DATABASE_URL: "sqlite+aiosqlite:///:memory:"
-          SECRET_KEY: ci-only
           ENVIRONMENT: test
         run: |
           # A model change without a migration is a deploy-time failure;
@@ -57,9 +56,11 @@ jobs:
         env:
           DATABASE_URL: "sqlite+aiosqlite:///:memory:"
           REDIS_URL: redis://localhost:6379/15
-          SECRET_KEY: ci-only
           ENVIRONMENT: test
         run: pytest -m "not network" -v
+
+      - name: Dependency vulnerabilities
+        run: pip-audit -r requirements.txt --progress-spinner off
 
       - name: Contract tests against the live FPL API
         # Never fail a PR because an external service is having a bad day —
@@ -67,7 +68,6 @@ jobs:
         continue-on-error: true
         env:
           DATABASE_URL: "sqlite+aiosqlite:///:memory:"
-          SECRET_KEY: ci-only
           ENVIRONMENT: test
         run: pytest -m network -v
 
@@ -89,6 +89,9 @@ jobs:
       - run: npm ci
 
       - run: npm run lint
+
+      - name: Dependency vulnerabilities (production)
+        run: npm audit --omit=dev --audit-level=high
 
       # Must precede the standalone type check. `LayoutProps` and friends are
       # generated into .next/types and reached via next-env.d.ts — both
@@ -124,6 +127,12 @@ jobs:
       - run: npm run typecheck
       - run: npm test -- --ci
       - run: npx expo-doctor
+
+      # Critical only: the open highs are in Expo's build tooling (node-forge,
+      # braces), not in the app bundle, and have no fix within SDK 57. See
+      # SECURITY.md; re-check on every SDK upgrade.
+      - name: Dependency vulnerabilities (production)
+        run: npm audit --omit=dev --audit-level=critical
 
       - name: Only the e2e build profile may enable the test sign-in
         run: |

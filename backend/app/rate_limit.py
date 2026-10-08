@@ -20,11 +20,25 @@ from app.config import settings
 _ENABLED = not settings.is_development and settings.environment != "test"
 
 
+def client_ip(request: Request) -> str:
+    """
+    The caller's IP. Behind TRUSTED_PROXY_HOPS proxies it is the entry the
+    nearest trusted proxy appended to X-Forwarded-For, counted from the
+    right; entries further left are whatever the client chose to send.
+    """
+    hops = settings.trusted_proxy_hops
+    if hops > 0:
+        chain = [p.strip() for p in request.headers.get("x-forwarded-for", "").split(",") if p.strip()]
+        if len(chain) >= hops:
+            return chain[-hops]
+    return get_remote_address(request)
+
+
 def rate_limit_key(request: Request) -> str:
     # Set by app.auth.optional_user only after the token has been verified, so a
     # forged token cannot pick someone else's bucket.
     user_id = getattr(request.state, "user_id", None)
-    return f"user:{user_id}" if user_id else get_remote_address(request)
+    return f"user:{user_id}" if user_id else client_ip(request)
 
 
 limiter = Limiter(

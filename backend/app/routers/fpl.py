@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -19,6 +20,7 @@ from app.services.player_view import player_photo, player_summary as _player_sum
 from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/fpl", tags=["fpl"])
+logger = logging.getLogger("fpl_copilot.fpl")
 
 
 # ── Sync ──────────────────────────────────────────────────────────────────────
@@ -213,8 +215,9 @@ async def get_manager(request: Request, manager_id: int):
     """Manager profile straight from FPL — no local data needed."""
     try:
         info = await fetch_manager_info(manager_id)
-    except Exception as e:
-        raise HTTPException(404, f"Could not fetch manager {manager_id}: {e}")
+    except Exception:
+        logger.warning("manager lookup failed", exc_info=True, extra={"manager_id": manager_id})
+        raise HTTPException(404, f"Could not fetch manager {manager_id} from FPL.")
 
     return {
         "id": info["id"],
@@ -259,10 +262,11 @@ async def get_manager_squad(
 
     try:
         resolved = await resolve_squad(db, manager_id, target_gw, started.id)
-    except Exception as e:
+    except Exception:
+        logger.warning("squad lookup failed", exc_info=True, extra={"manager_id": manager_id})
         raise HTTPException(
             404,
-            f"Could not fetch picks for manager {manager_id} GW{started.id}. ({e})",
+            f"Could not fetch picks for manager {manager_id} GW{started.id}.",
         )
 
     picks_data = await fetch_manager_picks(manager_id, started.id)
@@ -413,8 +417,9 @@ async def squad_state(
 
     try:
         resolved = await resolve_squad(db, manager_id, target, started.id)
-    except Exception as e:
-        raise HTTPException(404, f"Could not resolve squad: {e}")
+    except Exception:
+        logger.warning("squad lookup failed", exc_info=True, extra={"manager_id": manager_id})
+        raise HTTPException(404, "Could not resolve the squad from FPL.")
 
     rows = (await db.execute(
         select(Player, Team.short_name)

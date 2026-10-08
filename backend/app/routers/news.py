@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +19,7 @@ from app.services.fpl_sync import (
 from app.services.squad_state import resolve_squad
 
 router = APIRouter(prefix="/news", tags=["news"])
+logger = logging.getLogger("fpl_copilot.news")
 
 POS_NAME = {1: "GKP", 2: "DEF", 3: "MID", 4: "FWD"}
 
@@ -117,8 +119,9 @@ async def create_alerts(
 
     try:
         resolved = await resolve_squad(db, manager_id, target.id, started.id)
-    except Exception as e:
-        raise HTTPException(404, f"Could not fetch squad for manager {manager_id}: {e}")
+    except Exception:
+        logger.warning("squad lookup failed", exc_info=True, extra={"manager_id": manager_id})
+        raise HTTPException(404, f"Could not fetch the squad for manager {manager_id} from FPL.")
 
     squad_ids = resolved.player_ids
     if not squad_ids:

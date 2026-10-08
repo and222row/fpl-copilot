@@ -13,7 +13,6 @@ import pytest_asyncio
 # Point settings at throwaway values before app modules import them.
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/15")
-os.environ.setdefault("SECRET_KEY", "test-only-not-a-real-secret")
 os.environ.setdefault("ENVIRONMENT", "test")
 
 # Force these rather than setdefault: pydantic-settings reads backend/.env, so a

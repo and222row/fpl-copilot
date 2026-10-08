@@ -8,7 +8,6 @@ REM   .\test.bat -k parser   pass any pytest args through
 call .venv\Scripts\activate.bat
 
 set DATABASE_URL=sqlite+aiosqlite:///:memory:
-set SECRET_KEY=test-only
 set ENVIRONMENT=test
 
 if "%1"=="network" (
