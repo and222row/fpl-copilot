@@ -1,3 +1,4 @@
+import secrets
 import httpx
 from typing import Any
 
@@ -77,6 +78,17 @@ async def fetch_manager_info(manager_id: int) -> dict:
         cache.key_entry(manager_id),
         lambda: _get(f"/entry/{manager_id}/"),
     )
+
+
+async def fetch_manager_info_fresh(manager_id: int) -> dict:
+    """
+    A manager's profile straight from FPL, past both our cache and FPL's CDN.
+
+    Only for ownership checks, which must see a team name the user changed
+    seconds ago. FPL's varnish layer serves /entry/ responses over a minute old
+    despite `no-cache`; a unique query string misses it, and FPL ignores it.
+    """
+    return await _get(f"/entry/{manager_id}/?_={secrets.token_hex(6)}")
 
 
 async def fetch_manager_history(manager_id: int) -> dict:

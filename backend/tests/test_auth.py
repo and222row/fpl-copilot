@@ -9,7 +9,6 @@ import hashlib
 import hmac
 import json
 import time
-import uuid
 from types import SimpleNamespace
 
 import httpx
@@ -19,54 +18,21 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi import HTTPException
 from fastapi.routing import APIRoute
-from sqlalchemy import select
 
 from app.auth import ManagerAccess, decode_token, jwks_cache
 from app.config import settings
-from app.models.accounts import FplAccount, User
-from app.models.feedback import SquadOverride
-from app.models.news import TrackedManager
+from app.models.accounts import User
 from app.rate_limit import rate_limit_key
-
-SUPABASE_URL = "https://testproj.supabase.co"
-ISSUER = f"{SUPABASE_URL}/auth/v1"
-SECRET = "test-jwt-secret-that-is-at-least-32-bytes-long"
-USER_A = uuid.UUID("11111111-1111-4111-8111-111111111111")
-USER_B = uuid.UUID("22222222-2222-4222-8222-222222222222")
+from tests.auth_helpers import (
+    ISSUER, USER_A, USER_B, bearer, configure_auth, make_token, seed_account,
+)
 
 
 @pytest.fixture(autouse=True)
 def auth_settings(monkeypatch):
-    monkeypatch.setattr(settings, "supabase_url", SUPABASE_URL)
-    monkeypatch.setattr(settings, "supabase_jwt_secret", SECRET)
-    monkeypatch.setattr(settings, "auth_required", False)
-    jwks_cache.clear()
+    configure_auth(monkeypatch)
     yield
     jwks_cache.clear()
-
-
-def make_token(
-    sub: uuid.UUID | str | None = USER_A,
-    *,
-    key=SECRET,
-    alg: str = "HS256",
-    aud: str | None = "authenticated",
-    iss: str = ISSUER,
-    exp_in: int = 3600,
-    headers: dict | None = None,
-    **extra,
-) -> str:
-    now = int(time.time())
-    claims = {"iss": iss, "iat": now, "exp": now + exp_in, "role": "authenticated", **extra}
-    if sub is not None:
-        claims["sub"] = str(sub)
-    if aud is not None:
-        claims["aud"] = aud
-    return jwt.encode(claims, key, algorithm=alg, headers=headers)
-
-
-def bearer(token: str) -> dict:
-    return {"Authorization": f"Bearer {token}"}
 
 
 async def expect_401(token: str, detail: str | None = None):
@@ -255,132 +221,6 @@ async def test_me_provisions_the_user_row(client, session):
     assert await session.get(User, USER_A) is not None
 
 
-# ── Connecting an FPL team ───────────────────────────────────────────────────
-
-FPL_ENTRY = {"name": "Haaland Globetrotters", "player_first_name": "Ada", "player_last_name": "Lovelace"}
-
-
-@pytest.fixture
-def fpl_ok(monkeypatch):
-    calls = []
-
-    async def fake(entry_id):
-        calls.append(entry_id)
-        return FPL_ENTRY
-
-    monkeypatch.setattr("app.routers.me.fetch_manager_info", fake)
-    return calls
-
-
-def _fpl_raises(monkeypatch, exc):
-    async def fake(entry_id):
-        raise exc
-    monkeypatch.setattr("app.routers.me.fetch_manager_info", fake)
-
-
-async def connect(client, entry_id: int, user=USER_A):
-    return await client.post(
-        "/api/v1/me/fpl-accounts", json={"fpl_entry_id": entry_id}, headers=bearer(make_token(user))
-    )
-
-
-async def test_connect_validates_with_fpl_and_stores(client, session, fpl_ok):
-    r = await connect(client, 1234)
-    assert r.status_code == 201
-    assert r.json()["team_name"] == "Haaland Globetrotters"
-    assert r.json()["manager_name"] == "Ada Lovelace"
-    assert fpl_ok == [1234]
-    tracked = await session.get(TrackedManager, 1234)
-    assert tracked is not None and tracked.team_name == "Haaland Globetrotters"
-
-
-async def test_connect_is_idempotent_for_the_owner(client, fpl_ok):
-    assert (await connect(client, 1234)).status_code == 201
-    r = await connect(client, 1234)
-    assert r.status_code == 200
-    assert fpl_ok == [1234], "re-connecting should not hit FPL again"
-
-
-async def test_team_owned_by_someone_else_cannot_be_connected(client, fpl_ok):
-    assert (await connect(client, 1234, USER_A)).status_code == 201
-    r = await connect(client, 1234, USER_B)
-    assert r.status_code == 409
-
-
-async def test_only_one_team_per_account(client, fpl_ok):
-    assert (await connect(client, 1234)).status_code == 201
-    assert (await connect(client, 5678)).status_code == 409
-
-
-async def test_nonexistent_team_is_404(client, monkeypatch):
-    resp = httpx.Response(404, request=httpx.Request("GET", "https://fpl/entry/9/"))
-    _fpl_raises(monkeypatch, httpx.HTTPStatusError("nf", request=resp.request, response=resp))
-    assert (await connect(client, 9)).status_code == 404
-
-
-async def test_fpl_unreachable_is_503(client, monkeypatch):
-    _fpl_raises(monkeypatch, httpx.ConnectTimeout("slow"))
-    assert (await connect(client, 9)).status_code == 503
-
-
-async def test_fpl_server_error_is_502(client, monkeypatch):
-    resp = httpx.Response(500, request=httpx.Request("GET", "https://fpl/entry/9/"))
-    _fpl_raises(monkeypatch, httpx.HTTPStatusError("err", request=resp.request, response=resp))
-    assert (await connect(client, 9)).status_code == 502
-
-
-@pytest.mark.parametrize("body", [
-    {"fpl_entry_id": 0},
-    {"fpl_entry_id": -5},
-    {"fpl_entry_id": "abc"},
-    {"fpl_entry_id": 1234, "user_id": str(USER_B)},
-    {},
-])
-async def test_connect_rejects_malformed_bodies(client, fpl_ok, body):
-    r = await client.post("/api/v1/me/fpl-accounts", json=body, headers=bearer(make_token()))
-    assert r.status_code == 422
-    assert fpl_ok == []
-
-
-async def test_connect_requires_auth(client, fpl_ok):
-    r = await client.post("/api/v1/me/fpl-accounts", json={"fpl_entry_id": 1})
-    assert r.status_code == 401
-
-
-# ── Disconnecting ────────────────────────────────────────────────────────────
-
-async def test_disconnect_clears_private_state(client, session, fpl_ok):
-    await connect(client, 1234)
-    session.add(SquadOverride(
-        fpl_entry_id=1234, gameweek_id=5, player_ids=[1, 2], bank=0,
-        free_transfers=1, transfers_applied=[],
-    ))
-    tracked = await session.get(TrackedManager, 1234)
-    tracked.telegram_chat_id = "999"
-    tracked.telegram_enabled = True
-    await session.commit()
-
-    r = await client.delete("/api/v1/me/fpl-accounts/1234", headers=bearer(make_token()))
-    assert r.status_code == 204
-
-    session.expire_all()
-    assert (await session.execute(select(FplAccount))).scalars().all() == []
-    assert (await session.execute(select(SquadOverride))).scalars().all() == []
-    tracked = await session.get(TrackedManager, 1234)
-    assert tracked.telegram_chat_id is None
-    assert tracked.telegram_enabled is False
-    assert tracked.alerts_enabled is False
-
-    # Now free for someone else.
-    assert (await connect(client, 1234, USER_B)).status_code == 201
-
-
-async def test_cannot_disconnect_someone_elses_team(client, fpl_ok):
-    await connect(client, 1234, USER_A)
-    r = await client.delete("/api/v1/me/fpl-accounts/1234", headers=bearer(make_token(USER_B)))
-    assert r.status_code == 404
-
-
 # ── Ownership on every team-keyed route ──────────────────────────────────────
 
 def test_every_manager_route_enforces_ownership():
@@ -398,53 +238,60 @@ def test_every_manager_route_enforces_ownership():
     assert unguarded == []
 
 
-OWNED_ROUTE = "/api/v1/feedback/1234/accuracy"
+# Not premium, so these isolate ownership from entitlement.
+OWNED_READ = "/api/v1/fpl/manager/1234/squad-state"
 
 
-async def test_owner_can_reach_their_team(client, fpl_ok):
-    await connect(client, 1234, USER_A)
-    r = await client.get(OWNED_ROUTE, headers=bearer(make_token(USER_A)))
-    assert r.status_code == 200
-
-
-async def test_other_user_is_forbidden(client, fpl_ok):
-    await connect(client, 1234, USER_A)
-    r = await client.get(OWNED_ROUTE, headers=bearer(make_token(USER_B)))
+async def test_other_user_is_forbidden(client, session):
+    await seed_account(session, USER_A, 1234)
+    r = await client.get(OWNED_READ, headers=bearer(USER_B))
     assert r.status_code == 403
 
 
-async def test_user_cannot_write_another_users_squad_override(client, fpl_ok):
-    await connect(client, 1234, USER_A)
+async def test_owner_passes_the_ownership_check(client, session):
+    await seed_account(session, USER_A, 1234)
+    r = await client.get(OWNED_READ, headers=bearer(USER_A))
+    assert r.status_code != 403
+
+
+async def test_user_cannot_write_another_users_squad_override(client, session):
+    await seed_account(session, USER_A, 1234)
     r = await client.post(
         "/api/v1/fpl/manager/1234/squad-state/transfers",
         json={"transfers": [{"out": 1, "in": 2}]},
-        headers=bearer(make_token(USER_B)),
+        headers=bearer(USER_B),
     )
     assert r.status_code == 403
 
 
-async def test_user_cannot_reset_another_users_squad_override(client, fpl_ok):
-    await connect(client, 1234, USER_A)
-    r = await client.delete(
-        "/api/v1/fpl/manager/1234/squad-state", headers=bearer(make_token(USER_B))
+async def test_user_cannot_reset_another_users_squad_override(client, session):
+    await seed_account(session, USER_A, 1234)
+    r = await client.delete("/api/v1/fpl/manager/1234/squad-state", headers=bearer(USER_B))
+    assert r.status_code == 403
+
+
+async def test_user_cannot_rebind_another_users_telegram(client, session):
+    await seed_account(session, USER_A, 1234)
+    r = await client.post(
+        "/api/v1/notifications/1234/telegram/link", headers=bearer(USER_B)
     )
     assert r.status_code == 403
 
 
 async def test_signed_in_user_without_the_team_is_forbidden(client):
-    r = await client.get(OWNED_ROUTE, headers=bearer(make_token(USER_B)))
+    r = await client.get(OWNED_READ, headers=bearer(USER_B))
     assert r.status_code == 403
 
 
 async def test_invalid_token_on_team_route_is_401_even_when_auth_optional(client):
-    r = await client.get(OWNED_ROUTE, headers=bearer(make_token(exp_in=-120)))
+    r = await client.get(OWNED_READ, headers=bearer(make_token(exp_in=-120)))
     assert r.status_code == 401
 
 
 async def test_anonymous_allowed_only_while_auth_optional(client, monkeypatch):
-    assert (await client.get(OWNED_ROUTE)).status_code == 200
+    assert (await client.get("/api/v1/feedback/1234/accuracy")).status_code == 200
     monkeypatch.setattr(settings, "auth_required", True)
-    assert (await client.get(OWNED_ROUTE)).status_code == 401
+    assert (await client.get("/api/v1/feedback/1234/accuracy")).status_code == 401
 
 
 # ── Operational endpoints ────────────────────────────────────────────────────
@@ -474,3 +321,4 @@ def test_rate_limit_keys_on_user_when_signed_in():
 
 def test_rate_limit_falls_back_to_ip_when_anonymous():
     assert rate_limit_key(_request()) == "10.0.0.1"
+

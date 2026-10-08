@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.auth import Premium
 from app.database import get_db
 from app.rate_limit import limiter, HEAVY
 from app.services.dream_team import build_dream_team, DEFAULT_BUDGET
@@ -16,7 +17,7 @@ def _parse_ids(raw: str | None, label: str) -> list[int]:
         raise HTTPException(400, f"{label} must be comma-separated player IDs")
 
 
-@router.get("")
+@router.get("", dependencies=[Premium])
 @limiter.limit(HEAVY)
 async def dream_team(
     request: Request,

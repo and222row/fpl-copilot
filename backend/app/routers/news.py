@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
-from app.auth import ManagerAccess
+from app.auth import ManagerAccess, Premium
 from app.database import get_db
 from app.rate_limit import limiter, HEAVY, UPSTREAM
 from app.models.fpl import Player, Team
@@ -93,7 +93,7 @@ async def list_events(
 
 # ── Alerts ────────────────────────────────────────────────────────────────────
 
-@router.post("/alerts/{manager_id}/generate", dependencies=[ManagerAccess])
+@router.post("/alerts/{manager_id}/generate", dependencies=[ManagerAccess, Premium])
 @limiter.limit(UPSTREAM)
 async def create_alerts(
     request: Request,
@@ -132,7 +132,7 @@ async def create_alerts(
     )
 
 
-@router.get("/alerts/{manager_id}", dependencies=[ManagerAccess])
+@router.get("/alerts/{manager_id}", dependencies=[ManagerAccess, Premium])
 async def list_alerts(
     manager_id: int,
     unread_only: bool = Query(False),
@@ -194,7 +194,7 @@ async def list_alerts(
     return out
 
 
-@router.post("/alerts/{manager_id}/read", dependencies=[ManagerAccess])
+@router.post("/alerts/{manager_id}/read", dependencies=[ManagerAccess, Premium])
 async def mark_alerts_read(
     manager_id: int,
     alert_id: int | None = Query(None, description="Omit to mark all as read"),

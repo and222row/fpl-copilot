@@ -8,7 +8,7 @@ from app.models.news import (
 from app.models.feedback import (
     RecommendationSnapshot, RecommendationOutcome, SquadOverride,
 )
-from app.models.accounts import User, FplAccount
+from app.models.accounts import User, FplAccount, FplClaim, Trial
 
 __all__ = [
     "Team",
@@ -28,5 +28,7 @@ __all__ = [
     "SquadOverride",
     "User",
     "FplAccount",
+    "FplClaim",
+    "Trial",
     "utcnow",
 ]

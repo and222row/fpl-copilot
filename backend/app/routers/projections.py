@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from app.auth import Premium
 from app.database import get_db
 from app.rate_limit import limiter, HEAVY
 from app.models.fpl import Player, Team, Gameweek
@@ -52,7 +53,7 @@ async def rebuild(
 
 # ── Read ──────────────────────────────────────────────────────────────────────
 
-@router.get("")
+@router.get("", dependencies=[Premium])
 async def list_projections(
     gameweek: int | None = Query(None, description="Defaults to the active GW"),
     position: int | None = Query(None, ge=1, le=4),
@@ -113,7 +114,7 @@ async def list_projections(
     ]
 
 
-@router.get("/player/{player_id}")
+@router.get("/player/{player_id}", dependencies=[Premium])
 async def player_projections(
     player_id: int,
     horizon: int = Query(5, ge=1, le=38),
@@ -195,7 +196,7 @@ async def player_projections(
     }
 
 
-@router.get("/team-strength")
+@router.get("/team-strength", dependencies=[Premium])
 async def team_strength(db: AsyncSession = Depends(get_db)):
     """Derived attack/defence ratings behind the custom FDR."""
     rows = (await db.execute(

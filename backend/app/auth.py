@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 import httpx
 import jwt
 from fastapi import Depends, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -26,6 +27,7 @@ from app.config import settings
 from app.database import get_db
 from app.models.accounts import FplAccount, User
 from app.models.fpl import utcnow
+from app.services.entitlements import get_entitlement
 
 logger = logging.getLogger("fpl_copilot.auth")
 
@@ -224,4 +226,29 @@ async def require_manager_access(
         raise HTTPException(403, "This FPL team is not connected to your account")
 
 
+async def require_premium(
+    user: AuthUser | None = Depends(optional_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """
+    Gate the model's advice to users with a live trial or subscription.
+
+    402 carries the entitlement so the app can show the paywall. Same anonymous
+    rule as ownership: while AUTH_REQUIRED is off, dropping the token bypasses
+    this, which is why it must be on before launch.
+    """
+    if user is None:
+        if settings.auth_required:
+            raise _unauthorized("Not signed in")
+        return
+    entitlement = await get_entitlement(db, user.id)
+    if not entitlement.premium:
+        raise HTTPException(402, {
+            "code": "PREMIUM_REQUIRED",
+            "message": "Your free trial has ended. Subscribe to keep using FPL Copilot.",
+            "entitlement": jsonable_encoder(entitlement.as_dict()),
+        })
+
+
 ManagerAccess = Depends(require_manager_access)
+Premium = Depends(require_premium)
