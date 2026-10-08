@@ -39,18 +39,14 @@ jobs:
 
       - name: Check migrations match the models
         env:
-          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          DATABASE_URL: "sqlite+aiosqlite:////tmp/migrations.db"
           ENVIRONMENT: test
         run: |
           # A model change without a migration is a deploy-time failure;
-          # catch it here instead.
-          python -c "
-          import app.models
-          from app.database import Base
-          tables = sorted(Base.metadata.tables)
-          print('Registered tables:', tables)
-          assert tables, 'no tables registered'
-          "
+          # catch it here instead. Applies every migration to an empty
+          # database, then autogenerate must find nothing left to do.
+          alembic upgrade head
+          alembic check
 
       - name: Unit and integration tests
         env:
