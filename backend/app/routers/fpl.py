@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.auth import ManagerAccess
+from app.auth import JobToken, ManagerAccess
 from app.database import get_db
 from app.rate_limit import limiter, HEAVY, UPSTREAM
 from app.models.fpl import Player, Team, Gameweek, Fixture
@@ -32,7 +32,7 @@ STATUS_NAMES = {
 
 # ── Sync ──────────────────────────────────────────────────────────────────────
 
-@router.post("/sync/bootstrap")
+@router.post("/sync/bootstrap", dependencies=[JobToken])
 @limiter.limit(HEAVY)
 async def trigger_bootstrap_sync(request: Request, db: AsyncSession = Depends(get_db)):
     """Pull latest teams, gameweeks and players from FPL into our database."""
@@ -43,7 +43,7 @@ async def trigger_bootstrap_sync(request: Request, db: AsyncSession = Depends(ge
     return {"ok": True, "synced": result}
 
 
-@router.post("/sync/fixtures")
+@router.post("/sync/fixtures", dependencies=[JobToken])
 @limiter.limit(HEAVY)
 async def trigger_fixture_sync(request: Request, db: AsyncSession = Depends(get_db)):
     """Pull all season fixtures from FPL. Run after /sync/bootstrap."""

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.auth import Premium
+from app.auth import JobToken, Premium
 from app.database import get_db
 from app.rate_limit import limiter, HEAVY
 from app.models.fpl import Player, Team, Gameweek
@@ -18,14 +18,14 @@ POSITION_NAMES = {1: "GKP", 2: "DEF", 3: "MID", 4: "FWD"}
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 
-@router.post("/rebuild/team-strength")
+@router.post("/rebuild/team-strength", dependencies=[JobToken])
 @limiter.limit(HEAVY)
 async def rebuild_fdr(request: Request, db: AsyncSession = Depends(get_db)):
     """Recompute custom fixture-difficulty ratings from results so far."""
     return await rebuild_team_strength(db)
 
 
-@router.post("/rebuild")
+@router.post("/rebuild", dependencies=[JobToken])
 @limiter.limit(HEAVY)
 async def rebuild(
     request: Request,
@@ -230,7 +230,7 @@ async def team_strength(db: AsyncSession = Depends(get_db)):
 
 # ── Backtest ──────────────────────────────────────────────────────────────────
 
-@router.post("/backtest/ingest-history")
+@router.post("/backtest/ingest-history", dependencies=[JobToken])
 @limiter.limit(HEAVY)
 async def ingest_history(
     request: Request,

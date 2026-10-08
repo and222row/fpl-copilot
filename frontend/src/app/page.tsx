@@ -19,7 +19,7 @@ import { SquadStateBanner } from "@/components/SquadStateBanner";
 import { DreamTeam } from "@/components/DreamTeam";
 import { NotificationSettings } from "@/components/NotificationSettings";
 import { ChipAdvisor } from "@/components/ChipAdvisor";
-import { BTN_PRIMARY, BTN_SECONDARY } from "@/lib/ui";
+import { BTN_PRIMARY } from "@/lib/ui";
 
 const TEAM_ID_KEY = "fpl-copilot:team-id";
 
@@ -31,10 +31,8 @@ export default function Dashboard() {
   const [rec, setRec] = useState<FullRecommendation | null>(null);
   const [recLoading, setRecLoading] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsSync, setNeedsSync] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [mounted, setMounted] = useState(false);
 
   // ── Load the active gameweek on mount ──────────────────────────────────
@@ -43,7 +41,7 @@ export default function Dashboard() {
       .gameweek()
       .then(setGameweek)
       .catch((e: ApiError) => {
-        // 404 means the DB is empty — prompt a sync rather than showing an error
+        // 404 means the DB is empty — explain that rather than showing an error
         if (e.status === 404) setNeedsSync(true);
         else setError(e.message);
       });
@@ -103,29 +101,6 @@ export default function Dashboard() {
     await loadTeam(id);
   }
 
-  async function handleSync() {
-    setSyncing(true);
-    setError(null);
-    try {
-      // Order matters: fixtures need teams/gameweeks, team strength needs
-      // fixture results, and projections read the team strength ratings.
-      await api.syncBootstrap();
-      await api.syncFixtures();
-      // Detect availability changes against the previous sync before
-      // rebuilding, so the feed reflects what actually moved.
-      await api.detectChanges();
-      await api.rebuildTeamStrength();
-      await api.rebuildProjections(5);
-      setGameweek(await api.gameweek());
-      setNeedsSync(false);
-      setRefreshKey((k) => k + 1);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Sync failed");
-    } finally {
-      setSyncing(false);
-    }
-  }
-
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
       {/* ── Header ──────────────────────────────────────────────────── */}
@@ -159,14 +134,6 @@ export default function Dashboard() {
             )}
           </p>
         </div>
-
-        <button
-          onClick={handleSync}
-          disabled={syncing}
-          className={`${BTN_SECONDARY} w-full sm:w-auto`}
-        >
-          {syncing ? "Syncing…" : "Sync FPL data"}
-        </button>
       </header>
 
       {/* ── Empty database prompt ───────────────────────────────────── */}
@@ -176,8 +143,9 @@ export default function Dashboard() {
             No FPL data yet
           </h2>
           <p className="mt-1 text-xs text-sky-800 dark:text-sky-300">
-            The database is empty. Click <strong>Sync FPL data</strong> above to
-            pull players, teams, gameweeks and fixtures from the FPL API.
+            The database is empty. The scheduled refresh pulls players, teams,
+            gameweeks and fixtures from the FPL API every 30 minutes; check back
+            shortly.
           </p>
         </div>
       )}
@@ -253,7 +221,7 @@ export default function Dashboard() {
       {/* ── Which squad is this advice about? ───────────────────────── */}
       {manager && (
         <SquadStateBanner
-          key={`sq-${manager.id}-${refreshKey}`}
+          key={`sq-${manager.id}`}
           managerId={manager.id}
           onChanged={() => loadTeam(manager.id)}
         />
@@ -287,7 +255,7 @@ export default function Dashboard() {
       {/* ── Chips ───────────────────────────────────────────────────── */}
       {manager && (
         <div className="mt-8 border-t border-slate-200 pt-6 sm:mt-10 sm:pt-8 dark:border-slate-700">
-          <ChipAdvisor key={`chips-${manager.id}-${refreshKey}`} managerId={manager.id} />
+          <ChipAdvisor key={`chips-${manager.id}`} managerId={manager.id} />
         </div>
       )}
 
@@ -301,7 +269,7 @@ export default function Dashboard() {
       {/* ── Accuracy track record ───────────────────────────────────── */}
       {manager && (
         <div className="mt-8 border-t border-slate-200 pt-6 sm:mt-10 sm:pt-8 dark:border-slate-700">
-          <AccuracyPanel key={`acc-${manager.id}-${refreshKey}`} managerId={manager.id} />
+          <AccuracyPanel key={`acc-${manager.id}`} managerId={manager.id} />
         </div>
       )}
 
@@ -316,7 +284,7 @@ export default function Dashboard() {
       {!needsSync && (
         <div className="mt-8 border-t border-slate-200 pt-6 sm:mt-10 sm:pt-8 dark:border-slate-700">
           <NewsPanel
-            key={`news-${refreshKey}-${manager?.id ?? "none"}`}
+            key={`news-${manager?.id ?? "none"}`}
             managerId={manager?.id ?? null}
           />
         </div>
@@ -325,14 +293,14 @@ export default function Dashboard() {
       {/* ── Best possible squad (independent of what you own) ───────── */}
       {!needsSync && (
         <div className="mt-8 border-t border-slate-200 pt-6 sm:mt-10 sm:pt-8 dark:border-slate-700">
-          <DreamTeam key={`dream-${refreshKey}`} />
+          <DreamTeam />
         </div>
       )}
 
       {/* ── Projections ─────────────────────────────────────────────── */}
       {!needsSync && (
         <div className="mt-8 border-t border-slate-200 pt-6 sm:mt-10 sm:pt-8 dark:border-slate-700">
-          <ProjectionTable key={refreshKey} />
+          <ProjectionTable />
         </div>
       )}
     </div>

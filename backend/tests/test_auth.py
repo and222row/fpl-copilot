@@ -297,13 +297,49 @@ async def test_anonymous_allowed_only_while_auth_optional(client, monkeypatch):
 # ── Operational endpoints ────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("method,path", [
+    ("POST", "/api/v1/jobs/refresh"),
     ("GET", "/api/v1/jobs/status"),
     ("POST", "/api/v1/jobs/track/1234"),
     ("DELETE", "/api/v1/jobs/track/1234"),
+    ("POST", "/api/v1/fpl/sync/bootstrap"),
+    ("POST", "/api/v1/fpl/sync/fixtures"),
+    ("POST", "/api/v1/news/detect"),
+    ("POST", "/api/v1/projections/rebuild/team-strength"),
+    ("POST", "/api/v1/projections/rebuild"),
+    ("POST", "/api/v1/projections/backtest/ingest-history"),
 ])
-async def test_job_endpoints_need_the_job_token(client, monkeypatch, method, path):
+async def test_operator_endpoints_need_the_job_token(client, monkeypatch, method, path):
     monkeypatch.setattr(settings, "job_token", "s3cret")
     assert (await client.request(method, path)).status_code == 401
+    # A signed-in user is not an operator.
+    assert (await client.request(method, path, headers=bearer(USER_A))).status_code == 401
+
+
+# Guarded inside the handler instead: /me routes require a signed-in user, and
+# the Telegram webhook checks Telegram's secret header.
+SELF_GUARDED_WRITES = {
+    "/api/v1/me/fpl-accounts",
+    "/api/v1/me/fpl-accounts/{fpl_entry_id}/verify",
+    "/api/v1/me/fpl-accounts/{fpl_entry_id}",
+    "/api/v1/telegram/webhook",
+}
+
+
+def test_every_write_route_is_guarded():
+    """A new POST/DELETE that nobody thought to protect fails here."""
+    from app.auth import JobToken
+    from app.main import app
+
+    unguarded = [
+        f"{','.join(sorted(r.methods))} {r.path}"
+        for r in app.routes
+        if isinstance(r, APIRoute)
+        and r.methods & {"POST", "DELETE", "PUT", "PATCH"}
+        and JobToken not in r.dependencies
+        and ManagerAccess not in r.dependencies
+        and r.path not in SELF_GUARDED_WRITES
+    ]
+    assert unguarded == []
 
 
 # ── Rate limiting key ────────────────────────────────────────────────────────

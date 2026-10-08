@@ -10,13 +10,14 @@ Known limit: a signed-out session's access token stays valid until it expires,
 because verification is stateless. Keep the Supabase JWT expiry short.
 """
 import logging
+import secrets
 import time
 import uuid
 from dataclasses import dataclass, field
 
 import httpx
 import jwt
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, Header, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
@@ -250,5 +251,24 @@ async def require_premium(
         })
 
 
+async def require_job_token(
+    x_job_token: str | None = Header(None, alias="X-Job-Token"),
+) -> None:
+    """
+    Guard operator-only work: syncs, rebuilds and the scheduled refresh.
+
+    Each one rewrites thousands of rows or fans out to the unofficial FPL API,
+    so anyone able to trigger them could get us IP-blocked by FPL or burn the
+    database bandwidth allowance. Open only while JOB_TOKEN is unset (local
+    development). compare_digest so timing leaks neither length nor content.
+    """
+    expected = settings.job_token
+    if not expected:
+        return
+    if not x_job_token or not secrets.compare_digest(x_job_token, expected):
+        raise HTTPException(401, "Invalid or missing X-Job-Token header")
+
+
 ManagerAccess = Depends(require_manager_access)
 Premium = Depends(require_premium)
+JobToken = Depends(require_job_token)

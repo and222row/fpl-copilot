@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
-from app.auth import ManagerAccess, Premium
+from app.auth import JobToken, ManagerAccess, Premium
 from app.database import get_db
 from app.rate_limit import limiter, HEAVY, UPSTREAM
 from app.models.fpl import Player, Team
@@ -23,7 +23,7 @@ POS_NAME = {1: "GKP", 2: "DEF", 3: "MID", 4: "FWD"}
 
 # ── Detection ─────────────────────────────────────────────────────────────────
 
-@router.post("/detect")
+@router.post("/detect", dependencies=[JobToken])
 @limiter.limit(HEAVY)
 async def run_detection(request: Request, db: AsyncSession = Depends(get_db)):
     """

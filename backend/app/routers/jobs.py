@@ -1,7 +1,7 @@
-import secrets
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from app.auth import JobToken
 from app.database import get_db
 from app.config import settings
 from app.rate_limit import limiter, HEAVY
@@ -12,28 +12,7 @@ from app import scheduler
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
-async def require_job_token(
-    x_job_token: str | None = Header(None, alias="X-Job-Token"),
-) -> None:
-    """
-    Guard the refresh endpoint.
-
-    A full refresh rewrites thousands of rows and makes hundreds of upstream
-    calls, so it must not be publicly triggerable. When `JOB_TOKEN` is unset the
-    endpoint stays open, which is fine locally — but it has to be set before the
-    API is exposed.
-
-    Compared with `compare_digest` so the check does not leak length or content
-    through timing.
-    """
-    expected = settings.job_token
-    if not expected:
-        return
-    if not x_job_token or not secrets.compare_digest(x_job_token, expected):
-        raise HTTPException(401, "Invalid or missing X-Job-Token header")
-
-
-@router.post("/refresh", dependencies=[Depends(require_job_token)])
+@router.post("/refresh", dependencies=[JobToken])
 @limiter.limit(HEAVY)
 async def refresh(
     request: Request,
@@ -55,7 +34,7 @@ async def refresh(
     )
 
 
-@router.get("/status", dependencies=[Depends(require_job_token)])
+@router.get("/status", dependencies=[JobToken])
 async def status(db: AsyncSession = Depends(get_db)):
     """Whether background refresh is on, and who it generates alerts for."""
     managers = (await db.execute(
@@ -84,7 +63,7 @@ async def status(db: AsyncSession = Depends(get_db)):
     }
 
 
-@router.post("/track/{manager_id}", dependencies=[Depends(require_job_token)])
+@router.post("/track/{manager_id}", dependencies=[JobToken])
 async def track(
     manager_id: int,
     team_name: str = Query("", description="Optional label"),
@@ -100,7 +79,7 @@ async def track(
     return {"tracked": manager_id, "alerts_enabled": True}
 
 
-@router.delete("/track/{manager_id}", dependencies=[Depends(require_job_token)])
+@router.delete("/track/{manager_id}", dependencies=[JobToken])
 async def untrack(manager_id: int, db: AsyncSession = Depends(get_db)):
     """Stop generating background alerts for a team ID."""
     row = await db.get(TrackedManager, manager_id)

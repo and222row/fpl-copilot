@@ -82,17 +82,6 @@ export interface Manager {
   started_event: number | null;
 }
 
-export interface SyncResult {
-  ok: boolean;
-  synced?: {
-    teams: number;
-    gameweeks: number;
-    players: number;
-    scoring_rules?: string;
-  };
-  fixtures_synced?: number;
-}
-
 export interface ProjectionRow {
   player_id: number;
   name: string;
@@ -109,14 +98,6 @@ export interface ProjectionRow {
   fixture_count: number;
   is_penalty_taker: boolean;
   status: PlayerStatus;
-}
-
-export interface RebuildResult {
-  model_version: string;
-  gameweeks: number[];
-  players: number;
-  written: number;
-  matches_played: number;
 }
 
 // ── Decisions ────────────────────────────────────────────────────────────────
@@ -548,12 +529,6 @@ export const api = {
       `/fpl/manager/${id}/squad${gameweek ? `?gameweek=${gameweek}` : ""}`,
     ),
 
-  syncBootstrap: () =>
-    request<SyncResult>("/fpl/sync/bootstrap", { method: "POST" }),
-
-  syncFixtures: () =>
-    request<SyncResult>("/fpl/sync/fixtures", { method: "POST" }),
-
   // ── Projections ───────────────────────────────────────────────────────────
 
   projections: (params: {
@@ -571,28 +546,9 @@ export const api = {
     return request<ProjectionRow[]>(`/projections${qs ? `?${qs}` : ""}`);
   },
 
-  rebuildTeamStrength: () =>
-    request<{ teams_updated: number; fixtures_used: number }>(
-      "/projections/rebuild/team-strength",
-      { method: "POST" },
-    ),
-
-  rebuildProjections: (horizon = 5) =>
-    request<RebuildResult>(`/projections/rebuild?horizon=${horizon}`, {
-      method: "POST",
-    }),
-
   // ── Decisions ─────────────────────────────────────────────────────────────
 
   // ── News & alerts ─────────────────────────────────────────────────────────
-
-  detectChanges: () =>
-    request<{
-      first_run: boolean;
-      events_detected: number;
-      by_type: Record<string, number>;
-      needs_review: number;
-    }>("/news/detect", { method: "POST" }),
 
   newsEvents: (opts: { hours?: number; min_materiality?: number; limit?: number } = {}) => {
     const q = new URLSearchParams();

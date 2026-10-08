@@ -152,7 +152,9 @@ sync/bootstrap -> sync/fixtures -> news/detect -> rebuild/team-strength -> rebui
    scoring rules)                   last sync)
 ```
 
-The dashboard's **Sync FPL data** button runs all four in order.
+`POST /api/v1/jobs/refresh` runs them all in order and is what the scheduler
+calls. Every sync, rebuild and detect endpoint requires the `X-Job-Token`
+header once `JOB_TOKEN` is set; locally, with it unset, they stay open.
 
 ## Database migrations
 
