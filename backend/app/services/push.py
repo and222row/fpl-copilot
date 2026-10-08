@@ -22,6 +22,7 @@ from app.models.fpl import utcnow
 from app.models.news import Alert
 from app.models.notifications import Device, NotificationPreference, PushDelivery
 from app.services.fpl_sync import get_next_open_gameweek
+from app.services.upstreams import monitored
 
 logger = logging.getLogger("fpl_copilot.push")
 
@@ -66,7 +67,7 @@ async def send(messages: list[Message]) -> list[dict]:
     if settings.expo_access_token:
         headers["Authorization"] = f"Bearer {settings.expo_access_token}"
     tickets: list[dict] = []
-    async with httpx.AsyncClient(timeout=15.0) as client:
+    async with httpx.AsyncClient(timeout=15.0, transport=monitored("expo_push")) as client:
         for i in range(0, len(messages), BATCH_SIZE):
             batch = messages[i:i + BATCH_SIZE]
             try:

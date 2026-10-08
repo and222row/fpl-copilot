@@ -20,6 +20,7 @@ from typing import Any
 import httpx
 
 from app.config import settings
+from app.services.upstreams import monitored
 
 logger = logging.getLogger("fpl_copilot")
 
@@ -38,7 +39,7 @@ def configured() -> bool:
 async def _get_client() -> httpx.AsyncClient:
     global _client
     if _client is None or _client.is_closed:
-        _client = httpx.AsyncClient(timeout=15.0)
+        _client = httpx.AsyncClient(timeout=15.0, transport=monitored("telegram"))
     return _client
 
 

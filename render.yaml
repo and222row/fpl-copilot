@@ -104,3 +104,12 @@ services:
 
       - key: REVENUECAT_WEBHOOK_SIGNING_SECRET
         sync: false
+
+      - key: SENTRY_DSN
+        # Error tracking (sentry.io free plan). Empty disables it.
+        sync: false
+
+      - key: HEALTHCHECKS_PING_URL
+        # Heartbeat for the scheduled refresh (healthchecks.io free plan).
+        # Alerts when a refresh fails or stops arriving.
+        sync: false

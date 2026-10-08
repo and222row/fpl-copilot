@@ -7,7 +7,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from app.config import settings
 from app.observability import (
-    configure_logging, RequestContextMiddleware, request_id_var,
+    configure_logging, init_error_tracking, RequestContextMiddleware, request_id_var,
 )
 from app.rate_limit import limiter
 from app.redis_client import close_redis
@@ -20,6 +20,8 @@ from app.routers import (
 from app import scheduler
 
 configure_logging()
+# Before the app is built: Sentry instruments FastAPI and Starlette at init.
+error_tracking = init_error_tracking()
 logger = logging.getLogger("fpl_copilot")
 
 
@@ -27,9 +29,19 @@ logger = logging.getLogger("fpl_copilot")
 async def lifespan(app: FastAPI):
     logger.info(
         "starting up",
-        extra={"environment": settings.environment, "version": app.version},
+        extra={
+            "environment": settings.environment,
+            "version": app.version,
+            "release": settings.release or None,
+            "error_tracking": error_tracking,
+        },
     )
     await run_startup_checks()
+    if settings.is_production:
+        if not error_tracking:
+            logger.warning("monitoring: SENTRY_DSN is not set; errors reach the logs only, with no alert")
+        if not settings.healthchecks_ping_url:
+            logger.warning("monitoring: HEALTHCHECKS_PING_URL is not set; a missed or failed refresh alerts nobody")
     # Background refresh, if enabled. Off by default — see app/scheduler.py.
     scheduler.start()
     yield

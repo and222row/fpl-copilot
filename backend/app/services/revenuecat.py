@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models.billing import Subscription
 from app.models.fpl import utcnow
+from app.services.upstreams import monitored
 
 logger = logging.getLogger("fpl_copilot.billing")
 
@@ -111,7 +112,7 @@ async def fetch_subscriber(app_user_id: str) -> dict:
         raise RevenueCatUnavailable("REVENUECAT_SECRET_KEY is not set")
     url = f"{settings.revenuecat_api_base}/subscribers/{quote(app_user_id, safe='')}"
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=10.0, transport=monitored("revenuecat")) as client:
             response = await client.get(
                 url, headers={"Authorization": f"Bearer {settings.revenuecat_secret_key}"}
             )
@@ -127,7 +128,7 @@ async def delete_subscriber(app_user_id: str) -> None:
         raise RevenueCatUnavailable("REVENUECAT_SECRET_KEY is not set")
     url = f"{settings.revenuecat_api_base}/subscribers/{quote(app_user_id, safe='')}"
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=10.0, transport=monitored("revenuecat")) as client:
             response = await client.delete(
                 url, headers={"Authorization": f"Bearer {settings.revenuecat_secret_key}"}
             )

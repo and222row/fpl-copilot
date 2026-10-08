@@ -11,6 +11,7 @@ import logging
 import secrets
 import time
 import uuid
+from datetime import timedelta, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, ValidationError
@@ -36,6 +37,37 @@ MAX_BODY_BYTES = 64 * 1024
 # A signed delivery older than this is refused, so a captured one cannot be
 # replayed later. RevenueCat signs each attempt, retries included.
 SIGNATURE_TOLERANCE_SECONDS = 300
+# RevenueCat retries a failed delivery for a few hours. An event still failing
+# this long after it first arrived is escalated from a warning to an error.
+ESCALATE_AFTER = timedelta(hours=1)
+
+
+class WebhookRejections:
+    """
+    Deliveries refused before processing, since this process started.
+
+    Every real delivery failing authentication means a secret is mismatched
+    between RevenueCat and Render, and purchases are silently not syncing.
+    Rejections are logged as warnings, not errors, so anyone posting junk to
+    the URL cannot burn the Sentry quota; the ops endpoint shows the count.
+    """
+
+    def __init__(self) -> None:
+        self.count = 0
+        self.last_at: str | None = None
+        self.last_reason: str | None = None
+
+    def add(self, reason: str) -> None:
+        self.count += 1
+        self.last_at = utcnow().isoformat()
+        self.last_reason = reason
+        logger.warning("billing webhook rejected", extra={"reason": reason})
+
+    def as_dict(self) -> dict:
+        return {"since_start": self.count, "last_at": self.last_at, "last_reason": self.last_reason}
+
+
+rejections = WebhookRejections()
 
 
 class _Event(BaseModel):
@@ -104,21 +136,26 @@ async def revenuecat_webhook(
     if settings.is_production and not settings.revenuecat_webhook_signing_secret:
         raise HTTPException(503, "Billing webhook signing is not configured")
     if not authorization or not secrets.compare_digest(authorization, settings.revenuecat_webhook_auth):
+        rejections.add("authorization")
         raise HTTPException(401, "Invalid webhook authorization")
 
     raw = await request.body()
     if len(raw) > MAX_BODY_BYTES:
+        rejections.add("too_large")
         raise HTTPException(413, "Payload too large")
     if settings.revenuecat_webhook_signing_secret and not _verify_signature(
         x_revenuecat_webhook_signature, raw, time.time()
     ):
+        rejections.add("signature")
         raise HTTPException(401, "Invalid webhook signature")
 
     try:
         envelope = _Envelope.model_validate_json(raw)
     except ValidationError:
+        rejections.add("malformed")
         raise HTTPException(400, "Malformed webhook payload")
     event = envelope.event
+    started = time.perf_counter()
 
     record = await db.scalar(select(BillingEvent).where(BillingEvent.event_id == event.id))
     if record is not None and record.processed_at is not None:
@@ -149,12 +186,27 @@ async def revenuecat_webhook(
     except RevenueCatUnavailable as e:
         record.error = str(e)[:2000]
         await db.commit()
-        logger.warning("webhook refresh failed; RevenueCat will retry", extra={"event_type": event.type})
+        received = record.received_at
+        if received.tzinfo is None:
+            received = received.replace(tzinfo=timezone.utc)
+        overdue = utcnow() - received > ESCALATE_AFTER
+        logger.log(
+            logging.ERROR if overdue else logging.WARNING,
+            "billing webhook still failing" if overdue else "billing webhook refresh failed; RevenueCat will retry",
+            extra={"event_type": event.type, "event_id": event.id, "environment": event.environment},
+        )
         # Not 200, so RevenueCat retries with backoff.
         raise HTTPException(502, "Could not confirm the subscription with RevenueCat")
 
     record.processed_at = utcnow()
     record.error = None
+    logger.info("billing webhook processed", extra={
+        "event_type": event.type,
+        "event_id": event.id,
+        "environment": event.environment,
+        "users_refreshed": len(known),
+        "duration_ms": round((time.perf_counter() - started) * 1000, 1),
+    })
     return {"status": "processed", "users_refreshed": len(known)}
 
 

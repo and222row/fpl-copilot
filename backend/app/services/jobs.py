@@ -29,7 +29,7 @@ from app.services.fpl_sync import (
     get_latest_started_gameweek, get_next_open_gameweek, record_verified,
 )
 from app.services.change_detection import detect_changes, generate_alerts
-from app.services import notifications, push
+from app.services import job_monitor, notifications, push
 from app.services import chips
 from app.services.team_strength import rebuild_team_strength
 from app.services.projection import rebuild_projections
@@ -87,8 +87,11 @@ async def refresh_everything(
     Each step is wrapped: a failure in one stage is recorded and the rest still
     run. A transient FPL blip should not leave the whole dataset stale.
     """
-    report = JobReport(started_at=utcnow().isoformat())
+    started_at = utcnow()
+    report = JobReport(started_at=started_at.isoformat())
     started = time.perf_counter()
+    # Lets Healthchecks.io time the run and flag one that never finishes.
+    await job_monitor.heartbeat("start")
 
     async def step(name: str, coro):
         try:
@@ -156,7 +159,16 @@ async def refresh_everything(
         extra={
             "duration_seconds": round(report.duration_seconds, 2),
             "errors": len(report.errors),
+            "failed_steps": [e.split(":", 1)[0] for e in report.errors],
         },
+    )
+    await job_monitor.record_run(
+        db, "refresh", started_at=started_at,
+        duration_seconds=report.duration_seconds, errors=report.errors,
+    )
+    await job_monitor.heartbeat(
+        "fail" if report.errors else "",
+        "\n".join(report.errors) or f"ok in {report.duration_seconds:.1f}s",
     )
     return report.as_dict()
 

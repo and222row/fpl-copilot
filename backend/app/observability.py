@@ -28,7 +28,9 @@ REDACTED_KEYS = {
     "supabase_jwt_secret", "access_token", "refresh_token", "id_token",
     "otp", "phone", "email",
     "revenuecat_secret_key", "revenuecat_webhook_auth", "revenuecat_webhook_signing_secret",
-    "supabase_service_key", "expo_access_token", "apikey",
+    "supabase_service_key", "expo_access_token",
+    # Not credentials, but anyone holding them can send events or pings.
+    "sentry_dsn", "healthchecks_ping_url",
 }
 
 
@@ -96,6 +98,59 @@ def configure_logging() -> None:
 
 
 logger = logging.getLogger("fpl_copilot")
+
+
+def _before_send(event: dict, hint: dict) -> dict:
+    """Last scrub before an event leaves the process, and the request ID tag."""
+    # send_default_pii=False already omits IPs and cookies; never attach a
+    # user either. The request ID is enough to find the matching log lines.
+    event.pop("user", None)
+    request = event.get("request")
+    if isinstance(request, dict):
+        request.pop("data", None)
+        request.pop("cookies", None)
+        if isinstance(request.get("headers"), dict):
+            request["headers"] = redact(request["headers"])
+    rid = request_id_var.get()
+    if rid:
+        event.setdefault("tags", {})["request_id"] = rid
+    if isinstance(event.get("extra"), dict):
+        event["extra"] = redact(event["extra"])
+    return event
+
+
+def init_error_tracking() -> bool:
+    """
+    Send unhandled exceptions, 5xx responses and ERROR logs to Sentry.
+
+    Off unless SENTRY_DSN is set. What leaves the process is kept to code
+    paths and messages: no request bodies, no local variables (they can hold
+    tokens mid-verification), no user, no IP. Warnings stay in the logs only,
+    so expected noise (rate limits, rejected webhooks) cannot use up the free
+    quota.
+    """
+    if not settings.sentry_dsn:
+        return False
+    import sentry_sdk
+    from sentry_sdk.integrations.logging import LoggingIntegration
+    from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
+
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        environment=settings.environment,
+        release=settings.release or None,
+        send_default_pii=False,
+        max_request_body_size="never",
+        include_local_variables=False,
+        traces_sample_rate=settings.sentry_traces_sample_rate,
+        event_scrubber=EventScrubber(
+            denylist=sorted(set(DEFAULT_DENYLIST) | REDACTED_KEYS), recursive=True,
+        ),
+        before_send=_before_send,
+        integrations=[LoggingIntegration(level=logging.INFO, event_level=logging.ERROR)],
+    )
+    return True
+
 
 _SAFE_REQUEST_ID = re.compile(r"[A-Za-z0-9._-]{1,64}")
 

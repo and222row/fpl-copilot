@@ -231,7 +231,7 @@ async def test_send_batches_and_authenticates(monkeypatch):
         return httpx.Response(200, json={"data": [{"status": "ok", "id": str(i)} for i in range(len(batch))]})
 
     real = httpx.AsyncClient
-    monkeypatch.setattr(push.httpx, "AsyncClient", lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+    monkeypatch.setattr(push.httpx, "AsyncClient", lambda **kw: real(**{**kw, "transport": httpx.MockTransport(handler)}))
     monkeypatch.setattr(settings, "expo_access_token", "expo-secret")
     messages = [push.Message(f"ExponentPushToken[{i:022d}]", "t", "b") for i in range(150)]
     tickets = await push.send(messages)
@@ -244,6 +244,6 @@ async def test_send_batches_and_authenticates(monkeypatch):
 async def test_send_raises_on_http_failure(monkeypatch):
     real = httpx.AsyncClient
     handler = lambda request: httpx.Response(503)  # noqa: E731
-    monkeypatch.setattr(push.httpx, "AsyncClient", lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+    monkeypatch.setattr(push.httpx, "AsyncClient", lambda **kw: real(**{**kw, "transport": httpx.MockTransport(handler)}))
     with pytest.raises(push.PushUnavailable):
         await push.send([push.Message("ExponentPushToken[0000000000000000000000]", "t", "b")])

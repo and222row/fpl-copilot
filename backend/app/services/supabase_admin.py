@@ -4,6 +4,7 @@ import uuid
 import httpx
 
 from app.config import settings
+from app.services.upstreams import monitored
 
 
 class AuthAdminUnavailable(Exception):
@@ -27,7 +28,7 @@ async def delete_auth_user(user_id: uuid.UUID) -> None:
 
     url = f"{settings.supabase_url.rstrip('/')}/auth/v1/admin/users/{user_id}"
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=10.0, transport=monitored("supabase_admin")) as client:
             response = await client.delete(url, headers=headers)
     except httpx.HTTPError as e:
         raise AuthAdminUnavailable(str(e)) from e

@@ -29,6 +29,7 @@ from app.database import get_db
 from app.models.accounts import DeletedUser, FplAccount, User
 from app.models.fpl import utcnow
 from app.services.entitlements import get_entitlement
+from app.services.upstreams import monitored
 
 logger = logging.getLogger("fpl_copilot.auth")
 
@@ -77,7 +78,7 @@ class _JwksCache:
         self.attempted_at = now
         url = f"{settings.supabase_issuer}/.well-known/jwks.json"
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(timeout=5.0, transport=monitored("supabase_auth")) as client:
                 response = await client.get(url)
                 response.raise_for_status()
             jwk_set = jwt.PyJWKSet.from_dict(response.json())

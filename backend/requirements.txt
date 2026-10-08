@@ -13,3 +13,6 @@ python-dotenv==1.2.4
 PyJWT[crypto]==2.15.1
 ortools==9.15.6755
 slowapi==0.1.10
+# Error tracking; inert unless SENTRY_DSN is set. The extra pulls nothing new
+# (FastAPI and Starlette are already pinned above).
+sentry-sdk[fastapi]==2.71.0

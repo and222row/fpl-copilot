@@ -1,3 +1,4 @@
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -94,6 +95,20 @@ class Settings(BaseSettings):
     # Access token for Expo's "enhanced push security". With it enabled in the
     # Expo project, nobody holding a device token can push to it but us.
     expo_access_token: str = ""
+
+    # ── Monitoring ───────────────────────────────────────────────────────────
+    # Sentry project DSN (free Developer plan). Empty disables error tracking;
+    # the JSON logs carry the same information, just without alerting.
+    sentry_dsn: str = ""
+    # Share of requests traced for performance. 0 keeps the free quota for
+    # errors; raise briefly when chasing a slow endpoint.
+    sentry_traces_sample_rate: float = 0.0
+    # Tags errors with the deployed commit. Render sets RENDER_GIT_COMMIT.
+    release: str = Field("", validation_alias=AliasChoices("RELEASE", "RENDER_GIT_COMMIT"))
+    # Healthchecks.io ping URL for the scheduled refresh. It alerts when a
+    # refresh fails, or when none arrives on schedule, which nothing inside
+    # the API can notice by itself.
+    healthchecks_ping_url: str = ""
 
     @property
     def supabase_issuer(self) -> str:

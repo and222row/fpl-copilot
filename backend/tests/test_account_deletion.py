@@ -168,7 +168,7 @@ def _client_returning(status: int, seen: list):
         return httpx.Response(status)
 
     real = httpx.AsyncClient
-    return lambda **kw: real(transport=httpx.MockTransport(handler), **kw)
+    return lambda **kw: real(**{**kw, "transport": httpx.MockTransport(handler)})
 
 
 @pytest.mark.parametrize("status", [200, 204, 404])

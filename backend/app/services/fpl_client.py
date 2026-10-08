@@ -4,6 +4,7 @@ from typing import Any
 
 from app.services import cache
 from app.services.cache import cached_json
+from app.services.upstreams import monitored
 
 FPL_BASE = "https://fantasy.premierleague.com/api"
 
@@ -23,6 +24,7 @@ async def get_client() -> httpx.AsyncClient:
             headers=HEADERS,
             timeout=30.0,
             follow_redirects=True,
+            transport=monitored("fpl"),
         )
     return _client
 

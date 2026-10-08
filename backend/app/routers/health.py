@@ -1,13 +1,20 @@
-from datetime import datetime, timezone
+import logging
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, select, func
+from app.auth import JobToken
+from app.config import settings
 from app.database import get_db
 from app.redis_client import ping_redis
+from app.models.billing import BillingEvent
 from app.models.fpl import Player, Fixture, Gameweek
 from app.models.projections import Projection, TeamStrength, ScoringRules
-from app.services import cache
+from app.routers.billing import ESCALATE_AFTER, rejections
+from app.services import cache, job_monitor, upstreams
 from app.services.fpl_sync import last_verified
+
+logger = logging.getLogger("fpl_copilot")
 
 router = APIRouter(tags=["health"])
 
@@ -19,8 +26,10 @@ async def health_check(db: AsyncSession = Depends(get_db)):
 
     try:
         await db.execute(text("SELECT 1"))
-    except Exception as e:
-        db_status = f"error: {e}"
+    except Exception:
+        # Public endpoint: the reason goes to the logs, not the response.
+        logger.exception("health check: database unreachable")
+        db_status = "error"
 
     # Rebuilds the client once if the cached connection was dropped, which
     # managed Redis providers do to idle connections.
@@ -30,7 +39,71 @@ async def health_check(db: AsyncSession = Depends(get_db)):
     return {
         "status": overall,
         "database": db_status,
-        "redis": redis_status,
+        # ping_redis logs the reason; its text can name the host.
+        "redis": redis_status if redis_ok else "error",
+    }
+
+
+@router.get("/health/ops", dependencies=[JobToken])
+async def operations(db: AsyncSession = Depends(get_db)):
+    """
+    Operator view: background jobs, billing webhooks, external services.
+
+    `problems` lists anything needing attention; empty means healthy. Operator
+    only, since error messages and provider state are not for the public.
+    Always 200, so a monitor reads `status` rather than the HTTP code.
+    """
+    now = datetime.now(timezone.utc)
+
+    refresh = await job_monitor.job_health(
+        db, "refresh", stale_after=job_monitor.REFRESH_STALE_AFTER,
+    )
+
+    unprocessed = BillingEvent.processed_at.is_(None)
+    overdue_rows = (await db.execute(
+        select(BillingEvent).where(unprocessed, BillingEvent.received_at < now - ESCALATE_AFTER)
+        .order_by(BillingEvent.received_at).limit(5)
+    )).scalars().all()
+    overdue_count = await db.scalar(
+        select(func.count()).select_from(BillingEvent)
+        .where(unprocessed, BillingEvent.received_at < now - ESCALATE_AFTER)
+    ) or 0
+    billing = {
+        "last_received_at": await db.scalar(select(func.max(BillingEvent.received_at))),
+        "last_processed_at": await db.scalar(select(func.max(BillingEvent.processed_at))),
+        "received_24h": await db.scalar(
+            select(func.count()).select_from(BillingEvent)
+            .where(BillingEvent.received_at >= now - timedelta(hours=24))
+        ) or 0,
+        "unprocessed": await db.scalar(
+            select(func.count()).select_from(BillingEvent).where(unprocessed)
+        ) or 0,
+        "overdue": [
+            {"event_type": r.event_type, "received_at": r.received_at, "error": (r.error or "")[:200]}
+            for r in overdue_rows
+        ],
+        "rejected": rejections.as_dict(),
+    }
+
+    services = upstreams.snapshot()
+
+    problems = list(refresh["problems"])
+    if overdue_count:
+        problems.append(f"billing: {overdue_count} webhook event(s) unprocessed for over an hour")
+    problems += [f"upstream {name} is down" for name, s in services.items() if s["status"] == "down"]
+
+    return {
+        "status": "degraded" if problems else "ok",
+        "checked_at": now.isoformat(),
+        "problems": problems,
+        "jobs": {"refresh": refresh},
+        "billing": billing,
+        "upstreams": services,
+        "monitoring": {
+            "error_tracking": bool(settings.sentry_dsn),
+            "job_heartbeat": bool(settings.healthchecks_ping_url),
+            "release": settings.release or None,
+        },
     }
 
 
