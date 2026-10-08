@@ -242,7 +242,8 @@ async def player_detail(
             ],
         },
         "recent": await _recent_matches(player_id, teams),
-        "news": [
+        # Not "news": the summary's `news` is FPL's current status line.
+        "availability_news": [
             {
                 "detected_at": e.detected_at,
                 "event_type": e.event_type,

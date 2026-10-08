@@ -195,8 +195,9 @@ async def test_detail_bundles_projection_fixtures_recent_and_news(client, pool, 
     ]
     assert [m["gameweek"] for m in body["recent"]] == [7, 6, 5, 4, 3], "newest first, last five"
     assert body["recent"][0]["opponent"] == "LIV"
-    assert body["news"][0]["source"] == "fpl_api"
-    assert body["news"][0]["text"].startswith("Knock")
+    assert body["availability_news"][0]["source"] == "fpl_api"
+    assert body["availability_news"][0]["text"].startswith("Knock")
+    assert body["news"] == "", "the player's own status line must survive"
 
 
 async def test_detail_survives_fpl_outage(client, pool, monkeypatch):
