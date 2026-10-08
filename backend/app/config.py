@@ -67,6 +67,18 @@ class Settings(BaseSettings):
     # token is always checked for ownership. Must be true before mobile launch.
     auth_required: bool = False
 
+    # ── Store billing (RevenueCat) ───────────────────────────────────────────
+    # Secret v1 API key: lets the server read a customer's real subscription
+    # state. Server-side only; the app uses separate public SDK keys.
+    revenuecat_secret_key: str = ""
+    # The exact Authorization header value set on the webhook in RevenueCat.
+    revenuecat_webhook_auth: str = ""
+    # Webhook signing secret. When set, every delivery must carry a valid,
+    # recent X-RevenueCat-Webhook-Signature.
+    revenuecat_webhook_signing_secret: str = ""
+    revenuecat_entitlement_id: str = "pro"
+    revenuecat_api_base: str = "https://api.revenuecat.com/v1"
+
     @property
     def supabase_issuer(self) -> str:
         return f"{self.supabase_url.rstrip('/')}/auth/v1"

@@ -315,13 +315,15 @@ async def test_operator_endpoints_need_the_job_token(client, monkeypatch, method
     assert (await client.request(method, path, headers=bearer(USER_A))).status_code == 401
 
 
-# Guarded inside the handler instead: /me routes require a signed-in user, and
-# the Telegram webhook checks Telegram's secret header.
+# Guarded inside the handler instead: /me and billing sync require a signed-in
+# user, and the webhooks check their sender's secret.
 SELF_GUARDED_WRITES = {
     "/api/v1/me/fpl-accounts",
     "/api/v1/me/fpl-accounts/{fpl_entry_id}/verify",
     "/api/v1/me/fpl-accounts/{fpl_entry_id}",
     "/api/v1/telegram/webhook",
+    "/api/v1/billing/revenuecat/webhook",
+    "/api/v1/billing/sync",
 }
 
 

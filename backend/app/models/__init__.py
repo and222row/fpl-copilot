@@ -9,6 +9,7 @@ from app.models.feedback import (
     RecommendationSnapshot, RecommendationOutcome, SquadOverride,
 )
 from app.models.accounts import User, FplAccount, FplClaim, Trial
+from app.models.billing import Subscription, BillingEvent
 
 __all__ = [
     "Team",
@@ -30,5 +31,7 @@ __all__ = [
     "FplAccount",
     "FplClaim",
     "Trial",
+    "Subscription",
+    "BillingEvent",
     "utcnow",
 ]

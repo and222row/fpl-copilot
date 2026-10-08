@@ -82,3 +82,12 @@ services:
       - key: AUTH_REQUIRED
         # Flip to "true" once the web dashboard has sign-in or is retired.
         value: "false"
+
+      - key: REVENUECAT_SECRET_KEY
+        sync: false
+
+      - key: REVENUECAT_WEBHOOK_AUTH
+        sync: false
+
+      - key: REVENUECAT_WEBHOOK_SIGNING_SECRET
+        sync: false
