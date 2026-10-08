@@ -64,6 +64,10 @@ def key_history(manager_id: int) -> str:
     return f"{PREFIX}:history:{manager_id}"
 
 
+def key_element_summary(player_id: int) -> str:
+    return f"{PREFIX}:element:{player_id}"
+
+
 async def cached_json(
     key: str,
     loader: Callable[[], Awaitable[Any]],

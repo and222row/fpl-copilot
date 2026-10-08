@@ -24,6 +24,7 @@ from app.services.feedback import (
     snapshot_recommendation, KIND_CAPTAIN, KIND_LINEUP, KIND_TRANSFER,
 )
 from app.services.squad_state import resolve_squad
+from app.services.transfer_reasons import explain_plans
 
 router = APIRouter(prefix="/decisions", tags=["decisions"])
 
@@ -380,6 +381,10 @@ async def recommend_transfers(
     elif best.transfers_made > 1:
         action = f"TRANSFER x{best.transfers_made}"
 
+    best_plan = plan_dict(best)
+    alternative_plans = [plan_dict(p) for p in alternatives]
+    await explain_plans(db, [best_plan, *alternative_plans], list(horizon_gws))
+
     return {
         **meta,
         "horizon": horizon_gws,
@@ -390,9 +395,9 @@ async def recommend_transfers(
             "expected_net_gain": best.net_gain,
             "hit_taken": best.hit,
             **conf.as_dict(),
-            "plan": plan_dict(best),
+            "plan": best_plan,
         },
-        "alternatives": [plan_dict(p) for p in alternatives],
+        "alternatives": alternative_plans,
     }
 
 

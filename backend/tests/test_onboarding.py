@@ -346,6 +346,8 @@ EXPECTED_PREMIUM_ROUTES = {
     "/api/v1/news/alerts/{manager_id}",
     "/api/v1/news/alerts/{manager_id}/generate",
     "/api/v1/news/alerts/{manager_id}/read",
+    "/api/v1/players",
+    "/api/v1/players/{player_id}",
     "/api/v1/projections",
     "/api/v1/projections/player/{player_id}",
     "/api/v1/projections/team-strength",

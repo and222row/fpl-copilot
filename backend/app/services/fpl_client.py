@@ -113,3 +113,18 @@ async def fetch_live_points(gameweek: int) -> dict:
 async def fetch_player_detail(player_id: int) -> dict:
     """Returns detailed history and fixture list for a single player."""
     return await _get(f"/element-summary/{player_id}/")
+
+
+# Match history only changes after a match, so ten minutes is safe. Separate
+# from fetch_player_detail on purpose: the history ingest walks every player
+# and would spend hundreds of cache writes against a 10k/day Redis allowance.
+PLAYER_SUMMARY_TTL_SECONDS = 600
+
+
+async def fetch_player_detail_cached(player_id: int) -> dict:
+    """fetch_player_detail for interactive screens, cached briefly."""
+    return await cached_json(
+        cache.key_element_summary(player_id),
+        lambda: fetch_player_detail(player_id),
+        ttl_seconds=PLAYER_SUMMARY_TTL_SECONDS,
+    )
