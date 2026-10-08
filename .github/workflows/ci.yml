@@ -178,7 +178,9 @@ jobs:
         run: |
           # Everything under mobile/ ships to users' phones. Backend-only
           # setting names appearing there means a secret is about to leak.
-          if grep -rInE "SUPABASE_JWT_SECRET|SERVICE_ROLE|SUPABASE_SERVICE_KEY|EXPO_ACCESS_TOKEN|JOB_TOKEN|DATABASE_URL|REDIS_URL|TELEGRAM_BOT_TOKEN|REVENUECAT_SECRET|REVENUECAT_WEBHOOK|sk_live_|sk_test_|whsec_|\bsk_[A-Za-z0-9]{20,}" \
+          # Sentry: the DSN is public, but an auth token (sntrys_/sntryu_) can
+          # upload and read data, and an EXPO_PUBLIC_ one would be inlined.
+          if grep -rInE "SUPABASE_JWT_SECRET|SERVICE_ROLE|SUPABASE_SERVICE_KEY|EXPO_ACCESS_TOKEN|JOB_TOKEN|DATABASE_URL|REDIS_URL|TELEGRAM_BOT_TOKEN|REVENUECAT_SECRET|REVENUECAT_WEBHOOK|HEALTHCHECKS_PING_URL|EXPO_PUBLIC_SENTRY_AUTH|sntrys_|sntryu_|sk_live_|sk_test_|whsec_|\bsk_[A-Za-z0-9]{20,}" \
               --exclude-dir=node_modules --exclude="README.md" --exclude=".env.example" mobile; then
             echo "::error::A backend secret name or key appears in mobile/"
             exit 1

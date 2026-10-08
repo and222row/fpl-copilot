@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider, type ErrorBoundaryProps } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
@@ -9,12 +9,38 @@ import { ErrorView } from '@/components/error-view';
 import { Screen } from '@/components/screen';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { decideGate } from '@/lib/gate';
+import { initMonitoring, monitoringEnabled, reportError, wrapRoot } from '@/lib/monitoring';
 import { refreshRegistration, targetFor } from '@/lib/push';
 import { queryClient, refreshAccount, useAccountQueries } from '@/lib/query';
 
+// First, so a crash during startup is reported too.
+initMonitoring();
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+export default monitoringEnabled() ? wrapRoot(RootLayout) : RootLayout;
+
+// Catches a render error anywhere in the app. Without it a crash in one screen
+// is a blank app; with it the user can retry, and the error is reported (an
+// error caught here never reaches the global crash handler).
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  useEffect(() => {
+    reportError(error);
+  }, [error]);
+  // The crash may have come before the splash screen was hidden.
+  useEffect(() => {
+    SplashScreen.hideAsync();
+  }, []);
+  const message = monitoringEnabled()
+    ? 'FPL Copilot hit an unexpected problem. It has been reported.'
+    : 'FPL Copilot hit an unexpected problem.';
+  return (
+    <Screen title="Something went wrong" testID="crash-screen">
+      <ErrorView error={new Error(message)} onRetry={() => void retry()} />
+    </Screen>
+  );
+}
+
+function RootLayout() {
   const scheme = useColorScheme();
   return (
     <QueryClientProvider client={queryClient}>

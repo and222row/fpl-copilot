@@ -4,6 +4,24 @@ import type { ExpoConfig } from 'expo/config';
 // first store build.
 const BUNDLE_ID = 'com.fplcopilot.app';
 
+// Uploads source maps and native debug symbols to Sentry during EAS builds.
+// Only added when the build environment names the Sentry project, so a build
+// without Sentry set up does not fail on the upload step. SENTRY_AUTH_TOKEN
+// comes from the EAS environment (sensitive) and is never written here.
+const sentryPlugin: [string, Record<string, string>][] =
+  process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
+    ? [
+        [
+          '@sentry/react-native/expo',
+          {
+            organization: process.env.SENTRY_ORG,
+            project: process.env.SENTRY_PROJECT,
+            url: process.env.SENTRY_URL ?? 'https://sentry.io/',
+          },
+        ],
+      ]
+    : [];
+
 const config: ExpoConfig = {
   name: 'FPL Copilot',
   slug: 'fpl-copilot',
@@ -56,6 +74,7 @@ const config: ExpoConfig = {
           process.env.GOOGLE_IOS_URL_SCHEME ?? 'com.googleusercontent.apps.SET_GOOGLE_IOS_URL_SCHEME',
       },
     ],
+    ...sentryPlugin,
   ],
   experiments: {
     typedRoutes: true,
@@ -65,6 +84,8 @@ const config: ExpoConfig = {
     // From `npx eas-cli@latest init`. Push tokens are issued per EAS project;
     // without it the app reports push as unavailable instead of failing.
     eas: { projectId: process.env.EAS_PROJECT_ID || undefined },
+    // Tags crash reports with the EAS build profile (production, preview...).
+    sentryEnvironment: process.env.EAS_BUILD_PROFILE ?? 'local',
   },
 };
 
