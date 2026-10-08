@@ -231,11 +231,32 @@ async def test_projection_row_includes_value_and_set_pieces(client, seeded):
 
 
 async def test_player_projection_detail_exposes_components(client, seeded):
+    seeded.add(make_projection(4, 2, xpts=6.0))
+    await seeded.commit()
     r = await client.get("/api/v1/projections/player/4?horizon=1")
     assert r.status_code == 200
     body = r.json()
     assert "components" in body["gameweeks"][0]
     assert body["set_pieces"]["penalties"] == 1
+
+
+async def test_player_projection_detail_skips_locked_gameweeks(client, seeded):
+    # GW1's deadline has passed; its row is kept for accuracy scoring but is
+    # not "upcoming". The season's first rows must not masquerade as next.
+    seeded.add_all([make_projection(4, 2, xpts=6.0), make_gameweek(3)])
+    seeded.add(make_projection(4, 3, xpts=5.0))
+    await seeded.commit()
+    body = (await client.get("/api/v1/projections/player/4?horizon=5")).json()
+    assert [g["gameweek"] for g in body["gameweeks"]] == [2, 3]
+    assert body["total_xpts"] == pytest.approx(11.0)
+
+
+async def test_projection_list_defaults_to_the_open_gameweek(client, seeded):
+    seeded.add(make_projection(4, 2, xpts=9.9))
+    await seeded.commit()
+    rows = (await client.get("/api/v1/projections?min_minutes=0")).json()
+    assert [r["name"] for r in rows] == ["Striker"]
+    assert rows[0]["xpts"] == 9.9
 
 
 async def test_news_parse_check_reports_rate(client, seeded):

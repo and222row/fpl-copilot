@@ -9,7 +9,7 @@ from app.models.projections import Projection, TeamStrength
 from app.services.projection import rebuild_projections, MODEL_VERSION
 from app.services.team_strength import rebuild_team_strength, MODEL_VERSION as FDR_VERSION
 from app.services.backtest import backtest, ingest_player_history
-from app.services.fpl_sync import get_active_gameweek
+from app.services.fpl_sync import get_next_open_gameweek
 
 router = APIRouter(prefix="/projections", tags=["projections"])
 
@@ -55,16 +55,21 @@ async def rebuild(
 
 @router.get("", dependencies=[Premium])
 async def list_projections(
-    gameweek: int | None = Query(None, description="Defaults to the active GW"),
+    gameweek: int | None = Query(None, description="Defaults to the next open GW"),
     position: int | None = Query(None, ge=1, le=4),
     max_price: float | None = Query(None),
     min_minutes: float = Query(0, description="Filter out unlikely starters"),
     limit: int = Query(50, ge=1, le=300),
     db: AsyncSession = Depends(get_db),
 ):
-    """Top projected players for a gameweek."""
+    """
+    Top projected players for a gameweek.
+
+    Defaults to the next gameweek whose deadline is open: once a deadline
+    passes the squad is locked, so projections for it cannot be acted on.
+    """
     if gameweek is None:
-        gw = await get_active_gameweek(db)
+        gw = await get_next_open_gameweek(db)
         if not gw:
             raise HTTPException(400, "No gameweek found — sync FPL data first.")
         gameweek = gw.id
@@ -130,11 +135,15 @@ async def player_projections(
     if not player:
         raise HTTPException(404, f"Player {player_id} not found")
 
+    # Rows for played gameweeks are kept for accuracy scoring, so without a
+    # lower bound "the next five" would be the season's first five.
+    open_gw = await get_next_open_gameweek(db)
     rows = (await db.execute(
         select(Projection)
         .where(
             Projection.player_id == player_id,
             Projection.model_version == MODEL_VERSION,
+            Projection.gameweek_id >= (open_gw.id if open_gw else 0),
         )
         .order_by(Projection.gameweek_id)
         .limit(horizon)
