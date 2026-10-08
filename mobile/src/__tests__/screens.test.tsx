@@ -74,7 +74,8 @@ describe('transfers', () => {
     expect(screen.getByText('Free')).toBeTruthy(); // no hit
     expect(screen.getByText('£1.5m')).toBeTruthy(); // bank now
     expect(screen.getByText('£0.0m')).toBeTruthy(); // bank after
-    expect(screen.getByText('+26.3 pts / 5 GW')).toBeTruthy();
+    expect(screen.getByText('Gain · 5 GW')).toBeTruthy();
+    expect(screen.getByText('+26.3 pts')).toBeTruthy();
     expect(screen.getByText('−£2.9m')).toBeTruthy(); // Watkins costs £2.9m more than Wissa
     expect(screen.getByText(/Wissa is injured/)).toBeTruthy();
     expect(screen.getByText(/Roll the transfer/)).toBeTruthy();

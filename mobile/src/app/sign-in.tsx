@@ -5,9 +5,10 @@ import { Platform, StyleSheet, View } from 'react-native';
 import { Button } from '@/components/button';
 import { errorMessage } from '@/components/error-view';
 import { LegalLinks } from '@/components/legal-links';
-import { Screen } from '@/components/screen';
+import { Card, Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/lib/auth';
 
@@ -22,6 +23,7 @@ const E2ESignIn: ComponentType | null =
 export default function SignIn() {
   const { signInWithApple, signInWithGoogle } = useAuth();
   const scheme = useColorScheme();
+  const theme = useTheme();
   const [appleAvailable, setAppleAvailable] = useState(false);
   const [busy, setBusy] = useState<'apple' | 'google' | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,15 +46,30 @@ export default function SignIn() {
 
   return (
     <Screen testID="sign-in-screen" footer={<LegalLinks />}>
-      <View style={styles.hero}>
-        <ThemedText type="subtitle" accessibilityRole="header">
+      <Card variant="hero" style={styles.hero}>
+        <ThemedText type="eyebrow" style={{ color: theme.brand }}>
+          Fantasy Premier League
+        </ThemedText>
+        <ThemedText type="title" accessibilityRole="header" style={{ color: theme.onHero }}>
           FPL Copilot
         </ThemedText>
-        <ThemedText themeColor="textSecondary">
+        <ThemedText style={{ color: theme.onHeroMuted }}>
           Transfers, captaincy and lineups worked out by an optimiser, with the evidence behind
           every call.
         </ThemedText>
-      </View>
+        <View style={styles.points}>
+          {['Your best XI and captain, every gameweek', 'Transfers that pay off, hits included', 'Alerts before prices and players move'].map(
+            (line) => (
+              <View key={line} style={styles.point}>
+                <View style={[styles.dot, { backgroundColor: theme.brand }]} />
+                <ThemedText type="small" style={{ color: theme.onHero }}>
+                  {line}
+                </ThemedText>
+              </View>
+            ),
+          )}
+        </View>
+      </Card>
 
       <View style={styles.buttons}>
         {appleAvailable ? (
@@ -63,7 +80,7 @@ export default function SignIn() {
                 ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
                 : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
             }
-            cornerRadius={12}
+            cornerRadius={14}
             style={styles.apple}
             onPress={() => run('apple', signInWithApple)}
           />
@@ -87,7 +104,10 @@ export default function SignIn() {
 }
 
 const styles = StyleSheet.create({
-  hero: { gap: Spacing.two, marginTop: Spacing.six },
-  buttons: { gap: Spacing.two, marginTop: Spacing.five },
-  apple: { height: 50 },
+  hero: { gap: Spacing.two, marginTop: Spacing.five, paddingVertical: Spacing.five },
+  points: { gap: 10, marginTop: Spacing.three },
+  point: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  buttons: { gap: Spacing.two, marginTop: Spacing.four },
+  apple: { height: 52 },
 });

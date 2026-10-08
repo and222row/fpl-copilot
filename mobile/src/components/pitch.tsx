@@ -3,13 +3,16 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { VerdictBadge } from '@/components/verdict-badge';
-import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Radius, Spacing } from '@/constants/theme';
 import type { PlayerBrief, Recommendation } from '@/lib/api';
 import { availabilityLabel, pitchRows, verdictFor } from '@/lib/squad';
 
-const GRASS = '#1F7A3D';
-const LINE = 'rgba(255,255,255,0.35)';
+const GRASS = '#13803F';
+const GRASS_STRIPE = '#18904A';
+const LINE = 'rgba(255,255,255,0.32)';
+const PLATE = '#37003C';
+const POINTS = '#00FF87';
+const STRIPES = 8;
 
 export function openPlayer(playerId: number) {
   router.push({ pathname: '/player/[id]', params: { id: String(playerId) } });
@@ -30,9 +33,11 @@ export function PlayerToken({
   chance: number | null | undefined;
   armband?: 'C' | 'V';
 }) {
-  const theme = useTheme();
   const verdict = verdictFor(player.player_id, rec);
   const availability = availabilityLabel(player.status, chance);
+  // Every starter is a START; only a different call is worth a badge.
+  const badge = verdict && verdict !== 'START' ? verdict : null;
+  const flag = availability ? (player.status === 'd' ? '#FFB547' : '#FF5C6C') : null;
   return (
     <Pressable
       testID={`player-token-${player.player_id}`}
@@ -41,31 +46,30 @@ export function PlayerToken({
         availability ? `, ${availability}` : ''
       }${verdict ? `, ${verdict}` : ''}`}
       onPress={() => openPlayer(player.player_id)}
-      style={styles.token}>
-      <View style={[styles.shirt, { backgroundColor: theme.background }]}>
-        <ThemedText type="smallBold" style={styles.shirtText}>
-          {player.team}
-        </ThemedText>
+      style={({ pressed }) => [styles.token, pressed && { opacity: 0.7 }]}>
+      <View style={styles.shirt}>
+        <ThemedText style={styles.shirtText}>{player.team}</ThemedText>
         {armband ? (
-          <View style={[styles.armband, { backgroundColor: theme.accent }]}>
-            <ThemedText style={[styles.armbandText, { color: theme.onAccent }]}>{armband}</ThemedText>
+          <View style={[styles.armband, armband === 'C' ? styles.captain : styles.vice]}>
+            <ThemedText style={[styles.armbandText, { color: armband === 'C' ? PLATE : '#FFFFFF' }]}>{armband}</ThemedText>
           </View>
         ) : null}
+        {flag ? <View style={[styles.flag, { backgroundColor: flag }]} /> : null}
       </View>
-      <View style={[styles.label, { backgroundColor: theme.background }]}>
-        <ThemedText type="smallBold" numberOfLines={1} style={styles.name}>
+      <View style={styles.plate}>
+        <ThemedText numberOfLines={1} style={styles.name}>
           {player.name}
         </ThemedText>
-        <ThemedText style={styles.meta} themeColor="textSecondary">
-          £{player.price.toFixed(1)} · {player.xpts.toFixed(1)}
-        </ThemedText>
-        {availability ? (
-          <ThemedText style={styles.meta} themeColor={player.status === 'd' ? 'warning' : 'danger'}>
-            {availability}
-          </ThemedText>
-        ) : null}
       </View>
-      {verdict ? <VerdictBadge verdict={verdict} /> : null}
+      <View style={styles.points}>
+        <ThemedText style={styles.pointsText}>{player.xpts.toFixed(1)}</ThemedText>
+      </View>
+      {availability ? (
+        <ThemedText numberOfLines={1} style={[styles.availability, { color: flag ?? '#FFFFFF' }]}>
+          {availability}
+        </ThemedText>
+      ) : null}
+      {badge ? <VerdictBadge verdict={badge} solid /> : null}
     </Pressable>
   );
 }
@@ -76,7 +80,14 @@ export function Pitch({ rec }: { rec: Recommendation }) {
   const viceId = rec.captain.vice?.player_id;
   return (
     <View testID="pitch" style={styles.pitch} accessibilityLabel={`Starting eleven, ${rec.lineup.formation}`}>
-      <View style={styles.halfway} />
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        {Array.from({ length: STRIPES }, (_, i) => (
+          <View key={i} style={[styles.stripe, { backgroundColor: i % 2 ? GRASS_STRIPE : GRASS }]} />
+        ))}
+        <View style={styles.box} />
+        <View style={styles.halfway} />
+        <View style={styles.circle} />
+      </View>
       {pitchRows(rec.lineup.starting).map((row) => (
         <View key={row[0].position} style={styles.row}>
           {row.map((p) => (
@@ -90,43 +101,104 @@ export function Pitch({ rec }: { rec: Recommendation }) {
           ))}
         </View>
       ))}
+      <ThemedText style={styles.legend}>Expected points next gameweek · tap a player for details</ThemedText>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   pitch: {
-    backgroundColor: GRASS,
-    borderRadius: 16,
-    paddingVertical: Spacing.three,
-    gap: Spacing.three,
-    borderWidth: 2,
-    borderColor: LINE,
+    borderRadius: Radius.lg,
+    paddingTop: Spacing.four,
+    paddingBottom: Spacing.three,
+    gap: Spacing.four,
     overflow: 'hidden',
   },
-  halfway: { position: 'absolute', left: 0, right: 0, top: '50%', height: 2, backgroundColor: LINE },
-  row: { flexDirection: 'row', justifyContent: 'space-evenly' },
-  token: { width: 68, alignItems: 'center', gap: 2 },
+  stripe: { flex: 1 },
+  box: {
+    position: 'absolute',
+    top: -2,
+    left: '22%',
+    right: '22%',
+    height: '16%',
+    borderWidth: 2,
+    borderColor: LINE,
+  },
+  halfway: { position: 'absolute', left: 0, right: 0, top: '58%', height: 2, backgroundColor: LINE },
+  circle: {
+    position: 'absolute',
+    top: '58%',
+    left: '50%',
+    width: 92,
+    height: 92,
+    marginLeft: -46,
+    marginTop: -46,
+    borderRadius: 46,
+    borderWidth: 2,
+    borderColor: LINE,
+  },
+  row: { flexDirection: 'row', justifyContent: 'space-evenly', paddingHorizontal: Spacing.one },
+  token: { width: 74, alignItems: 'center' },
   shirt: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
-  shirtText: { fontSize: 10, lineHeight: 12 },
+  shirtText: { fontSize: 11, lineHeight: 13, fontWeight: '800', color: PLATE },
   armband: {
     position: 'absolute',
-    right: -6,
-    top: -4,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    right: -7,
+    top: -5,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
-  armbandText: { fontSize: 10, lineHeight: 12, fontWeight: '700' },
-  label: { borderRadius: 6, paddingHorizontal: 4, alignItems: 'center', width: '100%' },
-  name: { fontSize: 11, lineHeight: 14 },
-  meta: { fontSize: 10, lineHeight: 13 },
+  captain: { backgroundColor: POINTS },
+  vice: { backgroundColor: PLATE },
+  armbandText: { fontSize: 10, lineHeight: 12, fontWeight: '900' },
+  flag: {
+    position: 'absolute',
+    left: -3,
+    top: -3,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  plate: {
+    backgroundColor: PLATE,
+    borderTopLeftRadius: 6,
+    borderTopRightRadius: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    width: '100%',
+    alignItems: 'center',
+  },
+  name: { fontSize: 11, lineHeight: 14, fontWeight: '700', color: '#FFFFFF' },
+  points: {
+    backgroundColor: POINTS,
+    borderBottomLeftRadius: 6,
+    borderBottomRightRadius: 6,
+    width: '100%',
+    alignItems: 'center',
+    paddingVertical: 1,
+    marginBottom: 3,
+  },
+  pointsText: { fontSize: 11, lineHeight: 14, fontWeight: '800', color: PLATE, fontVariant: ['tabular-nums'] },
+  availability: { fontSize: 10, lineHeight: 13, fontWeight: '700', marginBottom: 2 },
+  legend: { textAlign: 'center', fontSize: 11, lineHeight: 14, color: 'rgba(255,255,255,0.75)', fontWeight: '600' },
 });

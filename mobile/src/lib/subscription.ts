@@ -1,6 +1,8 @@
 import type { Entitlement } from '@/lib/api';
 
-const date = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString() : '');
+// "8 Nov 2026" rather than the locale's numeric form, which reads ambiguously.
+const date = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 const planName = (e: Entitlement) => (e.plan === 'ANNUAL' ? 'Annual' : e.plan === 'MONTHLY' ? 'Monthly' : 'Pro');
 
 /** One line describing where the user stands, from the server's entitlement. */

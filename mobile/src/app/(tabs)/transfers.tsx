@@ -3,14 +3,15 @@ import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
-import { ChipGroup } from '@/components/chip';
+import { Segmented } from '@/components/chip';
 import { errorMessage, ErrorView } from '@/components/error-view';
 import { openPlayer } from '@/components/pitch';
-import { Card, Screen } from '@/components/screen';
+import { Banner, Card, ListGroup, ListRow, Screen, SectionHeader } from '@/components/screen';
+import { SquadBanner } from '@/components/squad-banner';
 import { Stat, StatRow } from '@/components/stat';
 import { ThemedText } from '@/components/themed-text';
-import { VerdictBadge } from '@/components/verdict-badge';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { api, type ExplainedMove, type SquadMeta, type TransferPlan, type TransferRecommendation } from '@/lib/api';
 import { refreshSquadDerived, useRecommendation, useTeamId, useTransfers } from '@/lib/query';
 import { money, signed } from '@/lib/squad';
@@ -48,11 +49,18 @@ export default function Transfers() {
 
   return (
     <Screen testID="transfers-screen" title="Transfers" onRefresh={() => query.refetch()} refreshing={query.isRefetching}>
-      <ChipGroup options={HORIZONS} value={horizon as 1 | 3 | 5} onChange={setHorizon} />
+      <Segmented options={HORIZONS} value={horizon as 1 | 3 | 5} onChange={setHorizon} />
       {query.isPending ? <ThemedText themeColor="textSecondary">Running the optimiser…</ThemedText> : null}
       {query.isError ? <ErrorView error={query.error} onRetry={() => query.refetch()} /> : null}
       {data && teamId ? <TransferView data={data} teamId={teamId} /> : null}
-      <Button title="Plan ahead, gameweek by gameweek" variant="secondary" onPress={() => router.push('/planner')} />
+      <ListGroup>
+        <ListRow
+          title="Plan ahead, gameweek by gameweek"
+          subtitle="When to use transfers and whether a hit pays off"
+          onPress={() => router.push('/planner')}
+          last
+        />
+      </ListGroup>
     </Screen>
   );
 }
@@ -97,42 +105,41 @@ function TransferView({ data, teamId }: { data: TransferData; teamId: number }) 
   return (
     <>
       {data.squad_source === 'manager_override' && data.transfers_applied?.length ? (
-        <Card>
-          <ThemedText type="small">
-            Advice uses the {data.transfers_applied.length} transfer
-            {data.transfers_applied.length === 1 ? '' : 's'} you recorded for this gameweek.
-          </ThemedText>
-          <Button
-            title="Undo recorded transfers"
-            variant="secondary"
-            loading={busy}
-            onPress={() => run(() => api.resetRecordedTransfers(teamId))}
-          />
-        </Card>
-      ) : data.stale_warning ? (
-        <ThemedText type="small" themeColor="warning">
-          {data.stale_warning}
-        </ThemedText>
-      ) : null}
+        <Banner
+          tone="info"
+          title={`Using the ${data.transfers_applied.length} transfer${data.transfers_applied.length === 1 ? '' : 's'} you recorded`}
+          action={
+            <Button
+              title="Undo recorded transfers"
+              variant="secondary"
+              compact
+              loading={busy}
+              onPress={() => run(() => api.resetRecordedTransfers(teamId))}
+            />
+          }
+        />
+      ) : (
+        <SquadBanner warning={data.stale_warning} />
+      )}
 
       <Card>
-        <ThemedText type="small" themeColor="textSecondary">
+        <ThemedText type="eyebrow" themeColor="textSecondary">
           Recommendation · {r.horizon_gameweeks} GW
         </ThemedText>
-        <ThemedText testID="transfer-action" type="subtitle">{r.action}</ThemedText>
+        <ThemedText testID="transfer-action" type="subtitle">
+          {r.action}
+        </ThemedText>
         <StatRow>
-          <Stat label="Expected gain" value={`${signed(r.expected_net_gain)} pts`} />
+          <Stat label="Expected gain" value={`${signed(r.expected_net_gain)}`} tone="positive" />
           <Stat label="Confidence" value={`${Math.round(r.confidence)}%`} />
-          <Stat label="Cost" value={r.hit_taken ? `−${r.hit_taken} pts` : 'Free'} />
+          <Stat label="Cost" value={r.hit_taken ? `−${r.hit_taken}` : 'Free'} tone={r.hit_taken ? 'negative' : undefined} />
         </StatRow>
         <StatRow>
           <Stat label="Free transfers" value={String(data.free_transfers)} />
           <Stat label="Bank now" value={money(data.bank)} />
           <Stat label="Bank after" value={money(plan.bank_after)} />
         </StatRow>
-        {plan.moves.length === 0 ? (
-          <ThemedText themeColor="textSecondary">{plan.note}</ThemedText>
-        ) : null}
+        {plan.moves.length === 0 ? <ThemedText themeColor="textSecondary">{plan.note}</ThemedText> : null}
         {r.notes.map((n) => (
           <ThemedText key={n} type="small" themeColor="textSecondary">
             {n}
@@ -140,6 +147,7 @@ function TransferView({ data, teamId }: { data: TransferData; teamId: number }) 
         ))}
       </Card>
 
+      {plan.moves.length > 0 ? <SectionHeader title={`The ${plan.moves.length === 1 ? 'move' : 'moves'}`} /> : null}
       {plan.moves.map((m) => (
         <MoveCard key={m.out.player_id} move={m} horizon={r.horizon_gameweeks} />
       ))}
@@ -149,54 +157,81 @@ function TransferView({ data, teamId }: { data: TransferData; teamId: number }) 
       ) : null}
 
       {data.alternatives.length > 0 ? (
-        <Card>
-          <ThemedText type="smallBold">Other options</ThemedText>
-          {data.alternatives.map((a) => (
-            <View key={`${a.transfers}-${a.hit}`} style={styles.alternative}>
-              <ThemedText type="small">
-                {a.transfers === 0 ? 'Roll the transfer' : `${a.transfers} transfer${a.transfers > 1 ? 's' : ''}`}
-                {a.hit ? ` (−${a.hit})` : ''} · {signed(a.net_gain)} pts
-              </ThemedText>
-              {a.moves.map((m) => (
-                <ThemedText key={m.out.player_id} type="small" themeColor="textSecondary">
-                  {m.out.name} → {m.in.name}
-                </ThemedText>
-              ))}
-            </View>
-          ))}
-        </Card>
+        <>
+          <SectionHeader title="Other options" />
+          <ListGroup>
+            {data.alternatives.map((a, i) => (
+              <ListRow
+                key={`${a.transfers}-${a.hit}`}
+                title={`${a.transfers === 0 ? 'Roll the transfer' : `${a.transfers} transfer${a.transfers > 1 ? 's' : ''}`}${
+                  a.hit ? ` (−${a.hit})` : ''
+                }`}
+                subtitle={a.moves.map((m) => `${m.out.name} → ${m.in.name}`).join(', ') || undefined}
+                value={`${signed(a.net_gain)} pts`}
+                last={i === data.alternatives.length - 1}
+              />
+            ))}
+          </ListGroup>
+        </>
       ) : null}
     </>
   );
 }
 
 function MoveCard({ move, horizon }: { move: ExplainedMove; horizon: number }) {
+  const theme = useTheme();
   const priceDiff = move.in.price - move.out.price;
   return (
     <Card>
-      <PlayerLine verdict="SELL" player={move.out} />
-      <PlayerLine verdict="BUY" player={move.in} />
+      <View style={styles.swap}>
+        <PlayerSide label="SELL" player={move.out} color={theme.danger} soft={theme.dangerSoft} />
+        <ThemedText type="headline" themeColor="textSecondary">
+          →
+        </ThemedText>
+        <PlayerSide label="BUY" player={move.in} color={theme.highlight} soft={theme.highlightSoft} />
+      </View>
       <StatRow>
-        <Stat label="Gain" value={`${signed(move.xpts_gain)} pts / ${horizon} GW`} />
+        <Stat label={`Gain · ${horizon} GW`} value={`${signed(move.xpts_gain)} pts`} tone="positive" />
         <Stat label="Budget" value={`${priceDiff > 0 ? '−' : '+'}£${Math.abs(priceDiff).toFixed(1)}m`} />
       </StatRow>
-      {move.reasons.map((reason) => (
-        <ThemedText key={reason} type="small" themeColor="textSecondary">
-          • {reason}
-        </ThemedText>
-      ))}
+      <View style={styles.reasons}>
+        {move.reasons.map((reason) => (
+          <View key={reason} style={styles.reason}>
+            <View style={[styles.bullet, { backgroundColor: theme.highlight }]} />
+            <ThemedText type="small" themeColor="textSecondary" style={styles.grow}>
+              {reason}
+            </ThemedText>
+          </View>
+        ))}
+      </View>
     </Card>
   );
 }
 
-function PlayerLine({ verdict, player }: { verdict: 'SELL' | 'BUY'; player: ExplainedMove['out'] }) {
+function PlayerSide({
+  label,
+  player,
+  color,
+  soft,
+}: {
+  label: 'SELL' | 'BUY';
+  player: ExplainedMove['out'];
+  color: string;
+  soft: string;
+}) {
   return (
-    <Pressable accessibilityRole="button" onPress={() => openPlayer(player.player_id)} style={styles.playerLine}>
-      <VerdictBadge verdict={verdict} />
-      <ThemedText type="smallBold" style={styles.grow}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${label} ${player.name}`}
+      onPress={() => openPlayer(player.player_id)}
+      style={({ pressed }) => [styles.side, { backgroundColor: soft }, pressed && { opacity: 0.7 }]}>
+      <ThemedText type="caption" style={[styles.sideLabel, { color }]}>
+        {label}
+      </ThemedText>
+      <ThemedText type="headline" numberOfLines={1}>
         {player.name}
       </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
+      <ThemedText type="caption" themeColor="textSecondary">
         {player.team} · £{player.price.toFixed(1)}m · {player.horizon_xpts.toFixed(1)} xPts
       </ThemedText>
     </Pressable>
@@ -204,7 +239,11 @@ function PlayerLine({ verdict, player }: { verdict: 'SELL' | 'BUY'; player: Expl
 }
 
 const styles = StyleSheet.create({
-  playerLine: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  alternative: { gap: Spacing.half, paddingVertical: Spacing.one },
+  swap: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  side: { flex: 1, borderRadius: Radius.md, padding: 12, gap: 2 },
+  sideLabel: { fontWeight: '800', letterSpacing: 0.6 },
+  reasons: { gap: 6 },
+  reason: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
+  bullet: { width: 6, height: 6, borderRadius: 3, marginTop: 7 },
   grow: { flex: 1 },
 });

@@ -90,9 +90,6 @@ function GatedStack() {
       <Stack.Protected guard={gate === 'needs-team'}>
         <Stack.Screen name="onboarding" />
       </Stack.Protected>
-      <Stack.Protected guard={gate === 'needs-premium'}>
-        <Stack.Screen name="paywall" />
-      </Stack.Protected>
       <Stack.Protected guard={gate === 'ready'}>
         <Stack.Screen name="(tabs)" />
         {/* Above the tabs, so Back returns to whichever tab opened them. */}
@@ -108,6 +105,12 @@ function GatedStack() {
           name="delete-account"
           options={{ headerShown: true, title: 'Delete account', headerBackTitle: 'Back' }}
         />
+      </Stack.Protected>
+      {/* After the tabs, so a user with access lands on the tabs, not here.
+          Required when access has ended; an optional sheet ("Upgrade")
+          during the trial. */}
+      <Stack.Protected guard={gate === 'needs-premium' || gate === 'ready'}>
+        <Stack.Screen name="paywall" options={{ presentation: gate === 'ready' ? 'modal' : 'card' }} />
       </Stack.Protected>
     </Stack>
   );

@@ -6,10 +6,15 @@ const mockRestore = jest.fn();
 const mockSync = jest.fn();
 const mockRefresh = jest.fn();
 const mockAvailable = jest.fn();
+const mockEntitlement = jest.fn();
+const mockBack = jest.fn();
 
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 jest.mock('react-native-purchases', () => ({}));
-jest.mock('expo-router', () => ({ router: { push: jest.fn() }, Link: () => null }));
+jest.mock('expo-router', () => ({
+  router: { push: jest.fn(), back: () => mockBack(), canGoBack: () => true },
+  Link: () => null,
+}));
 jest.mock('@/lib/config', () => ({ config: { termsUrl: 'https://x.test/terms', privacyUrl: 'https://x.test/privacy' } }));
 jest.mock('@/lib/auth', () => ({
   useAuth: () => ({ session: { user: { id: '11111111-1111-4111-8111-111111111111' } }, signOut: jest.fn() }),
@@ -27,7 +32,7 @@ jest.mock('@/lib/billing', () => ({
 jest.mock('@/lib/api', () => ({ api: { syncBilling: () => mockSync() } }));
 jest.mock('@/lib/query', () => ({
   refreshAccount: () => mockRefresh(),
-  useEntitlement: () => ({ data: { status: 'EXPIRED', premium: false }, isFetching: false }),
+  useEntitlement: () => ({ data: mockEntitlement(), isFetching: false }),
 }));
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -44,7 +49,8 @@ async function show() {
 }
 
 beforeEach(() => {
-  [mockPurchase, mockRestore, mockSync, mockRefresh, mockAvailable].forEach((m) => m.mockReset());
+  [mockPurchase, mockRestore, mockSync, mockRefresh, mockAvailable, mockEntitlement, mockBack].forEach((m) => m.mockReset());
+  mockEntitlement.mockReturnValue({ status: 'EXPIRED', premium: false });
   mockAvailable.mockReturnValue(true);
   mockSync.mockResolvedValue({ premium: true });
 });
@@ -112,4 +118,32 @@ test('without billing on the device the buttons cannot be used', async () => {
   );
   expect(screen.getByText('Subscriptions are not available on this device.')).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Subscribe' })).toBeDisabled();
+});
+
+describe('opened from Upgrade during the trial', () => {
+  beforeEach(() => mockEntitlement.mockReturnValue({ status: 'TRIALING', premium: true }));
+
+  test('can be dismissed, says what subscribing early means, and offers no sign-out', async () => {
+    const user = userEvent.setup();
+    await show();
+    expect(screen.getByText('Keep every feature after your free trial.')).toBeTruthy();
+    expect(screen.getByText(/starts your paid plan straight away/)).toBeTruthy();
+    expect(screen.queryByText('Sign out')).toBeNull();
+    await user.press(screen.getByText('Not now'));
+    expect(mockBack).toHaveBeenCalled();
+  });
+
+  test('closes itself once the server confirms the purchase', async () => {
+    const user = userEvent.setup();
+    mockPurchase.mockResolvedValue('purchased');
+    await show();
+    await user.press(screen.getByText('Subscribe'));
+    await waitFor(() => expect(mockBack).toHaveBeenCalled());
+  });
+});
+
+test('when access has ended there is no way to dismiss it', async () => {
+  await show();
+  expect(screen.queryByText('Not now')).toBeNull();
+  expect(screen.getByText('Sign out')).toBeTruthy();
 });
