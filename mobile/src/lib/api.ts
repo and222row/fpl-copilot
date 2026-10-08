@@ -36,6 +36,12 @@ export interface Me {
   fpl_accounts: FplAccount[];
 }
 
+export interface NotificationSettings {
+  availability: boolean;
+  price: boolean;
+  deadline: boolean;
+}
+
 export interface PendingConnection {
   status: 'verification_required';
   fpl_entry_id: number;
@@ -400,7 +406,7 @@ export class ApiError extends Error {
 const DEFAULT_TIMEOUT_MS = 20_000;
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: unknown;
   timeoutMs?: number;
 }
@@ -480,6 +486,15 @@ export const api = {
     request<VerifiedConnection>(`/me/fpl-accounts/${fplEntryId}/verify`, { method: 'POST' }),
   disconnect: (fplEntryId: number) =>
     request<null>(`/me/fpl-accounts/${fplEntryId}`, { method: 'DELETE' }),
+  deleteAccount: () => request<null>('/me', { method: 'DELETE' }),
+
+  registerDevice: (token: string, platform: 'ios' | 'android') =>
+    request<null>('/me/devices', { method: 'PUT', body: { token, platform } }),
+  unregisterDevice: (token: string) =>
+    request<null>(`/me/devices/${encodeURIComponent(token)}`, { method: 'DELETE' }),
+  notificationSettings: () => request<NotificationSettings>('/me/notifications'),
+  updateNotificationSettings: (changes: Partial<NotificationSettings>) =>
+    request<NotificationSettings>('/me/notifications', { method: 'PUT', body: changes }),
 
   gameweek: () => request<Gameweek>('/fpl/gameweek'),
   // The optimiser can take several seconds on a cold server.

@@ -1,5 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
@@ -8,6 +9,7 @@ import { ErrorView } from '@/components/error-view';
 import { Screen } from '@/components/screen';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { decideGate } from '@/lib/gate';
+import { refreshRegistration, targetFor } from '@/lib/push';
 import { queryClient, refreshAccount, useAccountQueries } from '@/lib/query';
 
 SplashScreen.preventAutoHideAsync();
@@ -41,6 +43,8 @@ function GatedStack() {
     if (gate !== 'loading') SplashScreen.hideAsync();
   }, [gate]);
 
+  usePushWhenReady(gate === 'ready');
+
   // The splash screen stays up until we know where the user belongs.
   if (gate === 'loading') return null;
 
@@ -70,7 +74,31 @@ function GatedStack() {
         <Stack.Screen name="compare" options={{ headerShown: true, title: 'Compare', headerBackTitle: 'Back' }} />
         <Stack.Screen name="planner" options={{ headerShown: true, title: 'Planner', headerBackTitle: 'Back' }} />
         <Stack.Screen name="news" options={{ headerShown: true, title: 'News', headerBackTitle: 'Back' }} />
+        <Stack.Screen
+          name="notifications"
+          options={{ headerShown: true, title: 'Notifications', headerBackTitle: 'Back' }}
+        />
+        <Stack.Screen
+          name="delete-account"
+          options={{ headerShown: true, title: 'Delete account', headerBackTitle: 'Back' }}
+        />
       </Stack.Protected>
     </Stack>
   );
+}
+
+// Only once the user is fully in: before that there is no account to register
+// the device to and no screen a notification could open.
+function usePushWhenReady(ready: boolean) {
+  const response = Notifications.useLastNotificationResponse();
+
+  useEffect(() => {
+    if (ready) refreshRegistration().catch(() => undefined);
+  }, [ready]);
+
+  useEffect(() => {
+    if (!ready || !response || response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
+    const target = targetFor(response.notification.request.content.data);
+    if (target) router.push(target);
+  }, [ready, response]);
 }

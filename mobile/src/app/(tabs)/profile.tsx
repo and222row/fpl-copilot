@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert } from 'react-native';
 
@@ -104,10 +105,12 @@ export default function Profile() {
         ) : null}
       </Card>
 
+      <Button title="Notifications" variant="secondary" onPress={() => router.push('/notifications')} />
       <Button title="Sign out" variant="secondary" onPress={signOut} />
       {account ? (
         <Button title="Disconnect team" variant="destructive" loading={busy} onPress={confirmDisconnect} />
       ) : null}
+      <Button title="Delete account" variant="destructive" onPress={() => router.push('/delete-account')} />
 
       <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
         Version {Constants.expoConfig?.version}

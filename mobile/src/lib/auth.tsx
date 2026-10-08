@@ -5,8 +5,10 @@ import * as Crypto from 'expo-crypto';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Platform } from 'react-native';
 
+import { api } from '@/lib/api';
 import { identifyBillingUser, resetBillingUser } from '@/lib/billing';
 import { config } from '@/lib/config';
+import { unregisterPush } from '@/lib/push';
 import { queryClient } from '@/lib/query';
 import { supabase } from '@/lib/supabase';
 
@@ -16,6 +18,7 @@ interface AuthContextValue {
   signInWithApple: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -85,9 +88,21 @@ async function signInWithGoogle(): Promise<void> {
 }
 
 async function signOut(): Promise<void> {
+  // While still signed in, so the next person on this phone does not get
+  // this account's alerts. A failure here must not block signing out.
+  await unregisterPush().catch(() => undefined);
   // Global scope revokes every refresh token for this user on the server, not
   // just the copy on this device.
   await supabase.auth.signOut({ scope: 'global' });
+  if (googleConfigured) await GoogleSignin.signOut().catch(() => undefined);
+}
+
+async function deleteAccount(): Promise<void> {
+  // The server deletes the Supabase identity, devices and everything else; on
+  // failure it throws and nothing local is touched.
+  await api.deleteAccount();
+  // The user no longer exists, so only the local session can be cleared.
+  await supabase.auth.signOut({ scope: 'local' });
   if (googleConfigured) await GoogleSignin.signOut().catch(() => undefined);
 }
 
@@ -118,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [userId, loading]);
 
   return (
-    <AuthContext.Provider value={{ session, loading, signInWithApple, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ session, loading, signInWithApple, signInWithGoogle, signOut, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   );

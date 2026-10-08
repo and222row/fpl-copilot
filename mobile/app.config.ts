@@ -44,6 +44,7 @@ const config: ExpoConfig = {
     'expo-secure-store',
     'expo-sqlite',
     'expo-apple-authentication',
+    ['expo-notifications', { color: '#37003C' }],
     [
       '@react-native-google-signin/google-signin',
       {
@@ -56,6 +57,11 @@ const config: ExpoConfig = {
   experiments: {
     typedRoutes: true,
     reactCompiler: true,
+  },
+  extra: {
+    // From `npx eas-cli@latest init`. Push tokens are issued per EAS project;
+    // without it the app reports push as unavailable instead of failing.
+    eas: { projectId: process.env.EAS_PROJECT_ID || undefined },
   },
 };
 

@@ -31,6 +31,14 @@ the FastAPI backend and Supabase Auth; it holds no backend credentials.
   later gameweek is close to a price rise.
 - News (from Home): your alerts (mark read), the availability feed by
   category with its source, and price watch.
+- Push notifications (Expo push service → APNs/FCM): squad availability
+  alerts, price alerts and a deadline reminder two hours out, each switchable
+  in Profile → Notifications. Permission is asked from a button, never on
+  launch. Tapping one opens the player, News or Transfers. Signing out removes
+  this phone from the account.
+- Account deletion (Profile → Delete account), as both stores require: warns
+  that a store subscription must be cancelled separately, confirms, then the
+  server deletes the sign-in identity and all personal data.
 - Profile.
 
 Every screen decision is navigation only. The backend enforces ownership and
@@ -104,6 +112,11 @@ npx expo-doctor
   real device (App Store sandbox / Play licence testers) is needed before
   release.
 - Stripe for web subscriptions is not built.
+- No push for "your recommended transfer changed" (needs the optimiser run
+  for every user in the background) or "unexpectedly benched" (needs a
+  line-ups source).
+- Google Play also requires a web page where users can request deletion
+  without the app; that page is not built.
 - `npm audit` reports high-severity issues in Expo's build tooling (node-forge,
   braces) and one moderate in `decode-uri-component`, which ships via
   expo-router. None has an upstream fix compatible with SDK 57; re-check before

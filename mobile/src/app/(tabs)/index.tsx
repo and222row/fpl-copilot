@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { View } from 'react-native';
 
@@ -8,6 +9,7 @@ import { Stat, StatRow } from '@/components/stat';
 import { ThemedText } from '@/components/themed-text';
 import type { AlertItem, Entitlement, Recommendation } from '@/lib/api';
 import { useAlerts, useEntitlement, useMe, useRecommendation } from '@/lib/query';
+import { pushState } from '@/lib/push';
 import { money } from '@/lib/squad';
 
 function timeUntil(iso: string): string {
@@ -32,6 +34,7 @@ export default function Home() {
 
   const rec = useRecommendation(teamId);
   const alerts = useAlerts(teamId);
+  const push = useQuery({ queryKey: ['push-state'], queryFn: pushState });
 
   const daysLeft = trialDaysLeft(entitlement.data);
   const refresh = () => {
@@ -54,6 +57,12 @@ export default function Home() {
 
       <AlertsView alerts={alerts.data} />
       <Button title="News and alerts" variant="secondary" onPress={() => router.push('/news')} />
+      {push.data === 'off' ? (
+        <Card>
+          <ThemedText type="small">Get a notification when a player in your squad is injured, a price moves, or the deadline is close.</ThemedText>
+          <Button title="Set up notifications" variant="secondary" onPress={() => router.push('/notifications')} />
+        </Card>
+      ) : null}
     </Screen>
   );
 }
