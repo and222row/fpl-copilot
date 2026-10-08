@@ -1,12 +1,13 @@
-import { useQuery } from '@tanstack/react-query';
+import { router } from 'expo-router';
 import { View } from 'react-native';
 
+import { Button } from '@/components/button';
 import { ErrorView } from '@/components/error-view';
 import { Card, Screen } from '@/components/screen';
 import { Stat, StatRow } from '@/components/stat';
 import { ThemedText } from '@/components/themed-text';
-import { api, type AlertItem, type Entitlement, type Recommendation } from '@/lib/api';
-import { queryKeys, useEntitlement, useMe, useRecommendation } from '@/lib/query';
+import type { AlertItem, Entitlement, Recommendation } from '@/lib/api';
+import { useAlerts, useEntitlement, useMe, useRecommendation } from '@/lib/query';
 import { money } from '@/lib/squad';
 
 function timeUntil(iso: string): string {
@@ -30,11 +31,7 @@ export default function Home() {
   const teamId = account?.fpl_entry_id;
 
   const rec = useRecommendation(teamId);
-  const alerts = useQuery({
-    queryKey: queryKeys.alerts(teamId ?? 0),
-    queryFn: () => api.alerts(teamId!),
-    enabled: !!teamId,
-  });
+  const alerts = useAlerts(teamId);
 
   const daysLeft = trialDaysLeft(entitlement.data);
   const refresh = () => {
@@ -56,6 +53,7 @@ export default function Home() {
       {rec.data ? <RecommendationView rec={rec.data} /> : null}
 
       <AlertsView alerts={alerts.data} />
+      <Button title="News and alerts" variant="secondary" onPress={() => router.push('/news')} />
     </Screen>
   );
 }

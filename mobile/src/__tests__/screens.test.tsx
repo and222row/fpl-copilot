@@ -1,7 +1,7 @@
 // Render tests for the squad screens. There is no device in CI, so these are
 // what catch a screen that crashes on real response shapes or is wired to the
 // wrong recommendation.
-import { render, screen, userEvent, within } from '@testing-library/react-native';
+import { act, render, screen, userEvent, within } from '@testing-library/react-native';
 
 import { recommendation, watkins, watkinsDetail, wissa } from '@/lib/__fixtures__/recommendation';
 
@@ -94,7 +94,9 @@ describe('transfers', () => {
     await render(<Transfers />);
     await user.press(screen.getByText("I've made these transfers"));
     const buttons = alert.mock.calls[0][2]!;
-    await buttons.find((b) => b.text === 'I made them')!.onPress!();
+    await act(async () => {
+      await buttons.find((b) => b.text === 'I made them')!.onPress!();
+    });
     expect(mockRecordTransfers).toHaveBeenCalledWith(1234, [{ out: wissa.player_id, in: watkins.player_id }]);
   });
 });

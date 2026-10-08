@@ -281,6 +281,88 @@ export interface PlayerNews {
   source: string;
 }
 
+export interface PlanPlayer {
+  player_id: number;
+  name: string;
+  team: string;
+  /** 1 GKP, 2 DEF, 3 MID, 4 FWD */
+  position: number;
+  price: number;
+  price_change_percent: number;
+}
+
+export interface PlanStep {
+  id: number;
+  parent_id: number | null;
+  gameweek: number;
+  depth: number;
+  action: string;
+  transfers: number;
+  hit: number;
+  in: PlanPlayer[];
+  out: PlanPlayer[];
+  /** £m, after this gameweek's moves */
+  bank: number;
+  /** available for the following gameweek */
+  free_transfers: number;
+  gw_xpts: number;
+  cumulative_xpts: number;
+  remaining_value: number;
+  pruned: boolean;
+  on_best_path: boolean;
+}
+
+export interface Plan {
+  horizon: number[];
+  requested_horizon: number;
+  horizon_truncated: boolean;
+  truncation_note: string | null;
+  best_path: { total_xpts: number; total_hits: number; total_transfers: number; steps: PlanStep[] };
+  tree: PlanStep[];
+  starting_bank: number;
+  starting_free_transfers: number;
+  squad_source: 'fpl_api' | 'manager_override';
+}
+
+export type NewsCategory =
+  | 'INJURY'
+  | 'RETURN_FROM_INJURY'
+  | 'SUSPENSION'
+  | 'TRANSFER'
+  | 'PRICE_CHANGE'
+  | 'OTHER';
+
+export interface NewsEvent {
+  id: number;
+  detected_at: string;
+  event_type: string;
+  player_id: number;
+  name: string;
+  team: string;
+  position: Position;
+  price: number;
+  status_label: string | null;
+  cause: string | null;
+  expected_return: string | null;
+  news: string;
+  materiality: number;
+  category: NewsCategory;
+  direction: 'positive' | 'negative' | 'neutral';
+  confidence: 'high' | 'low';
+  source: string;
+  source_label: string;
+}
+
+export interface PriceWatchItem {
+  player_id: number;
+  name: string;
+  team: string;
+  price: number;
+  direction: 'rise' | 'fall';
+  percent_to_threshold: number;
+  net_transfers_gw: number;
+}
+
 export interface AlertItem {
   id: number;
   severity: 'critical' | 'warning' | 'info';
@@ -406,6 +488,13 @@ export const api = {
     }),
   captain: (managerId: number) => request<CaptainResponse>(`/decisions/${managerId}/captain`),
   alerts: (managerId: number) => request<AlertItem[]>(`/news/alerts/${managerId}`),
+  markAlertsRead: (managerId: number) =>
+    request<{ marked_read: number }>(`/news/alerts/${managerId}/read`, { method: 'POST' }),
+  newsEvents: () => request<NewsEvent[]>('/news/events?hours=168&limit=100'),
+  priceWatch: () => request<PriceWatchItem[]>('/news/price-watch'),
+  // Beam search runs the optimiser at every node: seconds, not milliseconds.
+  planner: (managerId: number, horizon: number) =>
+    request<Plan>(`/planner/${managerId}?horizon=${horizon}`, { timeoutMs: 90_000 }),
 
   recordTransfers: (managerId: number, moves: { out: number; in: number }[]) =>
     request<{ free_transfers: number }>(`/fpl/manager/${managerId}/squad-state/transfers`, {

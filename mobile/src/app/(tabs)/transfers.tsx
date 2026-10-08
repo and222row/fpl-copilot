@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
@@ -51,6 +52,7 @@ export default function Transfers() {
       {query.isPending ? <ThemedText themeColor="textSecondary">Running the optimiser…</ThemedText> : null}
       {query.isError ? <ErrorView error={query.error} onRetry={() => query.refetch()} /> : null}
       {data && teamId ? <TransferView data={data} teamId={teamId} /> : null}
+      <Button title="Plan ahead, gameweek by gameweek" variant="secondary" onPress={() => router.push('/planner')} />
     </Screen>
   );
 }

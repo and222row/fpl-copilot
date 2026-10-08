@@ -13,13 +13,16 @@ export const queryKeys = {
   transfers: (managerId: number, horizon: number) => ['transfers', managerId, horizon] as const,
   captain: (managerId: number) => ['captain', managerId] as const,
   alerts: (managerId: number) => ['alerts', managerId] as const,
+  planner: (managerId: number, horizon: number) => ['planner', managerId, horizon] as const,
+  newsEvents: ['news-events'] as const,
+  priceWatch: ['price-watch'] as const,
   teams: ['teams'] as const,
   players: (filters: ExplorerFilters) => ['players', filters] as const,
   player: (playerId: number) => ['player', playerId] as const,
 };
 
 // Everything derived from the squad, refreshed together after the squad changes.
-const SQUAD_DERIVED = ['recommendation', 'transfers', 'captain', 'alerts'];
+const SQUAD_DERIVED = ['recommendation', 'transfers', 'captain', 'alerts', 'planner'];
 
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
@@ -86,6 +89,31 @@ export function useCaptain(teamId: number | undefined) {
     enabled: !!teamId,
     staleTime: 5 * 60_000,
   });
+}
+
+export function usePlanner(teamId: number | undefined, horizon: number) {
+  return useQuery({
+    queryKey: queryKeys.planner(teamId ?? 0, horizon),
+    queryFn: () => api.planner(teamId!, horizon),
+    enabled: !!teamId,
+    staleTime: 10 * 60_000,
+  });
+}
+
+export function useAlerts(teamId: number | undefined) {
+  return useQuery({
+    queryKey: queryKeys.alerts(teamId ?? 0),
+    queryFn: () => api.alerts(teamId!),
+    enabled: !!teamId,
+  });
+}
+
+export function useNewsEvents() {
+  return useQuery({ queryKey: queryKeys.newsEvents, queryFn: api.newsEvents, staleTime: 5 * 60_000 });
+}
+
+export function usePriceWatch() {
+  return useQuery({ queryKey: queryKeys.priceWatch, queryFn: api.priceWatch, staleTime: 5 * 60_000 });
 }
 
 export function useTeams() {
