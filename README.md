@@ -927,6 +927,7 @@ only pieces that die when your PC shuts down are the API and the scheduler.
 | Postgres | Supabase | already cloud |
 | Redis | Upstash | already cloud |
 | Scheduler | GitHub Actions | `.github/workflows/refresh.yml`, every 30 min |
+| Monitoring | Sentry, Healthchecks.io | errors, crashes and missed refreshes; see [OBSERVABILITY.md](OBSERVABILITY.md) |
 
 ### Do not enable the in-process scheduler in production
 

@@ -33,6 +33,7 @@ added it was confirmed to fail without the fix.
 | M5 | Medium | `decode-uri-component` (via expo-router) can be made slow by a crafted deep link. | **Accepted** — no upstream fix in SDK 57; impact is limited to the user's own app session. |
 | M6 | Medium | The backend connects as the Supabase `postgres` owner role. RLS does not apply to the owner, which the backend relies on, but a leaked `DATABASE_URL` is full database access. | **Open — operational.** Keep `DATABASE_URL` only in Render's environment; rotate it if exposed; restrict by IP once on a plan with static egress. |
 | M7 | Medium | A signed-out user's access token stays valid until it expires (verification is stateless). Deleted accounts are blocked by a tombstone. | **Partly mitigated.** Set Supabase JWT expiry to 15 minutes. |
+| M8 | Medium | The public `/health` endpoint returned raw database and Redis exception text, which can name hosts and users. Found while adding monitoring. | **Fixed** — `"error"` only; the reason goes to the logs. |
 | L1 | Low | `SECRET_KEY` existed with a guessable default and was used for nothing. | **Fixed** — removed. |
 | L2 | Low | CORS allowed credentials although the API uses bearer tokens, never cookies. | **Fixed** — off. |
 | L3 | Low | Responses carrying account data were cacheable by intermediaries. | **Fixed** — `Cache-Control: no-store`. |
@@ -94,7 +95,7 @@ web, retire it, or limit it to free data), sign-in was chosen:
 | Network | HTTPS-only release builds; ATS on iOS; no pinning (L7). |
 | Platform | Deep links pass through the same access gate; destructive actions need confirmation; no WebViews. |
 | Code | Dependency audits in CI; no secrets in the bundle. |
-| Privacy | Minimal PII (no email/phone stored by the backend); account deletion removes personal data. |
+| Privacy | Minimal PII (no email/phone stored by the backend); account deletion removes personal data. Crash and error reports (Sentry) carry no user identity, IP, request bodies, local variables or screenshots; see OBSERVABILITY.md. |
 
 ### Before release (security)
 
@@ -116,6 +117,10 @@ web, retire it, or limit it to free data), sign-in was chosen:
 - [ ] Supabase: JWT expiry 15 min; email sign-in off in production; Apple and
       Google providers configured.
 - [ ] RevenueCat: Restore Behavior "transfer if no active subscriptions".
+- [ ] Monitoring (OBSERVABILITY.md): `SENTRY_DSN` on Render,
+      `EXPO_PUBLIC_SENTRY_DSN` in EAS, `SENTRY_AUTH_TOKEN` in EAS as a
+      sensitive variable only, `HEALTHCHECKS_PING_URL` on Render. Set a
+      per-key rate limit on each Sentry project.
 - [ ] Check first-deploy logs for distinct client IPs (H4).
 - [ ] Re-run `pip-audit` and `npm audit` (CI does) and this review on major
       dependency upgrades.
