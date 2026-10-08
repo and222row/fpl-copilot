@@ -17,7 +17,7 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi import HTTPException
-from fastapi.routing import APIRoute
+from tests.routes import api_routes
 
 from app.auth import ManagerAccess, decode_token, jwks_cache
 from app.config import settings
@@ -223,15 +223,28 @@ async def test_me_provisions_the_user_row(client, session):
 
 # ── Ownership on every team-keyed route ──────────────────────────────────────
 
+def test_route_walker_sees_every_documented_route():
+    """Without this, a FastAPI change can empty the walk and every structural test passes vacuously."""
+    from app.main import app
+
+    walked = {(m, r.path) for r in api_routes(app) for m in r.methods}
+    documented = {
+        (method.upper(), path)
+        for path, ops in app.openapi()["paths"].items()
+        for method in ops
+    }
+    assert documented <= walked, sorted(documented - walked)
+    assert len(walked) > 60
+
+
 def test_every_manager_route_enforces_ownership():
     """Structural guard: a new /{manager_id} route without the check fails here."""
     from app.main import app
 
     unguarded = [
         f"{','.join(sorted(r.methods))} {r.path}"
-        for r in app.routes
-        if isinstance(r, APIRoute)
-        and "{manager_id}" in r.path
+        for r in api_routes(app)
+        if "{manager_id}" in r.path
         and not r.path.startswith("/api/v1/jobs/")
         and ManagerAccess not in r.dependencies
     ]
@@ -338,9 +351,8 @@ def test_every_write_route_is_guarded():
 
     unguarded = [
         f"{','.join(sorted(r.methods))} {r.path}"
-        for r in app.routes
-        if isinstance(r, APIRoute)
-        and r.methods & {"POST", "DELETE", "PUT", "PATCH"}
+        for r in api_routes(app)
+        if r.methods & {"POST", "DELETE", "PUT", "PATCH"}
         and JobToken not in r.dependencies
         and ManagerAccess not in r.dependencies
         and r.path not in SELF_GUARDED_WRITES

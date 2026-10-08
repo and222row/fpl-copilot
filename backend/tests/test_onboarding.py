@@ -7,7 +7,7 @@ from email.utils import format_datetime
 
 import httpx
 import pytest
-from fastapi.routing import APIRoute
+from tests.routes import api_routes
 from sqlalchemy import select
 
 from app.auth import Premium, jwks_cache
@@ -356,7 +356,7 @@ EXPECTED_PREMIUM_ROUTES = {
 
 def test_premium_routes_are_exactly_the_advice():
     from app.main import app
-    gated = {r.path for r in app.routes if isinstance(r, APIRoute) and Premium in r.dependencies}
+    gated = {r.path for r in api_routes(app) if Premium in r.dependencies}
     assert gated == EXPECTED_PREMIUM_ROUTES
 
 
