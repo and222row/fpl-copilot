@@ -83,6 +83,13 @@ services:
         # Flip to "true" once the web dashboard has sign-in or is retired.
         value: "false"
 
+      - key: SUPABASE_SERVICE_KEY
+        # Only for deleting a user's sign-in account on account deletion.
+        sync: false
+
+      - key: EXPO_ACCESS_TOKEN
+        sync: false
+
       - key: REVENUECAT_SECRET_KEY
         sync: false
 

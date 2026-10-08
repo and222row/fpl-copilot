@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.models.accounts import FplAccount, User
+from app.models.accounts import DeletedUser, FplAccount, User
 from app.models.fpl import utcnow
 from app.services.entitlements import get_entitlement
 
@@ -198,6 +198,8 @@ async def current_user(
     """Require a signed-in caller."""
     if user is None:
         raise _unauthorized("Not signed in")
+    if await db.get(DeletedUser, user.id) is not None:
+        raise _unauthorized("This account has been deleted")
     await _touch_user(db, user.id)
     return user
 

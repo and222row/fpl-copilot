@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_jwt_secret: str = ""
     supabase_jwt_audience: str = "authenticated"
+    # Server-only admin key (sb_secret_... or the legacy service_role JWT).
+    # Used for one thing: deleting a user's Supabase Auth account.
+    supabase_service_key: str = ""
     # While false, requests without a token still reach per-manager endpoints so
     # the login-less web dashboard keeps working. A request that DOES carry a
     # token is always checked for ownership. Must be true before mobile launch.
@@ -78,6 +81,11 @@ class Settings(BaseSettings):
     revenuecat_webhook_signing_secret: str = ""
     revenuecat_entitlement_id: str = "pro"
     revenuecat_api_base: str = "https://api.revenuecat.com/v1"
+
+    # ── Push notifications (Expo push service) ───────────────────────────────
+    # Access token for Expo's "enhanced push security". With it enabled in the
+    # Expo project, nobody holding a device token can push to it but us.
+    expo_access_token: str = ""
 
     @property
     def supabase_issuer(self) -> str:

@@ -29,7 +29,7 @@ from app.services.fpl_sync import (
     get_latest_started_gameweek, get_next_open_gameweek, record_verified,
 )
 from app.services.change_detection import detect_changes, generate_alerts
-from app.services import notifications
+from app.services import notifications, push
 from app.services import chips
 from app.services.team_strength import rebuild_team_strength
 from app.services.projection import rebuild_projections
@@ -146,6 +146,9 @@ async def refresh_everything(
         # fail a refresh whose actual work already succeeded, and the alerts
         # are saved and visible in the dashboard regardless.
         await step("notifications", notifications.send_pending(db))
+        # Same isolation: an Expo outage leaves the alerts in the app and the
+        # pushes un-recorded, so the next refresh sends them.
+        await step("push", push.send_due(db))
 
     report.duration_seconds = time.perf_counter() - started
     logger.info(

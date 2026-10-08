@@ -121,6 +121,22 @@ async def fetch_subscriber(app_user_id: str) -> dict:
         raise RevenueCatUnavailable(str(e)) from e
 
 
+async def delete_subscriber(app_user_id: str) -> None:
+    """Delete a customer's data at RevenueCat. 404 (already gone) counts as done."""
+    if not settings.revenuecat_secret_key:
+        raise RevenueCatUnavailable("REVENUECAT_SECRET_KEY is not set")
+    url = f"{settings.revenuecat_api_base}/subscribers/{quote(app_user_id, safe='')}"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.delete(
+                url, headers={"Authorization": f"Bearer {settings.revenuecat_secret_key}"}
+            )
+    except httpx.HTTPError as e:
+        raise RevenueCatUnavailable(str(e)) from e
+    if response.status_code not in (200, 404):
+        raise RevenueCatUnavailable(f"RevenueCat returned {response.status_code}")
+
+
 async def refresh_subscription(db: AsyncSession, user_id: uuid.UUID) -> Subscription | None:
     """Re-read one user's state from RevenueCat and store it."""
     state = parse_subscriber(await fetch_subscriber(str(user_id)))

@@ -65,6 +65,17 @@ class FplClaim(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class DeletedUser(Base):
+    """
+    Accounts that were deleted. Checked on sign-in so an access token issued
+    before deletion cannot quietly re-create the account before it expires.
+    """
+    __tablename__ = "deleted_users"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    deleted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class Trial(Base):
     """
     The free trial, at most one per user and one per FPL team, ever.

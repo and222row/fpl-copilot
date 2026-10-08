@@ -324,6 +324,10 @@ SELF_GUARDED_WRITES = {
     "/api/v1/telegram/webhook",
     "/api/v1/billing/revenuecat/webhook",
     "/api/v1/billing/sync",
+    "/api/v1/me",
+    "/api/v1/me/devices",
+    "/api/v1/me/devices/{token}",
+    "/api/v1/me/notifications",
 }
 
 

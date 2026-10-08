@@ -27,6 +27,7 @@ REDACTED_KEYS = {
     "supabase_jwt_secret", "access_token", "refresh_token", "id_token",
     "otp", "phone", "email",
     "revenuecat_secret_key", "revenuecat_webhook_auth", "revenuecat_webhook_signing_secret",
+    "supabase_service_key", "expo_access_token", "apikey",
 }
 
 

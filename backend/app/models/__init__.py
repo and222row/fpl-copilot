@@ -8,8 +8,9 @@ from app.models.news import (
 from app.models.feedback import (
     RecommendationSnapshot, RecommendationOutcome, SquadOverride,
 )
-from app.models.accounts import User, FplAccount, FplClaim, Trial
+from app.models.accounts import User, FplAccount, FplClaim, Trial, DeletedUser
 from app.models.billing import Subscription, BillingEvent
+from app.models.notifications import Device, NotificationPreference, PushDelivery
 
 __all__ = [
     "Team",
@@ -31,7 +32,11 @@ __all__ = [
     "FplAccount",
     "FplClaim",
     "Trial",
+    "DeletedUser",
     "Subscription",
     "BillingEvent",
+    "Device",
+    "NotificationPreference",
+    "PushDelivery",
     "utcnow",
 ]
