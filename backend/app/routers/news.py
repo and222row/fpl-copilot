@@ -11,6 +11,7 @@ from app.services.change_detection import (
     detect_changes, generate_alerts, price_watch,
 )
 from app.services.news_parser import parse_news, resolve_availability, STATUS_LABEL
+from app.services.news_taxonomy import categorise
 from app.services.fpl_sync import (
     get_active_gameweek, get_next_open_gameweek, get_latest_started_gameweek,
 )
@@ -86,6 +87,7 @@ async def list_events(
             "materiality": e.materiality,
             "requires_review": e.requires_review,
             "availability_source": e.availability_source,
+            **categorise(e),
         }
         for e, p, short in rows
     ]

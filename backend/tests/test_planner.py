@@ -250,6 +250,25 @@ async def test_planner_rolls_when_no_upgrade_exists(session):
     assert sum(n.transfers for n in result.best_path) == 0
 
 
+async def test_a_single_gameweek_plan_works(planning_data):
+    result = await plan_horizon(
+        planning_data["session"], squad_ids=planning_data["owned"],
+        bank=0, free_transfers=1, start_gw=1, horizon=1, beam_width=2,
+    )
+    assert result.horizon == [1]
+    assert [n.depth for n in result.best_path] == [0, 1]
+
+
+async def test_planned_buys_carry_price_pressure(planning_data):
+    result = await plan_horizon(
+        planning_data["session"], squad_ids=planning_data["owned"],
+        bank=0, free_transfers=1, start_gw=1, horizon=3, beam_width=3,
+    )
+    bought = [p for n in result.best_path for p in n.players_in]
+    assert bought, "fixture should produce at least one transfer"
+    assert all("price_change_percent" in p for p in bought)
+
+
 async def test_free_transfers_evolve_correctly_along_the_path(planning_data):
     result = await plan_horizon(
         planning_data["session"], squad_ids=planning_data["owned"],

@@ -255,6 +255,9 @@ async def plan_horizon(
             "team": teams.get(pid, ""),
             "position": p.position,
             "price": round(p.now_cost / 10, 1),
+            # The plan holds prices fixed. This lets the app warn that a buy
+            # planned for a later gameweek may cost more by then.
+            "price_change_percent": p.price_change_percent,
         }
 
     nodes: list[PlanNode] = []

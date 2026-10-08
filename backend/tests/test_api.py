@@ -280,6 +280,22 @@ async def test_detection_is_idempotent(client, seeded):
     assert second["events_detected"] == 0
 
 
+async def test_events_carry_category_source_and_confidence(client, seeded):
+    from app.models.news import AvailabilityEvent
+    seeded.add(AvailabilityEvent(
+        player_id=3, event_type="chance_change", cause="knock", status_after="d",
+        availability_before=1.0, availability_after=0.75, materiality=0.4,
+        news_text="Knock - 75% chance of playing", source="fpl_api",
+    ))
+    await seeded.commit()
+    row = (await client.get("/api/v1/news/events")).json()[0]
+    assert row["category"] == "INJURY"
+    assert row["direction"] == "negative"
+    assert row["confidence"] == "high"
+    assert row["source_label"] == "FPL official"
+    assert row["news"] == "Knock - 75% chance of playing"
+
+
 async def test_price_watch_threshold_validated(client, seeded):
     assert (await client.get("/api/v1/news/price-watch?threshold=150")).status_code == 422
     assert (await client.get("/api/v1/news/price-watch?threshold=50")).status_code == 200

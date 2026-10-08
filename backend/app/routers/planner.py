@@ -18,7 +18,7 @@ router = APIRouter(prefix="/planner", tags=["planner"])
 async def build_plan(
     request: Request,
     manager_id: int,
-    horizon: int = Query(5, ge=2, le=8, description="Gameweeks to plan across"),
+    horizon: int = Query(5, ge=1, le=8, description="Gameweeks to plan across"),
     beam_width: int = Query(
         4, ge=1, le=6,
         description="Paths kept at each gameweek. Higher explores more but is "
