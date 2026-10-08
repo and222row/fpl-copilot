@@ -198,6 +198,18 @@ async def test_attempts_are_capped(client, fpl):
     assert len(fpl.fresh_calls) == MAX_VERIFY_ATTEMPTS
 
 
+async def test_exhausted_code_is_replaced_on_restart(client, fpl):
+    await start(client)
+    fpl.name = "Nope"
+    for _ in range(MAX_VERIFY_ATTEMPTS):
+        await verify(client)
+    assert (await verify(client)).status_code == 429
+    fresh = (await start(client)).json()
+    assert fresh["attempts_remaining"] == MAX_VERIFY_ATTEMPTS
+    fpl.name = fresh["code"]
+    assert (await verify(client)).status_code == 201
+
+
 async def test_verify_without_a_claim_is_404(client, fpl):
     assert (await verify(client)).status_code == 404
 

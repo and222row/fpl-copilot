@@ -142,7 +142,15 @@ async def start_fpl_connection(
             FplClaim.user_id == user.id, FplClaim.fpl_entry_id == body.fpl_entry_id
         )
     )
-    if claim is not None and _aware(claim.expires_at) > now:
+    # An exhausted code is replaced rather than reused, or the user would be
+    # stuck until it expired. The cap limits FPL calls per code; the route's
+    # rate limit bounds the total. Guessing gains nothing either way: the code
+    # only counts once it is in the real team name.
+    if (
+        claim is not None
+        and _aware(claim.expires_at) > now
+        and claim.attempts < MAX_VERIFY_ATTEMPTS
+    ):
         return _claim_dict(claim)
 
     info = await _fpl_entry(fetch_manager_info, body.fpl_entry_id)
