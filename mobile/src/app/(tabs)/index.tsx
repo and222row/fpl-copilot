@@ -1,0 +1,178 @@
+import { useQuery } from '@tanstack/react-query';
+import { StyleSheet, View } from 'react-native';
+
+import { ErrorView } from '@/components/error-view';
+import { Card, Screen } from '@/components/screen';
+import { ThemedText } from '@/components/themed-text';
+import { Spacing } from '@/constants/theme';
+import { api, type AlertItem, type Entitlement, type Recommendation } from '@/lib/api';
+import { queryKeys, useEntitlement, useMe } from '@/lib/query';
+
+function timeUntil(iso: string): string {
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return 'passed';
+  const hours = Math.floor(ms / 3_600_000);
+  if (hours >= 48) return `in ${Math.floor(hours / 24)} days`;
+  if (hours >= 1) return `in ${hours}h ${Math.floor((ms % 3_600_000) / 60_000)}m`;
+  return `in ${Math.max(1, Math.floor(ms / 60_000))} min`;
+}
+
+function trialDaysLeft(e: Entitlement | undefined): number | null {
+  if (e?.status !== 'TRIALING' || !e.trial_ends_at) return null;
+  return Math.max(0, Math.ceil((new Date(e.trial_ends_at).getTime() - Date.now()) / 86_400_000));
+}
+
+export default function Home() {
+  const me = useMe(true);
+  const entitlement = useEntitlement(true);
+  const account = me.data?.fpl_accounts[0];
+  const teamId = account?.fpl_entry_id;
+
+  const rec = useQuery({
+    queryKey: queryKeys.recommendation(teamId ?? 0),
+    queryFn: () => api.recommendation(teamId!),
+    enabled: !!teamId,
+    staleTime: 5 * 60_000,
+  });
+  const alerts = useQuery({
+    queryKey: queryKeys.alerts(teamId ?? 0),
+    queryFn: () => api.alerts(teamId!),
+    enabled: !!teamId,
+  });
+
+  const daysLeft = trialDaysLeft(entitlement.data);
+  const refresh = () => {
+    rec.refetch();
+    alerts.refetch();
+    entitlement.refetch();
+  };
+
+  return (
+    <Screen title={account?.team_name ?? 'Home'} onRefresh={refresh} refreshing={rec.isRefetching}>
+      {daysLeft !== null ? (
+        <ThemedText type="small" themeColor="textSecondary">
+          Free trial · {daysLeft} {daysLeft === 1 ? 'day' : 'days'} left
+        </ThemedText>
+      ) : null}
+
+      {rec.isPending ? <ThemedText themeColor="textSecondary">Working out your best moves…</ThemedText> : null}
+      {rec.isError ? <ErrorView error={rec.error} onRetry={() => rec.refetch()} /> : null}
+      {rec.data ? <RecommendationView rec={rec.data} /> : null}
+
+      <AlertsView alerts={alerts.data} />
+    </Screen>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.stat}>
+      <ThemedText type="small" themeColor="textSecondary">
+        {label}
+      </ThemedText>
+      <ThemedText type="smallBold">{value}</ThemedText>
+    </View>
+  );
+}
+
+function RecommendationView({ rec }: { rec: Recommendation }) {
+  const t = rec.transfer;
+  const moves = t.plan.out.map((out, i) => ({ out, in: t.plan.in[i] }));
+  return (
+    <>
+      {rec.stale_warning ? (
+        <Card>
+          <ThemedText type="small" themeColor="warning">
+            {rec.stale_warning}
+          </ThemedText>
+        </Card>
+      ) : null}
+
+      <Card>
+        <ThemedText type="smallBold">{rec.gameweek.name}</ThemedText>
+        <ThemedText themeColor="textSecondary">
+          Deadline{' '}
+          {new Date(rec.gameweek.deadline_time).toLocaleString(undefined, {
+            weekday: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+          })}{' '}
+          · {timeUntil(rec.gameweek.deadline_time)}
+        </ThemedText>
+        <View style={styles.stats}>
+          <Stat label="Projected" value={`${rec.lineup.projected_total.toFixed(1)} pts`} />
+          <Stat label="Free transfers" value={String(rec.free_transfers)} />
+          <Stat label="Bank" value={`£${(rec.bank / 10).toFixed(1)}m`} />
+        </View>
+      </Card>
+
+      <Card>
+        <ThemedText type="small" themeColor="textSecondary">
+          Recommended action
+        </ThemedText>
+        <ThemedText type="subtitle">{t.action}</ThemedText>
+        {moves.map(({ out, in: inc }) => (
+          <ThemedText key={out.player_id}>
+            Sell {out.name} → Buy {inc?.name}
+          </ThemedText>
+        ))}
+        {t.plan.transfers > 0 ? (
+          <ThemedText themeColor="textSecondary">
+            {t.expected_net_gain >= 0 ? '+' : ''}
+            {t.expected_net_gain.toFixed(1)} pts over {t.horizon_gameweeks} GW
+            {t.hit_taken ? ` · −${t.hit_taken} hit` : ''} · {Math.round(t.confidence)}% confidence
+          </ThemedText>
+        ) : (
+          <ThemedText themeColor="textSecondary">{t.plan.note}</ThemedText>
+        )}
+      </Card>
+
+      <Card>
+        <View style={styles.stats}>
+          <Stat label="Captain" value={rec.captain.pick?.name ?? '—'} />
+          <Stat label="Vice" value={rec.captain.vice?.name ?? '—'} />
+          <Stat label="Formation" value={rec.lineup.formation} />
+        </View>
+      </Card>
+
+      {rec.squad_issues.length > 0 ? (
+        <Card>
+          <ThemedText type="smallBold">Squad warnings</ThemedText>
+          {rec.squad_issues.map((p) => (
+            <ThemedText key={p.player_id} type="small">
+              {p.name} · {p.reason}
+              {p.news ? ` — ${p.news}` : ''}
+            </ThemedText>
+          ))}
+        </Card>
+      ) : null}
+    </>
+  );
+}
+
+function AlertsView({ alerts }: { alerts: AlertItem[] | undefined }) {
+  const important = (alerts ?? []).filter((a) => a.severity !== 'info').slice(0, 3);
+  if (important.length === 0) return null;
+  return (
+    <Card>
+      <ThemedText type="smallBold">Latest alerts</ThemedText>
+      {important.map((a) => (
+        <View key={a.id}>
+          <ThemedText type="small" themeColor={a.severity === 'critical' ? 'danger' : 'warning'}>
+            {a.title}
+          </ThemedText>
+          {a.body ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              {a.body}
+            </ThemedText>
+          ) : null}
+        </View>
+      ))}
+    </Card>
+  );
+}
+
+const styles = StyleSheet.create({
+  stats: { flexDirection: 'row', justifyContent: 'space-between', marginTop: Spacing.two },
+  stat: { gap: Spacing.half },
+});

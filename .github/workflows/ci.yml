@@ -103,6 +103,28 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
+  mobile:
+    name: Mobile checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # React Native 0.86 needs ^20.19.4 || ^22.13.0
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test -- --ci
+      - run: npx expo-doctor
+
   secrets:
     name: Secret scan
     runs-on: ubuntu-latest
@@ -113,11 +135,24 @@ jobs:
 
       - name: Fail if a .env file is committed
         run: |
-          if git ls-files --error-unmatch backend/.env 2>/dev/null; then
-            echo "::error::backend/.env is committed — it holds live credentials"
+          for f in backend/.env frontend/.env mobile/.env; do
+            if git ls-files --error-unmatch "$f" 2>/dev/null; then
+              echo "::error::$f is committed — it may hold live credentials"
+              exit 1
+            fi
+          done
+          echo "No .env committed."
+
+      - name: No backend secrets in the mobile app
+        run: |
+          # Everything under mobile/ ships to users' phones. Backend-only
+          # setting names appearing there means a secret is about to leak.
+          if grep -rInE "SUPABASE_JWT_SECRET|SERVICE_ROLE|JOB_TOKEN|DATABASE_URL|REDIS_URL|TELEGRAM_BOT_TOKEN|sk_live_|sk_test_|whsec_" \
+              --exclude-dir=node_modules --exclude="README.md" --exclude=".env.example" mobile; then
+            echo "::error::A backend secret name or key appears in mobile/"
             exit 1
           fi
-          echo "No .env committed."
+          echo "mobile/ is clean."
 
       - name: Scan for hardcoded credentials
         run: |
