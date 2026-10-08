@@ -35,6 +35,7 @@ export function PlayerToken({
   const availability = availabilityLabel(player.status, chance);
   return (
     <Pressable
+      testID={`player-token-${player.player_id}`}
       accessibilityRole="button"
       accessibilityLabel={`${player.name}, ${player.team}, ${player.xpts.toFixed(1)} expected points${
         availability ? `, ${availability}` : ''
@@ -74,7 +75,7 @@ export function Pitch({ rec }: { rec: Recommendation }) {
   const captainId = rec.captain.pick?.player_id;
   const viceId = rec.captain.vice?.player_id;
   return (
-    <View style={styles.pitch} accessibilityLabel={`Starting eleven, ${rec.lineup.formation}`}>
+    <View testID="pitch" style={styles.pitch} accessibilityLabel={`Starting eleven, ${rec.lineup.formation}`}>
       <View style={styles.halfway} />
       {pitchRows(rec.lineup.starting).map((row) => (
         <View key={row[0].position} style={styles.row}>

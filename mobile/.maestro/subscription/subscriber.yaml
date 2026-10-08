@@ -1,0 +1,18 @@
+appId: com.fplcopilot.app
+name: A subscriber reaches the app and sees their plan
+tags: [subscription, smoke]
+---
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: e2e-subscriber@fplcopilot.test
+- extendedWaitUntil:
+    visible:
+      id: "home-screen"
+    timeout: 90000
+- assertNotVisible:
+    id: "trial-days"
+- runFlow: ../common/open-profile.yaml
+- assertVisible:
+    id: "profile-subscription"
+- assertVisible: "Annual plan · renews .*"

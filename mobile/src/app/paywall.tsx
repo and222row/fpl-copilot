@@ -81,6 +81,7 @@ export default function Paywall() {
 
   return (
     <Screen
+      testID="paywall-screen"
       title="FPL Copilot Pro"
       onRefresh={refreshAccount}
       refreshing={entitlement.isFetching}
@@ -146,7 +147,7 @@ export default function Paywall() {
       )}
 
       {message ? (
-        <ThemedText themeColor={message.error ? 'danger' : 'text'} accessibilityRole="alert">
+        <ThemedText testID="paywall-message" themeColor={message.error ? 'danger' : 'text'} accessibilityRole="alert">
           {message.text}
         </ThemedText>
       ) : null}

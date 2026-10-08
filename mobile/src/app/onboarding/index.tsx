@@ -13,6 +13,7 @@ const STEPS = [
 export default function Welcome() {
   return (
     <Screen
+      testID="onboarding-welcome"
       title="Welcome"
       footer={<Button title="Connect my team" onPress={() => router.push('/onboarding/team-id')} />}>
       <Stack.Screen options={{ headerShown: false }} />

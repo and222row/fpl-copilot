@@ -41,7 +41,7 @@ const CATEGORY_FILTERS = [
 export default function News() {
   const [section, setSection] = useState<Section>('alerts');
   return (
-    <Screen belowHeader>
+    <Screen testID="news-screen" belowHeader>
       <ChipGroup options={SECTIONS} value={section} onChange={setSection} />
       {section === 'alerts' ? <Alerts /> : section === 'news' ? <Feed /> : <Prices />}
     </Screen>

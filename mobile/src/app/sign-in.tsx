@@ -1,5 +1,5 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ComponentType } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
@@ -10,6 +10,14 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/lib/auth';
+
+// Email/password sign-in for Maestro, which cannot drive Google's or Apple's
+// system sheets. Only the `e2e` EAS profile sets EXPO_PUBLIC_E2E (CI fails if
+// another does). The literal comparison lets the bundler drop the require, so
+// other builds do not contain the form at all — verified by grepping bundles.
+const E2ESignIn: ComponentType | null =
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- a static import would always bundle it
+  process.env.EXPO_PUBLIC_E2E === 'true' ? require('@/components/e2e-sign-in').E2ESignIn : null;
 
 export default function SignIn() {
   const { signInWithApple, signInWithGoogle } = useAuth();
@@ -35,7 +43,7 @@ export default function SignIn() {
   }
 
   return (
-    <Screen footer={<LegalLinks />}>
+    <Screen testID="sign-in-screen" footer={<LegalLinks />}>
       <View style={styles.hero}>
         <ThemedText type="subtitle" accessibilityRole="header">
           FPL Copilot
@@ -73,6 +81,7 @@ export default function SignIn() {
           </ThemedText>
         ) : null}
       </View>
+      {E2ESignIn ? <E2ESignIn /> : null}
     </Screen>
   );
 }

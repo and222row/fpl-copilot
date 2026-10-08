@@ -1,0 +1,51 @@
+appId: com.fplcopilot.app
+name: Player search, detail and compare
+tags: [features, smoke]
+---
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: e2e-trial@fplcopilot.test
+- extendedWaitUntil:
+    visible:
+      id: "home-screen"
+    timeout: 90000
+- tapOn: "Players"
+- extendedWaitUntil:
+    visible:
+      id: "player-row-.*"
+    timeout: 60000
+- tapOn:
+    id: "players-search"
+- inputText: "salah"
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "Salah"
+    timeout: 20000
+- tapOn:
+    id: "player-row-.*"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: "player-recommendation"
+    timeout: 30000
+- assertVisible: "Next \\d gameweeks.*"
+- back
+- tapOn:
+    id: "players-search"
+- eraseText
+- hideKeyboard
+- tapOn: "Compare"
+- tapOn:
+    id: "player-row-.*"
+    index: 0
+- tapOn:
+    id: "player-row-.*"
+    index: 1
+- tapOn: "Compare"
+- extendedWaitUntil:
+    visible:
+      id: "compare-screen"
+    timeout: 30000
+- assertVisible: "Price"
+- assertVisible: "xPts 5 GW"

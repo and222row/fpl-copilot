@@ -1,0 +1,40 @@
+# Android only: iOS simulators have no airplane mode, and on iOS Maestro
+# passes the command without effect.
+appId: com.fplcopilot.app
+name: Losing the connection fails gracefully and recovers
+tags: [network, android]
+---
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: e2e-trial@fplcopilot.test
+- extendedWaitUntil:
+    visible:
+      id: "home-screen"
+    timeout: 90000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - setAirplaneMode: enabled
+      - tapOn: "Players"
+      - tapOn:
+          id: "players-search"
+      - inputText: "offline-check"
+      - hideKeyboard
+      - extendedWaitUntil:
+          visible:
+            id: "error-view"
+          timeout: 30000
+      - assertVisible: "No connection. Check your internet and try again."
+      # The app is still usable: tabs still respond.
+      - tapOn: "Home"
+      - assertVisible:
+          id: "home-screen"
+      - setAirplaneMode: disabled
+      - tapOn: "Players"
+      - tapOn: "Try again"
+      - extendedWaitUntil:
+          notVisible:
+            id: "error-view"
+          timeout: 30000

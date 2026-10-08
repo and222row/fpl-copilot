@@ -129,6 +129,7 @@ export default function Players() {
         Players
       </ThemedText>
       <TextInput
+        testID="players-search"
         value={search}
         onChangeText={setSearch}
         placeholder="Search players"
@@ -182,7 +183,7 @@ export default function Players() {
   );
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView testID="players-screen" style={[styles.safe, { backgroundColor: theme.background }]} edges={['top', 'left', 'right']}>
       <FlatList
         data={items}
         keyExtractor={(p) => String(p.player_id)}
@@ -224,6 +225,7 @@ function PlayerRow({ row, selected, onPress }: { row: ExplorerRow; selected: boo
   const availability = availabilityLabel(row.status, row.chance);
   return (
     <Pressable
+      testID={`player-row-${row.player_id}`}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}

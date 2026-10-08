@@ -1,0 +1,22 @@
+# Sign in, kill the app, relaunch: the encrypted session must survive.
+appId: com.fplcopilot.app
+name: Session survives an app restart
+tags: [auth, smoke]
+---
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: e2e-trial@fplcopilot.test
+# Long: a free-tier staging API may be waking up.
+- extendedWaitUntil:
+    visible:
+      id: "home-screen"
+    timeout: 90000
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "home-screen"
+    timeout: 30000
+- assertNotVisible:
+    id: "sign-in-screen"

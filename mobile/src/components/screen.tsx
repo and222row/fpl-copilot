@@ -14,12 +14,15 @@ interface Props {
   footer?: ReactNode;
   /** Set on screens with a navigation header, which already clears the status bar. */
   belowHeader?: boolean;
+  /** For end-to-end tests to confirm which screen is showing. */
+  testID?: string;
 }
 
-export function Screen({ children, title, onRefresh, refreshing = false, footer, belowHeader = false }: Props) {
+export function Screen({ children, title, onRefresh, refreshing = false, footer, belowHeader = false, testID }: Props) {
   const theme = useTheme();
   return (
     <SafeAreaView
+      testID={testID}
       style={[styles.safe, { backgroundColor: theme.background }]}
       // Tab screens leave the bottom to the tab bar; footers on full-screen
       // pages need it so buttons clear the home indicator.

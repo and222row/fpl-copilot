@@ -1,0 +1,24 @@
+# Restoring with nothing bought must leave the user on the paywall. The exact
+# message depends on whether the emulator has a store account, so the flow
+# asserts the outcome that matters: still locked.
+appId: com.fplcopilot.app
+name: Restore with no purchase does not unlock
+tags: [subscription]
+---
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: e2e-expired@fplcopilot.test
+- extendedWaitUntil:
+    visible:
+      id: "paywall-screen"
+    timeout: 90000
+- tapOn: "Restore purchases"
+- extendedWaitUntil:
+    visible:
+      id: "paywall-message"
+    timeout: 45000
+- assertVisible:
+    id: "paywall-screen"
+- assertNotVisible:
+    id: "home-screen"

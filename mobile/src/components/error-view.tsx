@@ -13,7 +13,7 @@ export function errorMessage(error: unknown): string {
 
 export function ErrorView({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
   return (
-    <View style={styles.box} accessibilityRole="alert">
+    <View style={styles.box} accessibilityRole="alert" testID="error-view">
       <ThemedText themeColor="danger">{errorMessage(error)}</ThemedText>
       {onRetry ? <Button title="Try again" variant="secondary" onPress={onRetry} /> : null}
     </View>

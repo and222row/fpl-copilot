@@ -1,0 +1,17 @@
+appId: com.fplcopilot.app
+name: A user in their trial reaches the app and sees the days left
+tags: [trial, smoke]
+---
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: e2e-trial@fplcopilot.test
+- extendedWaitUntil:
+    visible:
+      id: "home-screen"
+    timeout: 90000
+- assertVisible:
+    id: "trial-days"
+- assertVisible: "Free trial · \\d+ days left"
+- assertNotVisible:
+    id: "paywall-screen"

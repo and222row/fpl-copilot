@@ -25,7 +25,7 @@ export default function Planner() {
   const plan = usePlanner(teamId, horizon);
 
   return (
-    <Screen belowHeader onRefresh={() => plan.refetch()} refreshing={plan.isRefetching}>
+    <Screen testID="planner-screen" belowHeader onRefresh={() => plan.refetch()} refreshing={plan.isRefetching}>
       <ChipGroup options={HORIZONS} value={horizon} onChange={setHorizon} />
       {plan.isPending ? (
         <ThemedText themeColor="textSecondary">
@@ -43,7 +43,7 @@ function PlanView({ plan }: { plan: Plan }) {
   return (
     <>
       <Card>
-        <ThemedText type="small" themeColor="textSecondary">
+        <ThemedText testID="plan-summary" type="small" themeColor="textSecondary">
           Best path · GW{plan.horizon[0]}
           {plan.horizon.length > 1 ? `–${plan.horizon[plan.horizon.length - 1]}` : ''}
         </ThemedText>

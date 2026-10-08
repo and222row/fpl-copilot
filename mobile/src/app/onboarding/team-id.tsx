@@ -48,9 +48,11 @@ export default function TeamId() {
   return (
     <Screen
       belowHeader
+      testID="team-id-screen"
       title="Your FPL Team ID"
       footer={<Button title="Continue" onPress={submit} loading={busy} disabled={!teamId} />}>
       <TextInput
+        testID="team-id-input"
         value={value}
         onChangeText={(t) => setValue(t.replace(/\D/g, ''))}
         onSubmitEditing={submit}
@@ -64,7 +66,7 @@ export default function TeamId() {
         style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }]}
       />
       {error ? (
-        <ThemedText themeColor="danger" accessibilityRole="alert">
+        <ThemedText testID="team-id-error" themeColor="danger" accessibilityRole="alert">
           {error}
         </ThemedText>
       ) : null}

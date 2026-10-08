@@ -47,7 +47,7 @@ export default function Transfers() {
       : other.data;
 
   return (
-    <Screen title="Transfers" onRefresh={() => query.refetch()} refreshing={query.isRefetching}>
+    <Screen testID="transfers-screen" title="Transfers" onRefresh={() => query.refetch()} refreshing={query.isRefetching}>
       <ChipGroup options={HORIZONS} value={horizon as 1 | 3 | 5} onChange={setHorizon} />
       {query.isPending ? <ThemedText themeColor="textSecondary">Running the optimiser…</ThemedText> : null}
       {query.isError ? <ErrorView error={query.error} onRetry={() => query.refetch()} /> : null}
@@ -119,7 +119,7 @@ function TransferView({ data, teamId }: { data: TransferData; teamId: number }) 
         <ThemedText type="small" themeColor="textSecondary">
           Recommendation · {r.horizon_gameweeks} GW
         </ThemedText>
-        <ThemedText type="subtitle">{r.action}</ThemedText>
+        <ThemedText testID="transfer-action" type="subtitle">{r.action}</ThemedText>
         <StatRow>
           <Stat label="Expected gain" value={`${signed(r.expected_net_gain)} pts`} />
           <Stat label="Confidence" value={`${Math.round(r.confidence)}%`} />

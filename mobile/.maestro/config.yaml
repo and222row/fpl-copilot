@@ -1,0 +1,18 @@
+# Maestro workspace. Run against an `e2e` build pointed at staging, after
+# `backend/scripts/e2e_seed.py` has reset the personas:
+#
+#   maestro test -e E2E_PASSWORD=... -e NEW_TEAM_ID=... mobile/.maestro
+#
+# common/ holds subflows and is not run on its own.
+flows:
+  - "auth/*"
+  - "onboarding/*"
+  - "trial/*"
+  - "subscription/*"
+  - "features/*"
+  - "account/*"
+  - "network/*"
+# Flows are independent: each signs in from a fresh install as its own seeded
+# persona, and the delete-account flow is the only one using e2e-delete.
+executionOrder:
+  continueOnFailure: true

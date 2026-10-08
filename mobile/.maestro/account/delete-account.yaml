@@ -1,0 +1,43 @@
+# Destroys its persona (used by no other flow); the next seed recreates it.
+appId: com.fplcopilot.app
+name: Deleting the account ends it for good
+tags: [account]
+---
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: e2e-delete@fplcopilot.test
+- extendedWaitUntil:
+    visible:
+      id: "home-screen"
+    timeout: 90000
+- runFlow: ../common/open-profile.yaml
+- scrollUntilVisible:
+    element: "Delete account"
+- tapOn: "Delete account"
+- extendedWaitUntil:
+    visible:
+      id: "delete-account-screen"
+    timeout: 15000
+- assertVisible: "What gets deleted"
+- tapOn: "Delete my account"
+# Native confirmation dialog.
+- tapOn: "Delete"
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 45000
+# The account is gone: the same credentials no longer work.
+- tapOn:
+    id: "e2e-email"
+- inputText: e2e-delete@fplcopilot.test
+- tapOn:
+    id: "e2e-password"
+- inputText: ${E2E_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: "e2e-sign-in"
+- extendedWaitUntil:
+    visible:
+      id: "e2e-sign-in-error"
+    timeout: 20000

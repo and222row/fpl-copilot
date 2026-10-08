@@ -1,0 +1,29 @@
+appId: com.fplcopilot.app
+name: An FPL Team ID that does not exist is rejected
+tags: [onboarding]
+---
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: e2e-new@fplcopilot.test
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-welcome"
+    timeout: 90000
+- tapOn: "Connect my team"
+- extendedWaitUntil:
+    visible:
+      id: "team-id-screen"
+    timeout: 15000
+- tapOn:
+    id: "team-id-input"
+- inputText: "999999999"
+- hideKeyboard
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible:
+      id: "team-id-error"
+    timeout: 30000
+- assertVisible: "No FPL team found.*"
+- assertNotVisible:
+    id: "verify-screen"

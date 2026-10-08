@@ -46,7 +46,7 @@ export default function Compare() {
   const error = left.error ?? right.error;
 
   return (
-    <Screen belowHeader>
+    <Screen testID="compare-screen" belowHeader>
       {error ? <ErrorView error={error} onRetry={() => (left.refetch(), right.refetch())} /> : null}
       {left.data && right.data ? <Table l={left.data} r={right.data} /> : null}
       {!error && (!left.data || !right.data) ? <ThemedText themeColor="textSecondary">Loading…</ThemedText> : null}

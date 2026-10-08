@@ -44,9 +44,9 @@ export default function Home() {
   };
 
   return (
-    <Screen title={account?.team_name ?? 'Home'} onRefresh={refresh} refreshing={rec.isRefetching}>
+    <Screen testID="home-screen" title={account?.team_name ?? 'Home'} onRefresh={refresh} refreshing={rec.isRefetching}>
       {daysLeft !== null ? (
-        <ThemedText type="small" themeColor="textSecondary">
+        <ThemedText testID="trial-days" type="small" themeColor="textSecondary">
           Free trial · {daysLeft} {daysLeft === 1 ? 'day' : 'days'} left
         </ThemedText>
       ) : null}
@@ -101,7 +101,7 @@ function RecommendationView({ rec }: { rec: Recommendation }) {
         <ThemedText type="small" themeColor="textSecondary">
           Recommended action
         </ThemedText>
-        <ThemedText type="subtitle">{t.action}</ThemedText>
+        <ThemedText testID="home-action" type="subtitle">{t.action}</ThemedText>
         {t.plan.moves.map((m) => (
           <ThemedText key={m.out.player_id}>
             Sell {m.out.name} → Buy {m.in.name}

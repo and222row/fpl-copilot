@@ -72,6 +72,7 @@ export default function Verify() {
   return (
     <Screen
       belowHeader
+      testID="verify-screen"
       title="Prove it's your team"
       footer={
         expired ? (
@@ -90,7 +91,7 @@ export default function Verify() {
           {teamName}
         </ThemedText>
         <View style={styles.codeRow}>
-          <ThemedText type="subtitle" selectable accessibilityLabel={`Code ${code.split('').join(' ')}`}>
+          <ThemedText testID="verify-code" type="subtitle" selectable accessibilityLabel={`Code ${code.split('').join(' ')}`}>
             {code}
           </ThemedText>
           <Button title={copied ? 'Copied' : 'Copy'} variant="secondary" onPress={copy} />

@@ -98,6 +98,8 @@ npm test
 npx expo-doctor
 ```
 
+End-to-end tests (Maestro, against staging): see [.maestro/README.md](.maestro/README.md).
+
 ## Known limits
 
 - *Skip nonce check* for Google weakens replay protection for Google ID tokens

@@ -1,0 +1,26 @@
+appId: com.fplcopilot.app
+name: News shows alerts, the categorised feed and price watch
+tags: [features]
+---
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: e2e-trial@fplcopilot.test
+- extendedWaitUntil:
+    visible:
+      id: "home-screen"
+    timeout: 90000
+- scrollUntilVisible:
+    element: "News and alerts"
+- tapOn: "News and alerts"
+- extendedWaitUntil:
+    visible:
+      id: "news-screen"
+    timeout: 15000
+- tapOn: "All news"
+- assertVisible: "From FPL's official player news.*"
+- tapOn: "Injuries"
+- tapOn: "Prices"
+- assertVisible: "Players at least halfway to a price change.*"
+- assertNotVisible:
+    id: "error-view"

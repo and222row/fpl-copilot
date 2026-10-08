@@ -1,0 +1,27 @@
+# Sign out returns to sign-in, and a relaunch does not bring the session back.
+appId: com.fplcopilot.app
+name: Sign out ends the session
+tags: [auth, smoke]
+---
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: e2e-trial@fplcopilot.test
+- extendedWaitUntil:
+    visible:
+      id: "home-screen"
+    timeout: 90000
+- runFlow: ../common/open-profile.yaml
+- scrollUntilVisible:
+    element: "Sign out"
+- tapOn: "Sign out"
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 20000
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 20000

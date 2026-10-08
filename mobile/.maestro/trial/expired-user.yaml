@@ -1,0 +1,24 @@
+# Expired by the server's clock (seeded a day in the past), so the app can
+# only show the paywall; there is no route to the tabs.
+appId: com.fplcopilot.app
+name: An expired trial lands on the paywall and nowhere else
+tags: [trial, subscription, smoke]
+---
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: e2e-expired@fplcopilot.test
+- extendedWaitUntil:
+    visible:
+      id: "paywall-screen"
+    timeout: 90000
+- assertVisible: "Your free trial or subscription has ended."
+- assertNotVisible: "My Team"
+- assertNotVisible:
+    id: "home-screen"
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "paywall-screen"
+    timeout: 30000

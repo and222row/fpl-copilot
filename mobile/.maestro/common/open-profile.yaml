@@ -1,0 +1,7 @@
+appId: com.fplcopilot.app
+---
+- tapOn: "Profile"
+- extendedWaitUntil:
+    visible:
+      id: "profile-screen"
+    timeout: 15000

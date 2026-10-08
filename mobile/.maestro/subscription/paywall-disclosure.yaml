@@ -1,0 +1,16 @@
+appId: com.fplcopilot.app
+name: The paywall carries the store-required disclosure and links
+tags: [subscription]
+---
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: e2e-expired@fplcopilot.test
+- extendedWaitUntil:
+    visible:
+      id: "paywall-screen"
+    timeout: 90000
+- assertVisible: ".*renews automatically unless cancelled at least 24 hours.*"
+- assertVisible: "Restore purchases"
+- assertVisible: "Privacy Policy"
+- assertVisible: "Terms of Service"

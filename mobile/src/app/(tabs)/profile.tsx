@@ -63,7 +63,7 @@ export default function Profile() {
   }
 
   return (
-    <Screen title="Profile">
+    <Screen testID="profile-screen" title="Profile">
       <Card>
         <ThemedText type="small" themeColor="textSecondary">
           Signed in with {me.data?.providers.join(' & ') || '…'}
@@ -87,7 +87,7 @@ export default function Profile() {
         <ThemedText type="small" themeColor="textSecondary">
           Subscription
         </ThemedText>
-        <ThemedText>{entitlement.data ? describeEntitlement(entitlement.data) : '…'}</ThemedText>
+        <ThemedText testID="profile-subscription">{entitlement.data ? describeEntitlement(entitlement.data) : '…'}</ThemedText>
         {entitlement.data?.status === 'PAST_DUE' ? (
           <ThemedText type="small" themeColor="warning">
             The store could not take your last payment. Update your payment method there to keep access.

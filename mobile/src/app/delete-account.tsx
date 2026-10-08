@@ -43,7 +43,7 @@ export default function DeleteAccount() {
   }
 
   return (
-    <Screen belowHeader footer={<Button title="Delete my account" variant="destructive" loading={busy} onPress={confirm} />}>
+    <Screen testID="delete-account-screen" belowHeader footer={<Button title="Delete my account" variant="destructive" loading={busy} onPress={confirm} />}>
       {subscribed ? (
         <Card>
           <ThemedText type="smallBold" themeColor="warning">

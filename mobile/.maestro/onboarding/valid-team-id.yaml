@@ -1,0 +1,29 @@
+# A real team id reaches the ownership step and gets a code. Completing it
+# means renaming a real FPL team, so verification itself is covered by the
+# backend tests (test_onboarding.py), not here.
+appId: com.fplcopilot.app
+name: A real FPL Team ID gets a verification code
+tags: [onboarding, smoke]
+---
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: e2e-new@fplcopilot.test
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-welcome"
+    timeout: 90000
+- tapOn: "Connect my team"
+- tapOn:
+    id: "team-id-input"
+- inputText: ${NEW_TEAM_ID}
+- hideKeyboard
+- tapOn: "Continue"
+- extendedWaitUntil:
+    visible:
+      id: "verify-screen"
+    timeout: 30000
+- assertVisible:
+    id: "verify-code"
+- assertVisible: "Verify"
+- assertVisible: "Open FPL"

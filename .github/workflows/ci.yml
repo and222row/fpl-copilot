@@ -125,6 +125,28 @@ jobs:
       - run: npm test -- --ci
       - run: npx expo-doctor
 
+      - name: Only the e2e build profile may enable the test sign-in
+        run: |
+          node -e '
+            const b = require("./eas.json").build;
+            const bad = Object.entries(b).filter(([n, p]) => n !== "e2e" && (p.env || {}).EXPO_PUBLIC_E2E === "true");
+            if (bad.length) { console.error("EXPO_PUBLIC_E2E=true in:", bad.map(([n]) => n)); process.exit(1); }
+            if ((b.production.env || {}).EXPO_PUBLIC_E2E !== "false") { console.error("production must pin EXPO_PUBLIC_E2E=false"); process.exit(1); }
+          '
+
+      - name: A normal bundle does not contain the test sign-in
+        env:
+          EXPO_PUBLIC_API_URL: https://api.example.com
+          EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          EXPO_PUBLIC_SUPABASE_KEY: ci-placeholder
+        run: |
+          npx expo export --clear --platform android --output-dir /tmp/bundle
+          if grep -a -q "Test build sign-in" /tmp/bundle/_expo/static/js/android/*.hbc; then
+            echo "::error::The e2e sign-in form is in a non-e2e bundle"
+            exit 1
+          fi
+          echo "Not present."
+
   secrets:
     name: Secret scan
     runs-on: ubuntu-latest

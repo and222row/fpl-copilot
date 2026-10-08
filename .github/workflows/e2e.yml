@@ -1,0 +1,110 @@
+name: E2E (staging)
+
+# Builds the e2e Android app, seeds staging, and runs the Maestro flows on an
+# emulator. Manual or on release tags only: it takes ~30-45 minutes of runner
+# time and changes staging data.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: e2e-staging
+  cancel-in-progress: false
+
+jobs:
+  android:
+    name: Maestro on Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    # Secrets and variables live in the "staging" environment. Production
+    # credentials must never be added there.
+    environment: staging
+    env:
+      EXPO_PUBLIC_E2E: "true"
+      EXPO_PUBLIC_API_URL: ${{ vars.STAGING_API_URL }}
+      EXPO_PUBLIC_SUPABASE_URL: ${{ vars.STAGING_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_KEY: ${{ vars.STAGING_SUPABASE_PUBLISHABLE_KEY }}
+      EXPO_PUBLIC_REVENUECAT_ANDROID_KEY: ${{ vars.STAGING_REVENUECAT_ANDROID_KEY }}
+      EXPO_PUBLIC_TERMS_URL: ${{ vars.TERMS_URL }}
+      EXPO_PUBLIC_PRIVACY_URL: ${{ vars.PRIVACY_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Seed staging personas
+        working-directory: backend
+        env:
+          ENVIRONMENT: staging
+          E2E_ALLOW_SEED: "1"
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          SUPABASE_URL: ${{ vars.STAGING_SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_KEY }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+          E2E_FPL_TEAM_IDS: ${{ vars.E2E_FPL_TEAM_IDS }}
+        run: |
+          pip install -r requirements.txt
+          python scripts/e2e_seed.py
+
+      - name: Wake the staging API
+        # A free-tier service sleeps; the first request can take ~50s.
+        run: |
+          for i in $(seq 1 12); do
+            curl -fsS "$EXPO_PUBLIC_API_URL/api/v1/health" && exit 0
+            sleep 10
+          done
+          exit 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build the e2e APK
+        working-directory: mobile
+        run: |
+          npm ci
+          npx expo prebuild --platform android --no-install
+          cd android && ./gradlew assembleRelease --no-daemon
+
+      - name: Install Maestro
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Enable KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+
+      - name: Run flows
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: |
+            adb install mobile/android/app/build/outputs/apk/release/app-release.apk
+            maestro test --format junit --output e2e-report.xml -e E2E_PASSWORD="${{ secrets.E2E_PASSWORD }}" -e NEW_TEAM_ID="${{ vars.E2E_NEW_TEAM_ID }}" mobile/.maestro
+
+      - name: Upload report and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-results
+          path: |
+            e2e-report.xml
+            ~/.maestro/tests/
+          if-no-files-found: ignore

@@ -53,7 +53,7 @@ export default function Notifications() {
   }
 
   return (
-    <Screen belowHeader>
+    <Screen testID="notifications-screen" belowHeader>
       <PermissionCard state={state.data} enabling={enabling} onEnable={onEnable} />
       {error ? (
         <ThemedText themeColor="danger" accessibilityRole="alert">
@@ -72,6 +72,7 @@ export default function Notifications() {
                 </ThemedText>
               </View>
               <Switch
+                testID={`notify-${k.key}`}
                 accessibilityLabel={k.title}
                 value={settings.data[k.key]}
                 onValueChange={(value) => {

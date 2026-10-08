@@ -1,0 +1,22 @@
+# Fresh install, then the e2e-only email sign-in. Pass EMAIL; E2E_PASSWORD
+# comes from the command line.
+appId: com.fplcopilot.app
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+    permissions:
+      notifications: deny
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 30000
+- tapOn:
+    id: "e2e-email"
+- inputText: ${EMAIL}
+- tapOn:
+    id: "e2e-password"
+- inputText: ${E2E_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: "e2e-sign-in"

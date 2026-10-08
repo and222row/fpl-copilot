@@ -25,7 +25,7 @@ export default function PlayerScreen() {
   const rec = useRecommendation(useTeamId());
 
   return (
-    <Screen belowHeader onRefresh={() => player.refetch()} refreshing={player.isRefetching}>
+    <Screen testID="player-screen" belowHeader onRefresh={() => player.refetch()} refreshing={player.isRefetching}>
       <Stack.Screen options={{ title: player.data?.name ?? '' }} />
       {player.isPending ? <ThemedText themeColor="textSecondary">Loading…</ThemedText> : null}
       {player.isError ? <ErrorView error={player.error} onRetry={() => player.refetch()} /> : null}
@@ -86,7 +86,7 @@ function PlayerView({ p, rec }: { p: PlayerDetail; rec: Recommendation | undefin
       <Card>
         <View style={styles.verdictRow}>
           {verdict ? <VerdictBadge verdict={verdict} /> : null}
-          <ThemedText type="smallBold">Recommendation</ThemedText>
+          <ThemedText testID="player-recommendation" type="smallBold">Recommendation</ThemedText>
         </View>
         {verdictText(verdict, p, rec).map((line) => (
           <ThemedText key={line} type="small" themeColor="textSecondary">

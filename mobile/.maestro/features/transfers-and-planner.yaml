@@ -1,0 +1,38 @@
+appId: com.fplcopilot.app
+name: Transfers switch horizon and open the planner
+tags: [features]
+---
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: e2e-trial@fplcopilot.test
+- extendedWaitUntil:
+    visible:
+      id: "home-screen"
+    timeout: 90000
+- tapOn: "Transfers"
+- extendedWaitUntil:
+    visible:
+      id: "transfer-action"
+    timeout: 90000
+- tapOn: "Next GW"
+- extendedWaitUntil:
+    visible:
+      id: "transfer-action"
+    timeout: 90000
+- assertVisible: "Recommendation · 1 GW"
+- scrollUntilVisible:
+    element: "Plan ahead, gameweek by gameweek"
+- tapOn: "Plan ahead, gameweek by gameweek"
+- extendedWaitUntil:
+    visible:
+      id: "plan-summary"
+    timeout: 120000
+- tapOn: "1 GW"
+- extendedWaitUntil:
+    visible:
+      id: "plan-summary"
+    timeout: 120000
+- back
+- assertVisible:
+    id: "transfers-screen"

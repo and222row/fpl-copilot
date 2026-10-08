@@ -1,0 +1,41 @@
+# Needs a season in progress on staging: picks only exist once a gameweek
+# has started.
+appId: com.fplcopilot.app
+name: My Team shows the pitch, bench and captaincy, and opens a player
+tags: [features, smoke]
+---
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: e2e-trial@fplcopilot.test
+- extendedWaitUntil:
+    visible:
+      id: "home-screen"
+    timeout: 90000
+- tapOn: "My Team"
+- extendedWaitUntil:
+    visible:
+      id: "pitch"
+    timeout: 90000
+- assertVisible:
+    id: "player-token-.*"
+- scrollUntilVisible:
+    element: "Bench order"
+- scrollUntilVisible:
+    element: "Balanced"
+- tapOn: "Safe"
+- tapOn: "Differential"
+- scrollUntilVisible:
+    element:
+      id: "pitch"
+    direction: UP
+- tapOn:
+    id: "player-token-.*"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: "player-recommendation"
+    timeout: 30000
+- back
+- assertVisible:
+    id: "team-screen"

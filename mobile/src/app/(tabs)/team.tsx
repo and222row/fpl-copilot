@@ -24,7 +24,7 @@ export default function MyTeam() {
   const rec = useRecommendation(teamId);
 
   return (
-    <Screen title="My Team" onRefresh={() => rec.refetch()} refreshing={rec.isRefetching}>
+    <Screen testID="team-screen" title="My Team" onRefresh={() => rec.refetch()} refreshing={rec.isRefetching}>
       {rec.isPending ? <ThemedText themeColor="textSecondary">Picking your best XI…</ThemedText> : null}
       {rec.isError ? <ErrorView error={rec.error} onRetry={() => rec.refetch()} /> : null}
       {rec.data ? (

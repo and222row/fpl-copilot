@@ -1,0 +1,39 @@
+# Preferences are saved on the server: turn one off, leave, come back, and it
+# is still off.
+appId: com.fplcopilot.app
+name: Notification preferences are saved
+tags: [account]
+---
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: e2e-trial@fplcopilot.test
+- extendedWaitUntil:
+    visible:
+      id: "home-screen"
+    timeout: 90000
+- runFlow: ../common/open-profile.yaml
+- scrollUntilVisible:
+    element: "Notifications"
+- tapOn: "Notifications"
+- extendedWaitUntil:
+    visible:
+      id: "notify-price"
+    timeout: 20000
+- assertVisible:
+    id: "notify-price"
+    checked: true
+- tapOn:
+    id: "notify-price"
+- back
+- tapOn: "Notifications"
+- extendedWaitUntil:
+    visible:
+      id: "notify-price"
+    timeout: 20000
+- assertVisible:
+    id: "notify-price"
+    checked: false
+# Put it back for the next run.
+- tapOn:
+    id: "notify-price"
