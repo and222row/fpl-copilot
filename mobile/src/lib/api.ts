@@ -87,6 +87,27 @@ export interface TransferMove {
   status: PlayerStatus;
 }
 
+export interface ExplainedMove {
+  out: TransferMove;
+  in: TransferMove;
+  xpts_gain: number;
+  reasons: string[];
+}
+
+export interface TransferPlan {
+  transfers: number;
+  hit: number;
+  out: TransferMove[];
+  in: TransferMove[];
+  squad_xpts_before: number;
+  squad_xpts_after: number;
+  net_gain: number;
+  /** tenths of £m */
+  bank_after: number;
+  note: string;
+  moves: ExplainedMove[];
+}
+
 export interface TransferRecommendation {
   action: string;
   horizon_gameweeks: number;
@@ -94,16 +115,7 @@ export interface TransferRecommendation {
   hit_taken: number;
   confidence: number;
   notes: string[];
-  plan: {
-    transfers: number;
-    hit: number;
-    out: TransferMove[];
-    in: TransferMove[];
-    net_gain: number;
-    /** tenths of £m */
-    bank_after: number;
-    note: string;
-  };
+  plan: TransferPlan;
 }
 
 export interface SquadIssue extends PlayerBrief {
@@ -112,17 +124,161 @@ export interface SquadIssue extends PlayerBrief {
   reason: string;
 }
 
-export interface Recommendation {
-  manager_id: number;
+export interface CaptainOption extends PlayerBrief {
+  expected_captain_points: number;
+  ownership: number;
+  rationale: string;
+}
+
+export type CaptainMode = 'safe' | 'balanced' | 'differential';
+
+/** Which squad the advice is about; FPL cannot show pending transfers. */
+export interface SquadMeta {
   /** tenths of £m */
   bank: number;
   free_transfers: number;
-  stale_warning?: string | null;
+  squad_source: 'fpl_api' | 'manager_override';
+  transfers_applied: { out: number; in: number }[] | null;
+  stale_warning: string | null;
+}
+
+export interface Recommendation extends SquadMeta {
+  manager_id: number;
   gameweek: { id: number; name: string; deadline_time: string; deadline_passed: boolean };
-  lineup: { formation: string; starting_xpts: number; projected_total: number };
-  captain: { pick: PlayerBrief | null; vice: PlayerBrief | null };
+  lineup: {
+    formation: string;
+    starting_xpts: number;
+    bench_xpts: number;
+    projected_total: number;
+    starting: PlayerBrief[];
+    bench: (PlayerBrief & { bench_order: number })[];
+  };
+  captain: {
+    pick: PlayerBrief | null;
+    vice: PlayerBrief | null;
+    ranking: CaptainOption[];
+  };
   squad_issues: SquadIssue[];
   transfer: TransferRecommendation;
+  transfer_alternatives: TransferPlan[];
+}
+
+export interface TransfersResponse extends SquadMeta {
+  horizon: number[];
+  recommendation: TransferRecommendation;
+  alternatives: TransferPlan[];
+}
+
+export interface CaptainResponse {
+  modes: Record<CaptainMode, { ranking: CaptainOption[]; confidence: { confidence: number } | null }>;
+}
+
+export interface Team {
+  id: number;
+  name: string;
+  short_name: string;
+}
+
+export interface ExplorerFilters {
+  q?: string;
+  position?: number;
+  team_id?: number;
+  max_price?: number;
+  max_fdr?: number;
+  min_p_start?: number;
+  max_ownership?: number;
+  availability?: 'fit' | 'doubtful' | 'out';
+  sort?: 'xpts' | 'value' | 'form' | 'price' | 'ownership' | 'total_points' | 'p_start';
+}
+
+export interface ExplorerRow {
+  player_id: number;
+  name: string;
+  photo: string | null;
+  team: string;
+  team_id: number;
+  position: Position;
+  price: number;
+  status: PlayerStatus;
+  chance: number | null;
+  news: string;
+  form: number;
+  total_points: number;
+  selected_by_percent: number;
+  xpts: number | null;
+  expected_minutes: number | null;
+  p_start: number | null;
+  fdr: number | null;
+}
+
+export interface ExplorerPage {
+  gameweek: number;
+  total: number;
+  offset: number;
+  limit: number;
+  items: ExplorerRow[];
+}
+
+export interface PlayerDetail {
+  id: number;
+  name: string;
+  full_name: string;
+  photo: string | null;
+  team: string;
+  team_full: string;
+  position: Position;
+  price: number;
+  status: PlayerStatus;
+  status_label: string;
+  news: string;
+  chance_this: number | null;
+  form: number;
+  total_points: number;
+  selected_by_percent: number;
+  minutes: number;
+  starts: number;
+  goals: number;
+  assists: number;
+  clean_sheets: number;
+  bonus: number;
+  expected_goals: number;
+  expected_assists: number;
+  price_change: { percent_to_threshold: number; net_transfers_gw: number };
+  projection: {
+    total_xpts: number;
+    gameweeks: {
+      gameweek: number;
+      xpts: number;
+      expected_minutes: number;
+      p_start: number;
+      fdr: number;
+      fixtures: { opponent: string | null; is_home: boolean; fdr: number }[];
+    }[];
+  };
+  recent:
+    | {
+        gameweek: number;
+        opponent: string | null;
+        is_home: boolean;
+        minutes: number;
+        points: number;
+        goals: number;
+        assists: number;
+        bonus: number;
+      }[]
+    | null;
+  availability_news: PlayerNews[];
+}
+
+export interface PlayerNews {
+  detected_at: string;
+  event_type: string;
+  status: string | null;
+  availability: number | null;
+  cause: string | null;
+  expected_return: string | null;
+  text: string;
+  source: string;
 }
 
 export interface AlertItem {
@@ -244,5 +400,28 @@ export const api = {
   // The optimiser can take several seconds on a cold server.
   recommendation: (managerId: number) =>
     request<Recommendation>(`/decisions/${managerId}`, { timeoutMs: 60_000 }),
+  transfers: (managerId: number, horizon: number) =>
+    request<TransfersResponse>(`/decisions/${managerId}/transfers?horizon=${horizon}`, {
+      timeoutMs: 60_000,
+    }),
+  captain: (managerId: number) => request<CaptainResponse>(`/decisions/${managerId}/captain`),
   alerts: (managerId: number) => request<AlertItem[]>(`/news/alerts/${managerId}`),
+
+  recordTransfers: (managerId: number, moves: { out: number; in: number }[]) =>
+    request<{ free_transfers: number }>(`/fpl/manager/${managerId}/squad-state/transfers`, {
+      method: 'POST',
+      body: { moves },
+    }),
+  resetRecordedTransfers: (managerId: number) =>
+    request<{ cleared: boolean }>(`/fpl/manager/${managerId}/squad-state`, { method: 'DELETE' }),
+
+  teams: () => request<Team[]>('/fpl/teams'),
+  players: (filters: ExplorerFilters, offset: number, limit = 30) => {
+    const qs = new URLSearchParams({ offset: String(offset), limit: String(limit) });
+    for (const [k, v] of Object.entries(filters)) {
+      if (v !== undefined && v !== '') qs.set(k, String(v));
+    }
+    return request<ExplorerPage>(`/players?${qs.toString()}`);
+  },
+  player: (playerId: number) => request<PlayerDetail>(`/players/${playerId}`),
 };

@@ -60,7 +60,7 @@ export default function Profile() {
   }
 
   return (
-    <Screen title="Profile" footer={<LegalLinks />}>
+    <Screen title="Profile">
       <Card>
         <ThemedText type="small" themeColor="textSecondary">
           Signed in with {me.data?.providers.join(' & ') || '…'}
@@ -95,6 +95,7 @@ export default function Profile() {
       <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
         Version {Constants.expoConfig?.version}
       </ThemedText>
+      <LegalLinks />
     </Screen>
   );
 }

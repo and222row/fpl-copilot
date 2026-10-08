@@ -65,6 +65,9 @@ function GatedStack() {
       </Stack.Protected>
       <Stack.Protected guard={gate === 'ready'}>
         <Stack.Screen name="(tabs)" />
+        {/* Above the tabs, so Back returns to whichever tab opened them. */}
+        <Stack.Screen name="player/[id]" options={{ headerShown: true, title: '', headerBackTitle: 'Back' }} />
+        <Stack.Screen name="compare" options={{ headerShown: true, title: 'Compare', headerBackTitle: 'Back' }} />
       </Stack.Protected>
     </Stack>
   );

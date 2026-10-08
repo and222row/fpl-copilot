@@ -12,12 +12,18 @@ interface Props {
   onRefresh?: () => void;
   refreshing?: boolean;
   footer?: ReactNode;
+  /** Set on screens with a navigation header, which already clears the status bar. */
+  belowHeader?: boolean;
 }
 
-export function Screen({ children, title, onRefresh, refreshing = false, footer }: Props) {
+export function Screen({ children, title, onRefresh, refreshing = false, footer, belowHeader = false }: Props) {
   const theme = useTheme();
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView
+      style={[styles.safe, { backgroundColor: theme.background }]}
+      // Tab screens leave the bottom to the tab bar; footers on full-screen
+      // pages need it so buttons clear the home indicator.
+      edges={[...(belowHeader ? [] : ['top' as const]), 'left', 'right', ...(belowHeader || footer ? ['bottom' as const] : [])]}>
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"

@@ -47,6 +47,7 @@ export default function TeamId() {
 
   return (
     <Screen
+      belowHeader
       title="Your FPL Team ID"
       footer={<Button title="Continue" onPress={submit} loading={busy} disabled={!teamId} />}>
       <TextInput

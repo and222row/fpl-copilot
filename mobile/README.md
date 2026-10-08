@@ -12,7 +12,17 @@ the FastAPI backend and Supabase Auth; it holds no backend credentials.
   30-day trial starts.
 - Paywall shown when the server says there is no entitlement. Purchase buttons
   are disabled until store billing is built.
-- Home (gameweek, recommended action, captain, warnings, alerts) and Profile.
+- Home: gameweek, recommended action, captain, warnings, alerts.
+- My Team: starting XI on a pitch with START / BENCH / SELL per player,
+  availability and captaincy; bench order; captain ranking in safe, balanced
+  and differential modes.
+- Transfers: best plan over 1, 3 or 5 gameweeks with gain, hit, budget
+  impact, confidence and the reasons behind each move; alternatives; "I've
+  made these transfers" to record moves FPL cannot show before the deadline.
+- Players: search (accent-insensitive), filters, sorting, infinite scroll,
+  compare two players; a player screen with fixtures, projections, recent
+  matches, sourced news and a BUY / SELL / HOLD verdict from the optimiser.
+- Profile.
 
 Every screen decision is navigation only. The backend enforces ownership and
 premium access on every request.
@@ -60,7 +70,8 @@ npx expo-doctor
 - *Skip nonce check* for Google weakens replay protection for Google ID tokens
   (a stolen ID token is usable until it expires, ~1 hour). Apple sign-in keeps
   full nonce protection.
-- Only Home and Profile tabs exist; My Team, Transfers and Players come next.
+- Planner and the full News feed are not built yet.
+- Screens are covered by render tests but have not been run on a device.
 - No in-app purchase yet; the paywall cannot take payment.
 - `npm audit` reports high-severity issues in Expo's build tooling (node-forge,
   braces) and one moderate in `decode-uri-component`, which ships via

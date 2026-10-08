@@ -52,7 +52,7 @@ export default function Verify() {
 
   if (done) {
     return (
-      <Screen title="You're connected" footer={<Button title="Continue" onPress={refreshAccount} />}>
+      <Screen belowHeader title="You're connected" footer={<Button title="Continue" onPress={refreshAccount} />}>
         <Card>
           <ThemedText type="smallBold">{done.team_name}</ThemedText>
           <ThemedText themeColor="textSecondary">{done.manager_name}</ThemedText>
@@ -71,6 +71,7 @@ export default function Verify() {
 
   return (
     <Screen
+      belowHeader
       title="Prove it's your team"
       footer={
         expired ? (

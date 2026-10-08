@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { ErrorView } from '@/components/error-view';
 import { Card, Screen } from '@/components/screen';
+import { Stat, StatRow } from '@/components/stat';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
 import { api, type AlertItem, type Entitlement, type Recommendation } from '@/lib/api';
-import { queryKeys, useEntitlement, useMe } from '@/lib/query';
+import { queryKeys, useEntitlement, useMe, useRecommendation } from '@/lib/query';
+import { money } from '@/lib/squad';
 
 function timeUntil(iso: string): string {
   const ms = new Date(iso).getTime() - Date.now();
@@ -28,12 +29,7 @@ export default function Home() {
   const account = me.data?.fpl_accounts[0];
   const teamId = account?.fpl_entry_id;
 
-  const rec = useQuery({
-    queryKey: queryKeys.recommendation(teamId ?? 0),
-    queryFn: () => api.recommendation(teamId!),
-    enabled: !!teamId,
-    staleTime: 5 * 60_000,
-  });
+  const rec = useRecommendation(teamId);
   const alerts = useQuery({
     queryKey: queryKeys.alerts(teamId ?? 0),
     queryFn: () => api.alerts(teamId!),
@@ -64,20 +60,8 @@ export default function Home() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.stat}>
-      <ThemedText type="small" themeColor="textSecondary">
-        {label}
-      </ThemedText>
-      <ThemedText type="smallBold">{value}</ThemedText>
-    </View>
-  );
-}
-
 function RecommendationView({ rec }: { rec: Recommendation }) {
   const t = rec.transfer;
-  const moves = t.plan.out.map((out, i) => ({ out, in: t.plan.in[i] }));
   return (
     <>
       {rec.stale_warning ? (
@@ -99,11 +83,11 @@ function RecommendationView({ rec }: { rec: Recommendation }) {
           })}{' '}
           · {timeUntil(rec.gameweek.deadline_time)}
         </ThemedText>
-        <View style={styles.stats}>
+        <StatRow>
           <Stat label="Projected" value={`${rec.lineup.projected_total.toFixed(1)} pts`} />
           <Stat label="Free transfers" value={String(rec.free_transfers)} />
-          <Stat label="Bank" value={`£${(rec.bank / 10).toFixed(1)}m`} />
-        </View>
+          <Stat label="Bank" value={money(rec.bank)} />
+        </StatRow>
       </Card>
 
       <Card>
@@ -111,9 +95,9 @@ function RecommendationView({ rec }: { rec: Recommendation }) {
           Recommended action
         </ThemedText>
         <ThemedText type="subtitle">{t.action}</ThemedText>
-        {moves.map(({ out, in: inc }) => (
-          <ThemedText key={out.player_id}>
-            Sell {out.name} → Buy {inc?.name}
+        {t.plan.moves.map((m) => (
+          <ThemedText key={m.out.player_id}>
+            Sell {m.out.name} → Buy {m.in.name}
           </ThemedText>
         ))}
         {t.plan.transfers > 0 ? (
@@ -128,11 +112,11 @@ function RecommendationView({ rec }: { rec: Recommendation }) {
       </Card>
 
       <Card>
-        <View style={styles.stats}>
+        <StatRow>
           <Stat label="Captain" value={rec.captain.pick?.name ?? '—'} />
           <Stat label="Vice" value={rec.captain.vice?.name ?? '—'} />
           <Stat label="Formation" value={rec.lineup.formation} />
-        </View>
+        </StatRow>
       </Card>
 
       {rec.squad_issues.length > 0 ? (
@@ -172,7 +156,3 @@ function AlertsView({ alerts }: { alerts: AlertItem[] | undefined }) {
   );
 }
 
-const styles = StyleSheet.create({
-  stats: { flexDirection: 'row', justifyContent: 'space-between', marginTop: Spacing.two },
-  stat: { gap: Spacing.half },
-});
