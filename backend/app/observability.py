@@ -24,6 +24,8 @@ REDACTED_KEYS = {
     "password", "token", "secret", "api_key", "apikey", "authorization",
     "anthropic_api_key", "api_football_key", "database_url", "redis_url",
     "secret_key", "cookie", "set-cookie",
+    "supabase_jwt_secret", "access_token", "refresh_token", "id_token",
+    "otp", "phone", "email",
 }
 
 

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.auth import ManagerAccess
 from app.database import get_db
 from app.rate_limit import limiter, HEAVY
 from app.models.fpl import Gameweek
@@ -12,7 +13,7 @@ from app.services.planner import plan_horizon, serialise, MAX_FREE_TRANSFERS
 router = APIRouter(prefix="/planner", tags=["planner"])
 
 
-@router.get("/{manager_id}")
+@router.get("/{manager_id}", dependencies=[ManagerAccess])
 @limiter.limit(HEAVY)
 async def build_plan(
     request: Request,

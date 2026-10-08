@@ -14,7 +14,7 @@ from app.redis_client import close_redis
 from app.services.fpl_client import close_client as close_fpl_client
 from app.routers import (
     health, fpl, projections, decisions, news, feedback, planner, jobs,
-    dream_team, notifications, chips,
+    dream_team, notifications, chips, me,
 )
 from app import scheduler
 
@@ -128,6 +128,7 @@ app.include_router(jobs.router, prefix="/api/v1")
 app.include_router(dream_team.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
 app.include_router(chips.router, prefix="/api/v1")
+app.include_router(me.router, prefix="/api/v1")
 
 
 @app.get("/")

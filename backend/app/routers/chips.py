@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import ManagerAccess
 from app.database import get_db
 from app.rate_limit import limiter, HEAVY, READ
 from app.services import chips
@@ -8,7 +9,7 @@ from app.services import chips
 router = APIRouter(tags=["chips"])
 
 
-@router.get("/chips/{manager_id}")
+@router.get("/chips/{manager_id}", dependencies=[ManagerAccess])
 @limiter.limit(HEAVY)
 async def chip_advice(
     request: Request,

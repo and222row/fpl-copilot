@@ -8,7 +8,6 @@ alembic==1.14.0
 redis==5.2.1
 httpx==0.28.1
 python-dotenv==1.0.1
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+PyJWT[crypto]==2.15.1
 ortools==9.15.6755
 slowapi==0.1.10

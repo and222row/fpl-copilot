@@ -70,3 +70,15 @@ services:
         # Comma-separated for more than one. Vercel's per-deploy preview URLs
         # are not covered by this — add them only if you need them.
         sync: false
+
+      - key: SUPABASE_URL
+        # https://<project-ref>.supabase.co — used to verify user tokens.
+        sync: false
+
+      - key: SUPABASE_JWT_SECRET
+        # Only if the Supabase project still uses the legacy HS256 secret.
+        sync: false
+
+      - key: AUTH_REQUIRED
+        # Flip to "true" once the web dashboard has sign-in or is retired.
+        value: "false"

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from app.auth import ManagerAccess
 from app.database import get_db
 from app.rate_limit import limiter, HEAVY, UPSTREAM
 from app.models.fpl import Gameweek
@@ -12,7 +13,7 @@ from app.services.feedback import (
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
 
-@router.get("/{manager_id}/accuracy")
+@router.get("/{manager_id}/accuracy", dependencies=[ManagerAccess])
 async def get_accuracy(manager_id: int, db: AsyncSession = Depends(get_db)):
     """
     Running accuracy across every scored gameweek, per decision category.
@@ -23,7 +24,7 @@ async def get_accuracy(manager_id: int, db: AsyncSession = Depends(get_db)):
     return await accuracy_summary(db, manager_id)
 
 
-@router.get("/{manager_id}/history")
+@router.get("/{manager_id}/history", dependencies=[ManagerAccess])
 async def get_history(
     manager_id: int,
     limit: int = Query(50, ge=1, le=200),
@@ -33,7 +34,7 @@ async def get_history(
     return await outcome_history(db, manager_id, limit=limit)
 
 
-@router.get("/{manager_id}/pending")
+@router.get("/{manager_id}/pending", dependencies=[ManagerAccess])
 async def get_pending(manager_id: int, db: AsyncSession = Depends(get_db)):
     """
     Recommendations saved but not yet scored.
@@ -83,7 +84,7 @@ async def get_pending(manager_id: int, db: AsyncSession = Depends(get_db)):
     }
 
 
-@router.post("/{manager_id}/score")
+@router.post("/{manager_id}/score", dependencies=[ManagerAccess])
 @limiter.limit(UPSTREAM)
 async def score(
     request: Request,
@@ -108,7 +109,7 @@ async def score(
     return result
 
 
-@router.post("/{manager_id}/score-all")
+@router.post("/{manager_id}/score-all", dependencies=[ManagerAccess])
 @limiter.limit(HEAVY)
 async def score_all(
     request: Request,

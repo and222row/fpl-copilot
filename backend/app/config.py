@@ -55,6 +55,22 @@ class Settings(BaseSettings):
     # phone buzz, and sending it would train people to ignore the channel.
     telegram_min_severities: str = "critical,warning"
 
+    # ── User authentication (Supabase Auth) ──────────────────────────────────
+    # Supabase issues the tokens; this API only verifies them. Projects using
+    # asymmetric signing keys are verified against the JWKS under SUPABASE_URL.
+    # SUPABASE_JWT_SECRET is only for projects still on the legacy HS256 secret.
+    supabase_url: str = ""
+    supabase_jwt_secret: str = ""
+    supabase_jwt_audience: str = "authenticated"
+    # While false, requests without a token still reach per-manager endpoints so
+    # the login-less web dashboard keeps working. A request that DOES carry a
+    # token is always checked for ownership. Must be true before mobile launch.
+    auth_required: bool = False
+
+    @property
+    def supabase_issuer(self) -> str:
+        return f"{self.supabase_url.rstrip('/')}/auth/v1"
+
     @property
     def telegram_severities(self) -> set[str]:
         return {s.strip() for s in self.telegram_min_severities.split(",") if s.strip()}

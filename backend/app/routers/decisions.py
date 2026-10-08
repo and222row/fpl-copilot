@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from app.auth import ManagerAccess
 from app.database import get_db
 from app.rate_limit import limiter, HEAVY, UPSTREAM
 from app.models.fpl import Player, Team, Fixture, Gameweek
@@ -140,7 +141,7 @@ async def _picks_gameweek(db: AsyncSession, target: Gameweek) -> int:
 
 # ── Lineup ────────────────────────────────────────────────────────────────────
 
-@router.get("/{manager_id}/lineup")
+@router.get("/{manager_id}/lineup", dependencies=[ManagerAccess])
 @limiter.limit(UPSTREAM)
 async def recommend_lineup(
     request: Request,
@@ -182,7 +183,7 @@ async def recommend_lineup(
 
 # ── Captain ───────────────────────────────────────────────────────────────────
 
-@router.get("/{manager_id}/captain")
+@router.get("/{manager_id}/captain", dependencies=[ManagerAccess])
 @limiter.limit(UPSTREAM)
 async def recommend_captain(
     request: Request,
@@ -221,7 +222,7 @@ async def recommend_captain(
 
 # ── Transfers ─────────────────────────────────────────────────────────────────
 
-@router.get("/{manager_id}/transfers")
+@router.get("/{manager_id}/transfers", dependencies=[ManagerAccess])
 @limiter.limit(HEAVY)
 async def recommend_transfers(
     request: Request,
@@ -397,7 +398,7 @@ async def recommend_transfers(
 
 # ── Everything, in one call ───────────────────────────────────────────────────
 
-@router.get("/{manager_id}")
+@router.get("/{manager_id}", dependencies=[ManagerAccess])
 @limiter.limit(HEAVY)
 async def full_recommendation(
     request: Request,

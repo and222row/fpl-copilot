@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.auth import ManagerAccess
 from app.database import get_db
 from app.rate_limit import limiter, READ, UPSTREAM
 from app.services import notifications, telegram
@@ -22,7 +23,7 @@ router = APIRouter(tags=["notifications"])
 
 # ── Settings, driven from the dashboard ───────────────────────────────────────
 
-@router.get("/notifications/{manager_id}")
+@router.get("/notifications/{manager_id}", dependencies=[ManagerAccess])
 @limiter.limit(READ)
 async def get_status(
     request: Request, manager_id: int, db: AsyncSession = Depends(get_db)
@@ -31,7 +32,7 @@ async def get_status(
     return await notifications.status(db, manager_id)
 
 
-@router.post("/notifications/{manager_id}/telegram/link")
+@router.post("/notifications/{manager_id}/telegram/link", dependencies=[ManagerAccess])
 @limiter.limit(UPSTREAM)
 async def create_link(
     request: Request, manager_id: int, db: AsyncSession = Depends(get_db)
@@ -62,7 +63,7 @@ async def create_link(
     }
 
 
-@router.post("/notifications/{manager_id}/telegram/enabled")
+@router.post("/notifications/{manager_id}/telegram/enabled", dependencies=[ManagerAccess])
 @limiter.limit(UPSTREAM)
 async def set_enabled(
     request: Request,
@@ -77,7 +78,7 @@ async def set_enabled(
     return await notifications.status(db, manager_id)
 
 
-@router.delete("/notifications/{manager_id}/telegram")
+@router.delete("/notifications/{manager_id}/telegram", dependencies=[ManagerAccess])
 @limiter.limit(UPSTREAM)
 async def unlink(
     request: Request, manager_id: int, db: AsyncSession = Depends(get_db)
@@ -87,7 +88,7 @@ async def unlink(
     return {"unlinked": removed, **await notifications.status(db, manager_id)}
 
 
-@router.post("/notifications/{manager_id}/telegram/test")
+@router.post("/notifications/{manager_id}/telegram/test", dependencies=[ManagerAccess])
 @limiter.limit(UPSTREAM)
 async def send_test(
     request: Request, manager_id: int, db: AsyncSession = Depends(get_db)

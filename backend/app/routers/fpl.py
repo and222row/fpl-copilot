@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from app.auth import ManagerAccess
 from app.database import get_db
 from app.rate_limit import limiter, HEAVY, UPSTREAM
 from app.models.fpl import Player, Team, Gameweek, Fixture
@@ -245,7 +246,7 @@ async def list_fixtures(
 
 # ── Manager ───────────────────────────────────────────────────────────────────
 
-@router.get("/manager/{manager_id}")
+@router.get("/manager/{manager_id}", dependencies=[ManagerAccess])
 @limiter.limit(UPSTREAM)
 async def get_manager(request: Request, manager_id: int):
     """Manager profile straight from FPL — no local data needed."""
@@ -269,7 +270,7 @@ async def get_manager(request: Request, manager_id: int):
     }
 
 
-@router.get("/manager/{manager_id}/squad")
+@router.get("/manager/{manager_id}/squad", dependencies=[ManagerAccess])
 @limiter.limit(UPSTREAM)
 async def get_manager_squad(
     request: Request,
@@ -425,7 +426,7 @@ class ApplyTransfersIn(BaseModel):
     moves: list[TransferMoveIn] = Field(..., min_length=1, max_length=15)
 
 
-@router.get("/manager/{manager_id}/squad-state")
+@router.get("/manager/{manager_id}/squad-state", dependencies=[ManagerAccess])
 async def squad_state(
     manager_id: int,
     gameweek: int | None = Query(None, description="Defaults to the next open GW"),
@@ -470,7 +471,7 @@ async def squad_state(
     }
 
 
-@router.post("/manager/{manager_id}/squad-state/transfers")
+@router.post("/manager/{manager_id}/squad-state/transfers", dependencies=[ManagerAccess])
 @limiter.limit(UPSTREAM)
 async def record_transfers(
     request: Request,
@@ -528,7 +529,7 @@ async def record_transfers(
     }
 
 
-@router.delete("/manager/{manager_id}/squad-state")
+@router.delete("/manager/{manager_id}/squad-state", dependencies=[ManagerAccess])
 async def reset_squad_state(
     manager_id: int,
     gameweek: int | None = Query(None),
