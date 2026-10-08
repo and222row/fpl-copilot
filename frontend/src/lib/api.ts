@@ -1,3 +1,5 @@
+import { supabase, supabaseConfigured } from "@/lib/supabase";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 // ── Types (mirror the FastAPI response shapes) ───────────────────────────────
@@ -414,18 +416,31 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
+    /** Machine-readable reason when the API gives one, e.g. PREMIUM_REQUIRED. */
+    public code?: string,
   ) {
     super(message);
     this.name = "ApiError";
   }
 }
 
+async function accessToken(): Promise<string | undefined> {
+  if (typeof window === "undefined" || !supabaseConfigured()) return undefined;
+  // getSession refreshes an expired access token before returning it.
+  return (await supabase().auth.getSession()).data.session?.access_token;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = await accessToken();
   let res: Response;
   try {
     res = await fetch(`${API_BASE}/api/v1${path}`, {
       ...init,
-      headers: { "Content-Type": "application/json", ...init?.headers },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...init?.headers,
+      },
     });
   } catch {
     throw new ApiError(
@@ -435,17 +450,28 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!res.ok) {
-    // FastAPI puts human-readable errors in `detail`
-    let detail = `Request failed (${res.status})`;
+    // FastAPI puts errors in `detail`: a string, or {code, message}.
+    let message = `Request failed (${res.status})`;
+    let code: string | undefined;
     try {
-      const body = await res.json();
-      if (typeof body?.detail === "string") detail = body.detail;
+      const detail = (await res.json())?.detail;
+      if (typeof detail === "string") message = detail;
+      else if (detail && typeof detail === "object") {
+        code = detail.code;
+        if (typeof detail.message === "string") message = detail.message;
+      }
     } catch {
       /* response wasn't JSON — keep the generic message */
     }
-    throw new ApiError(detail, res.status);
+    if (res.status === 401 && token) {
+      // The server rejected a token we believed valid; drop it so the page
+      // returns to sign-in instead of failing every call.
+      await supabase().auth.signOut({ scope: "local" });
+    }
+    throw new ApiError(message, res.status, code);
   }
 
+  if (res.status === 204) return null as T;
   return res.json() as Promise<T>;
 }
 
@@ -501,6 +527,55 @@ export interface ChipAdvice {
   history_available: boolean;
   caveat: string;
 }
+
+// ── Account ──────────────────────────────────────────────────────────────────
+
+export interface FplAccount {
+  fpl_entry_id: number;
+  team_name: string;
+  manager_name: string;
+}
+
+export interface Me {
+  id: string;
+  email: string | null;
+  providers: string[];
+  fpl_accounts: FplAccount[];
+}
+
+export interface Entitlement {
+  premium: boolean;
+  status: "NONE" | "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "EXPIRED";
+  plan: "MONTHLY" | "ANNUAL" | null;
+  provider: string | null;
+  trial_ends_at: string | null;
+  subscription_ends_at: string | null;
+}
+
+export interface PendingConnection {
+  status: "verification_required";
+  fpl_entry_id: number;
+  team_name: string;
+  code: string;
+  attempts_remaining: number;
+  instructions: string;
+}
+
+export type StartConnectionResult = PendingConnection | ({ status: "connected" } & FplAccount);
+
+export const account = {
+  me: () => request<Me>("/me"),
+  entitlements: () => request<Entitlement>("/me/entitlements"),
+  startConnection: (fplEntryId: number) =>
+    request<StartConnectionResult>("/me/fpl-accounts", {
+      method: "POST",
+      body: JSON.stringify({ fpl_entry_id: fplEntryId }),
+    }),
+  verifyConnection: (fplEntryId: number) =>
+    request<FplAccount & { trial_started: boolean }>(`/me/fpl-accounts/${fplEntryId}/verify`, {
+      method: "POST",
+    }),
+};
 
 export const api = {
   health: () =>

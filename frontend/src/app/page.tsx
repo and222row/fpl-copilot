@@ -9,6 +9,7 @@ import {
   type Manager,
   type Squad,
 } from "@/lib/api";
+import { AccountGate, type SignedInAccount } from "@/components/AccountGate";
 import { SquadView } from "@/components/SquadView";
 import { ProjectionTable } from "@/components/ProjectionTable";
 import { RecommendationCard } from "@/components/RecommendationCard";
@@ -19,12 +20,13 @@ import { SquadStateBanner } from "@/components/SquadStateBanner";
 import { DreamTeam } from "@/components/DreamTeam";
 import { NotificationSettings } from "@/components/NotificationSettings";
 import { ChipAdvisor } from "@/components/ChipAdvisor";
-import { BTN_PRIMARY } from "@/lib/ui";
+import { BTN_SECONDARY } from "@/lib/ui";
 
-const TEAM_ID_KEY = "fpl-copilot:team-id";
+export default function Page() {
+  return <AccountGate>{(account) => <Dashboard account={account} />}</AccountGate>;
+}
 
-export default function Dashboard() {
-  const [teamIdInput, setTeamIdInput] = useState("");
+function Dashboard({ account }: { account: SignedInAccount }) {
   const [gameweek, setGameweek] = useState<Gameweek | null>(null);
   const [manager, setManager] = useState<Manager | null>(null);
   const [squad, setSquad] = useState<Squad | null>(null);
@@ -47,12 +49,6 @@ export default function Dashboard() {
       });
   }, []);
 
-  // ── Restore the last used team ID ───────────────────────────────────────
-  useEffect(() => {
-    const saved = localStorage.getItem(TEAM_ID_KEY);
-    if (saved) setTeamIdInput(saved);
-  }, []);
-
   // Locale-formatted dates differ between the server (UTC) and the browser
   // (local timezone). Rendering one during SSR causes a hydration mismatch,
   // which silently strips every event handler off the page. Only format the
@@ -68,7 +64,6 @@ export default function Dashboard() {
       const [m, s] = await Promise.all([api.manager(id), api.squad(id)]);
       setManager(m);
       setSquad(s);
-      localStorage.setItem(TEAM_ID_KEY, String(id));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Something went wrong");
       setManager(null);
@@ -91,15 +86,10 @@ export default function Dashboard() {
     }
   }, []);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const id = Number(teamIdInput.trim());
-    if (!Number.isInteger(id) || id <= 0) {
-      setError("Enter a valid FPL Team ID (numbers only)");
-      return;
-    }
-    await loadTeam(id);
-  }
+  // The team is the one connected to the account; there is nothing to type.
+  useEffect(() => {
+    void loadTeam(account.managerId);
+  }, [account.managerId, loadTeam]);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
@@ -134,6 +124,12 @@ export default function Dashboard() {
             )}
           </p>
         </div>
+        <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+          <span className="truncate">{account.email ?? account.teamName}</span>
+          <button className={BTN_SECONDARY} onClick={account.signOut}>
+            Sign out
+          </button>
+        </div>
       </header>
 
       {/* ── Empty database prompt ───────────────────────────────────── */}
@@ -149,33 +145,6 @@ export default function Dashboard() {
           </p>
         </div>
       )}
-
-      {/* ── Team ID form ────────────────────────────────────────────── */}
-      <form onSubmit={handleSubmit} className="mb-6 flex flex-wrap gap-2">
-        <input
-          value={teamIdInput}
-          onChange={(e) => setTeamIdInput(e.target.value)}
-          inputMode="numeric"
-          placeholder="Your FPL Team ID (e.g. 1234567)"
-          className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-3 py-2
-                     text-sm text-slate-900 placeholder:text-slate-400
-                     focus:border-slate-900 focus:outline-none
-                     dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100
-                     dark:focus:border-slate-400"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className={`${BTN_PRIMARY} w-full py-2.5 text-sm sm:w-auto sm:py-2`}
-        >
-          {loading ? "Loading…" : "Load squad"}
-        </button>
-      </form>
-
-      <p className="mb-6 text-xs text-slate-400">
-        Find your Team ID: log in to fantasy.premierleague.com → Points → the
-        number in the URL after <code>/entry/</code>.
-      </p>
 
       {/* ── Error ───────────────────────────────────────────────────── */}
       {error && (
@@ -247,7 +216,7 @@ export default function Dashboard() {
       {!squad && !loading && !error && !needsSync && (
         <div className="rounded-lg border border-dashed border-slate-300 p-12 text-center dark:border-slate-700">
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Enter your FPL Team ID above to see your squad.
+            Loading your squad…
           </p>
         </div>
       )}

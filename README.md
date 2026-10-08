@@ -922,7 +922,7 @@ only pieces that die when your PC shuts down are the API and the scheduler.
 
 | Piece | Host | Notes |
 |---|---|---|
-| Frontend | Vercel | `NEXT_PUBLIC_API_URL` -> the Render URL |
+| Frontend | Vercel | `NEXT_PUBLIC_API_URL` -> the Render URL; `NEXT_PUBLIC_SUPABASE_URL` / `_KEY` for sign-in |
 | API | Render | `render.yaml` blueprint, Docker, Frankfurt |
 | Postgres | Supabase | already cloud |
 | Redis | Upstash | already cloud |
@@ -954,13 +954,16 @@ and a 30-minute cron keeps yours awake.
 1. **Rotate credentials** if the Supabase password or Upstash token has ever
    been pasted anywhere. Then `git init`, commit, push.
 2. **Render** -> New -> Blueprint -> this repo. It reads `render.yaml` and
-   prompts for `DATABASE_URL`, `REDIS_URL`, `SECRET_KEY`, `JOB_TOKEN` and
-   `CORS_ORIGINS`. Take the first four from `backend/.env`; leave
-   `CORS_ORIGINS` until step 3 gives you the domain.
+   prompts for every `sync: false` value: `DATABASE_URL`, `REDIS_URL`,
+   `JOB_TOKEN`, the Supabase, Expo and RevenueCat keys, and `CORS_ORIGINS`.
+   Leave `CORS_ORIGINS` until step 3 gives you the domain.
 3. **Vercel** -> import the repo, and in Project Settings -> Build and
    Deployment set **Root Directory to `frontend`**. Set `NEXT_PUBLIC_API_URL`
-   to the Render URL. Then put the Vercel domain into Render's `CORS_ORIGINS`
-   and redeploy the API.
+   to the Render URL, and `NEXT_PUBLIC_SUPABASE_URL` /
+   `NEXT_PUBLIC_SUPABASE_KEY` (publishable key) — without them the dashboard
+   cannot sign in, and the API refuses anonymous team requests
+   (`AUTH_REQUIRED=true`). Add the Vercel domain to Supabase's Redirect URLs
+   and Render's `CORS_ORIGINS`, then redeploy the API.
 
    The root directory is the setting that decides whether git-triggered builds
    work at all. The repository root holds no `package.json` — only the two app

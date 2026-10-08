@@ -83,8 +83,11 @@ services:
         value: "1"
 
       - key: AUTH_REQUIRED
-        # Flip to "true" once the web dashboard has sign-in or is retired.
-        value: "false"
+        # Anonymous callers may not reach team routes or premium features. Both
+        # clients sign in with Supabase, so nothing legitimate calls them
+        # without a token. Set NEXT_PUBLIC_SUPABASE_* on Vercel before this
+        # deploys, or the web dashboard cannot sign in.
+        value: "true"
 
       - key: SUPABASE_SERVICE_KEY
         # Only for deleting a user's sign-in account on account deletion.

@@ -19,7 +19,7 @@ added it was confirmed to fail without the fix.
 | ID | Severity | Finding | Status |
 |---|---|---|---|
 | C1 | Critical | Supabase serves every `public` table through its Data API to anyone holding the publishable key, which the mobile app ships. Alembic-created tables had row level security off, so that key alone could read or rewrite users, subscriptions, devices and squads. | **Fixed in code** — migration `e9a1c3d5f7b8` enables RLS on every public table and revokes the API roles' privileges, now and by default for new tables. Production startup logs an error for any public table without RLS. **Takes effect only once the migration runs.** |
-| C2 | Critical | `AUTH_REQUIRED=false` in production: anonymous callers reach every team route and premium feature, bypassing ownership checks and the paywall. Kept because the web dashboard has no sign-in. | **Open — decision required** (see below). Production startup logs it as an error. |
+| C2 | Critical | `AUTH_REQUIRED=false` in production: anonymous callers reach every team route and premium feature, bypassing ownership checks and the paywall. Kept because the web dashboard had no sign-in. | **Fixed** — the web dashboard signs in with Supabase (same accounts, team verification and access rules as the app; see below) and `render.yaml` sets `AUTH_REQUIRED=true`. Production startup still logs an error if it is ever off. |
 | C3 | Critical | Next.js 16.3.2: remote code execution (image optimisation, `next/og`, Windows hosts), SSRF in image optimisation, cache poisoning; `sharp` and `source-map-js` advisories. | **Fixed** — Next.js 16.3.8, sharp 0.35.5, source-map-js 1.2.2. `npm audit`: 0. |
 | H1 | High | Starlette 0.41.3 (via FastAPI 0.115.5): eight advisories, including denial of service. | **Fixed** — FastAPI 0.143.0 / Starlette 1.7.0. `pip-audit`: 0. The upgrade changed how FastAPI stores included routers, which silently emptied the structural security tests (ownership, premium, guarded writes) so they passed while checking nothing; they now walk routes through a helper cross-checked against the OpenAPI schema. |
 | H2 | High | Operator endpoints (sync, rebuild, refresh) were open whenever `JOB_TOKEN` was unset. | **Fixed** — fail closed (503) in production. |
@@ -46,16 +46,28 @@ Verified clean: full git history (no keys, tokens or credential files), release
 bundles (CI rejects backend secret names, and a normal bundle must not contain
 the e2e sign-in form), log redaction of credential and PII keys.
 
-### Decision required before mobile launch: C2
+### C2: web dashboard sign-in
 
-`AUTH_REQUIRED` must be `true` when the app ships, or the paywall and per-team
-ownership can be bypassed by calling the API without a token. Turning it on
-breaks the web dashboard, which has no sign-in. Options:
+`AUTH_REQUIRED` must be `true`, or the paywall and per-team ownership can be
+bypassed by calling the API without a token. Of the options (add sign-in to the
+web, retire it, or limit it to free data), sign-in was chosen:
 
-1. **Add Supabase sign-in to the web dashboard** (same accounts, same rules).
-2. **Retire the web dashboard** at mobile launch.
-3. **Limit the web dashboard to free data** (players, fixtures, prices) and
-   turn `AUTH_REQUIRED` on.
+- Apple or Google through Supabase's OAuth redirect with PKCE, so the redirect
+  carries a one-time code, never tokens. Supabase only redirects to URLs on its
+  allowlist.
+- The team comes from the account (`/me`), not from user input; connecting one
+  uses the same team-name code as the app. Access is the server's
+  `/me/entitlements`; the page only chooses which screen to show.
+- Subscriptions are sold only in the app. A web user without access is told to
+  subscribe there; the web takes no payments.
+- The browser session lives in `localStorage`, as it must without a server.
+  Any script running on the page could read it, so the site sends a
+  Content-Security-Policy: scripts from this origin only, and `connect-src`
+  limited to this site, the API and Supabase, so even injected script cannot
+  post a token elsewhere. Inline scripts are allowed because the page is
+  statically prerendered (nonces would force every request to render
+  dynamically). Framing is refused.
+- A 401 from the API signs the browser out locally.
 
 ### OWASP API Security Top 10
 
@@ -89,7 +101,14 @@ breaks the web dashboard, which has no sign-in. Options:
 - [ ] Run all Alembic migrations on Supabase, then confirm in Supabase's
       Security Advisor that no public table lacks RLS, and that
       `curl "$SUPABASE_URL/rest/v1/users" -H "apikey: <publishable key>"` is refused.
-- [ ] Decide C2 and set `AUTH_REQUIRED=true` in production.
+- [ ] Vercel: set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_KEY`
+      (publishable key) and redeploy **before** the backend deploys with
+      `AUTH_REQUIRED=true`. Confirm the production response carries the
+      `Content-Security-Policy` header.
+- [ ] Supabase → Authentication → URL Configuration: the web site's URL as the
+      Site URL and in Redirect URLs (plus `http://localhost:3001` for
+      development). Apple sign-in on the web needs an Apple **Services ID**
+      with Supabase's callback URL as its return URL.
 - [ ] Set in production: `JOB_TOKEN`, `REVENUECAT_WEBHOOK_AUTH`,
       `REVENUECAT_WEBHOOK_SIGNING_SECRET`, `EXPO_ACCESS_TOKEN` (enhanced push
       security on), `SUPABASE_SERVICE_KEY`, `TRUSTED_PROXY_HOPS=1`. Startup
