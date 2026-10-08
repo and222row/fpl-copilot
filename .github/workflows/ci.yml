@@ -147,7 +147,7 @@ jobs:
         run: |
           # Everything under mobile/ ships to users' phones. Backend-only
           # setting names appearing there means a secret is about to leak.
-          if grep -rInE "SUPABASE_JWT_SECRET|SERVICE_ROLE|JOB_TOKEN|DATABASE_URL|REDIS_URL|TELEGRAM_BOT_TOKEN|sk_live_|sk_test_|whsec_" \
+          if grep -rInE "SUPABASE_JWT_SECRET|SERVICE_ROLE|JOB_TOKEN|DATABASE_URL|REDIS_URL|TELEGRAM_BOT_TOKEN|REVENUECAT_SECRET|REVENUECAT_WEBHOOK|sk_live_|sk_test_|whsec_|\bsk_[A-Za-z0-9]{20,}" \
               --exclude-dir=node_modules --exclude="README.md" --exclude=".env.example" mobile; then
             echo "::error::A backend secret name or key appears in mobile/"
             exit 1

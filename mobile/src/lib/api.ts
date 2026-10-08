@@ -468,6 +468,9 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 export const api = {
   me: () => request<Me>('/me'),
   entitlements: () => request<Entitlement>('/me/entitlements'),
+  // Asks the server to confirm with RevenueCat after a purchase or restore.
+  // Sends nothing: the server reads the signed-in user's own state.
+  syncBilling: () => request<Entitlement>('/billing/sync', { method: 'POST' }),
   startConnection: (fplEntryId: number) =>
     request<StartConnectionResult>('/me/fpl-accounts', {
       method: 'POST',

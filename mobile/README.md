@@ -10,8 +10,11 @@ the FastAPI backend and Supabase Auth; it holds no backend credentials.
   Keystore. Nothing sensitive is written to plain storage.
 - Onboarding: Team ID → prove ownership with a code in the FPL team name →
   30-day trial starts.
-- Paywall shown when the server says there is no entitlement. Purchase buttons
-  are disabled until store billing is built.
+- Subscriptions through Apple In-App Purchase and Google Play Billing, via
+  RevenueCat. Prices and the annual saving come from the store, localised.
+  After a purchase or restore the app asks the server to confirm with
+  RevenueCat; the app never decides access. Restore and Manage subscription
+  are in Profile, Restore also on the paywall.
 - Home: gameweek, recommended action, captain, warnings, alerts.
 - My Team: starting XI on a pitch with START / BENCH / SELL per player,
   availability and captaincy; bench order; captain ranking in safe, balanced
@@ -48,7 +51,23 @@ premium access on every request.
 3. **Apple Developer**: enable *Sign in with Apple* on the App ID.
 4. **Backend**: set `SUPABASE_URL` (and `SUPABASE_JWT_SECRET` only for a
    legacy-secret project) — see `backend/.env.example`.
-5. `cp .env.example .env` and fill it in.
+5. **Stores and RevenueCat** (billing)
+   - App Store Connect: one subscription group with two auto-renewing
+     products, e.g. `fplc_pro_monthly` (€3.99) and `fplc_pro_annual` (€29.99).
+     Product IDs must contain `monthly` or `annual` — the server reads the plan
+     from them. No introductory free trial: the 30-day trial is ours. Enrol in
+     the App Store Small Business Program (15%).
+   - Google Play Console: the same two subscriptions.
+   - RevenueCat: add both apps; create entitlement `pro` attached to all four
+     products; a default offering with `$rc_monthly` and `$rc_annual`
+     packages. Project settings → Restore Behavior: *Transfer if there are no
+     active subscriptions*, so one store account cannot move a live
+     subscription between our users.
+   - RevenueCat → Integrations → Webhooks: URL
+     `https://<api>/api/v1/billing/revenuecat/webhook`, a long random
+     Authorization header value, and enable signing. Put the header value,
+     signing secret and the secret API key in the backend environment.
+6. `cp .env.example .env` and fill it in (public RevenueCat SDK keys included).
 
 ## Run
 
@@ -81,7 +100,10 @@ npx expo-doctor
   which are not connected.
 - The planner holds prices fixed; it flags likely rises but does not model them.
 - Screens are covered by render tests but have not been run on a device.
-- No in-app purchase yet; the paywall cannot take payment.
+- Purchases have only been tested against mocks. A sandbox purchase on a
+  real device (App Store sandbox / Play licence testers) is needed before
+  release.
+- Stripe for web subscriptions is not built.
 - `npm audit` reports high-severity issues in Expo's build tooling (node-forge,
   braces) and one moderate in `decode-uri-component`, which ships via
   expo-router. None has an upstream fix compatible with SDK 57; re-check before

@@ -5,6 +5,7 @@ import * as Crypto from 'expo-crypto';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Platform } from 'react-native';
 
+import { identifyBillingUser, resetBillingUser } from '@/lib/billing';
 import { config } from '@/lib/config';
 import { queryClient } from '@/lib/query';
 import { supabase } from '@/lib/supabase';
@@ -107,6 +108,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     return () => data.subscription.unsubscribe();
   }, []);
+
+  // Kept out of onAuthStateChange: Supabase warns that awaiting other work
+  // inside that callback can deadlock its auth lock.
+  const userId = session?.user.id;
+  useEffect(() => {
+    if (loading) return;
+    (userId ? identifyBillingUser(userId) : resetBillingUser()).catch(() => undefined);
+  }, [userId, loading]);
 
   return (
     <AuthContext.Provider value={{ session, loading, signInWithApple, signInWithGoogle, signOut }}>

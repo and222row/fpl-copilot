@@ -7,31 +7,33 @@ import { errorMessage } from '@/components/error-view';
 import { LegalLinks } from '@/components/legal-links';
 import { Card, Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { api, type Entitlement } from '@/lib/api';
+import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { billingAvailable, openManageSubscription, restore } from '@/lib/billing';
 import { refreshAccount, useEntitlement, useMe } from '@/lib/query';
-
-function describe(e: Entitlement | undefined): string {
-  if (!e) return '…';
-  const date = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString() : '');
-  switch (e.status) {
-    case 'TRIALING':
-      return `Free trial until ${date(e.trial_ends_at)}`;
-    case 'ACTIVE':
-      return `${e.plan === 'ANNUAL' ? 'Annual' : 'Monthly'} plan · renews ${date(e.subscription_ends_at)}`;
-    case 'EXPIRED':
-      return 'Trial ended';
-    default:
-      return e.status;
-  }
-}
+import { describeEntitlement, managedInStore } from '@/lib/subscription';
 
 export default function Profile() {
-  const { signOut } = useAuth();
+  const { session, signOut } = useAuth();
   const me = useMe(true);
   const entitlement = useEntitlement(true);
   const [busy, setBusy] = useState(false);
+  const [restoring, setRestoring] = useState(false);
   const account = me.data?.fpl_accounts[0];
+
+  async function onRestore() {
+    if (!session) return;
+    setRestoring(true);
+    try {
+      await restore(session.user.id);
+      await api.syncBilling();
+      await refreshAccount();
+    } catch (e) {
+      Alert.alert('Could not restore', errorMessage(e));
+    } finally {
+      setRestoring(false);
+    }
+  }
 
   function confirmDisconnect() {
     if (!account) return;
@@ -84,7 +86,22 @@ export default function Profile() {
         <ThemedText type="small" themeColor="textSecondary">
           Subscription
         </ThemedText>
-        <ThemedText>{describe(entitlement.data)}</ThemedText>
+        <ThemedText>{entitlement.data ? describeEntitlement(entitlement.data) : '…'}</ThemedText>
+        {entitlement.data?.status === 'PAST_DUE' ? (
+          <ThemedText type="small" themeColor="warning">
+            The store could not take your last payment. Update your payment method there to keep access.
+          </ThemedText>
+        ) : null}
+        {entitlement.data && managedInStore(entitlement.data) ? (
+          <Button
+            title="Manage subscription"
+            variant="secondary"
+            onPress={() => openManageSubscription().catch((e) => Alert.alert('Could not open', errorMessage(e)))}
+          />
+        ) : null}
+        {billingAvailable() ? (
+          <Button title="Restore purchases" variant="secondary" loading={restoring} onPress={onRestore} />
+        ) : null}
       </Card>
 
       <Button title="Sign out" variant="secondary" onPress={signOut} />
