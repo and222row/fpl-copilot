@@ -16,7 +16,7 @@ const sentryPlugin: [string, Record<string, string>][] =
           {
             organization: process.env.SENTRY_ORG,
             project: process.env.SENTRY_PROJECT,
-            url: process.env.SENTRY_URL ?? 'https://sentry.io/',
+            url: process.env.SENTRY_URL || 'https://sentry.io/',
           },
         ],
       ]
@@ -72,7 +72,9 @@ const config: ExpoConfig = {
       {
         // The reversed iOS OAuth client ID. Not a secret.
         iosUrlScheme:
-          process.env.GOOGLE_IOS_URL_SCHEME ?? 'com.googleusercontent.apps.SET_GOOGLE_IOS_URL_SCHEME',
+          // `||`, not `??`: the .env template leaves it blank, and the plugin
+          // rejects an empty scheme.
+          process.env.GOOGLE_IOS_URL_SCHEME || 'com.googleusercontent.apps.SET_GOOGLE_IOS_URL_SCHEME',
       },
     ],
     ...sentryPlugin,
@@ -87,7 +89,7 @@ const config: ExpoConfig = {
     // for a fork building under another Expo account.
     eas: { projectId: process.env.EAS_PROJECT_ID || '8b7f22a6-4f1f-481f-b1a8-9a02f5e4d4ee' },
     // Tags crash reports with the EAS build profile (production, preview...).
-    sentryEnvironment: process.env.EAS_BUILD_PROFILE ?? 'local',
+    sentryEnvironment: process.env.EAS_BUILD_PROFILE || 'local',
   },
 };
 
