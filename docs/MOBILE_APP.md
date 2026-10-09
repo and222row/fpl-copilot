@@ -153,6 +153,15 @@ npx eas-cli@latest build --profile development --platform android
    installed development build with fast refresh. Rebuild only when native
    dependencies or `app.config.ts` change.
 
+**On a real phone, from anywhere (Windows):** `npm run phone` starts a
+Cloudflare quick tunnel to the dev server, prints the address, and runs the
+dev server behind it. On the phone: FPL Copilot → Enter URL manually → that
+address. Ctrl+C stops both. Point `EXPO_PUBLIC_API_URL` at the deployed API
+(`https://fpl-copilot-api.onrender.com`) and nothing else needs to run on the
+PC. The address changes on every run and stops working if the PC sleeps;
+run it again and re-enter the new one. Needs `cloudflared`
+(`winget install --id Cloudflare.cloudflared`).
+
 Sign-in needs the Supabase providers configured (see
 [AUTHENTICATION.md](AUTHENTICATION.md#setup-checklist)). Purchases need a
 store build with sandbox testers; in a development build without RevenueCat
