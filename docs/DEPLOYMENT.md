@@ -65,7 +65,13 @@ Every setting is described in
    ```bash
    python scripts/qstash_schedule.py create --cron "*/30 * * * *"
    python scripts/qstash_schedule.py test
+   python scripts/qstash_schedule.py keepalive
    ```
+
+   `keepalive` pings the API every 10 minutes so Render's free instance never
+   sleeps (no 30–50 s cold start for users). It uses 144 of QStash's daily
+   messages, and one always-on service fits Render's 750 free hours a month,
+   which are shared by every free service in the workspace.
 
    Every 30 minutes keeps database bandwidth and QStash's daily message
    allowance comfortable (the script's `*/15` default predates the bandwidth

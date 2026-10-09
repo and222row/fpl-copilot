@@ -243,6 +243,14 @@ parameters and response shapes are in the Swagger UI.
 | POST | `/api/v1/billing/revenuecat/webhook` | webhook secret | default | Subscription events from RevenueCat, used as a cue to re-read the customer. |
 | POST | `/api/v1/billing/sync` | signed in | UPSTREAM | Called by the app right after a purchase or restore, so access does not wait for the webhook. |
 
+### leagues
+
+| Method | Path | Access | Rate limit | Purpose |
+|---|---|---|---|---|
+| GET | `/api/v1/leagues/{manager_id}` | owner + premium | UPSTREAM | Your classic mini-leagues, your own first, with your rank in each. |
+| GET | `/api/v1/leagues/{manager_id}/{league_id}` | owner + premium | UPSTREAM | A league's table with your gaps, the players the leaders own that you don't, and your differentials. |
+| GET | `/api/v1/leagues/{manager_id}/{league_id}/rivals/{rival_id}` | owner + premium | UPSTREAM | Head to head with one rival: shared players, the differences, and who they favour. |
+
 ### root
 
 | Method | Path | Access | Rate limit | Purpose |

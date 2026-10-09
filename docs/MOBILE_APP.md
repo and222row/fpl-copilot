@@ -25,6 +25,21 @@ Supabase Auth, RevenueCat and the stores; it holds no backend credential.
 - **Transfers:** best plan over 1, 3 or 5 gameweeks with gain, hit, budget
   impact, confidence and reasons; alternatives; "I've made these transfers"
   to record moves FPL cannot show before the deadline.
+- **Record transfers** (from Transfers and the squad banner): record any
+  transfers already made in FPL, not just the recommended ones. Only legal,
+  affordable replacements are offered (same position, at most 3 per club,
+  within the bank), and the server checks the same rules.
+- **Mini-leagues** (Home → Tools): your leagues with rank and movement; a
+  league's table, the gap to the leader and the next place, the players most
+  of the top ten own that you don't, and your differentials; head to head
+  with any rival, with who your differences favour next gameweek.
+- **Chip advisor** (Home → Tools): each chip's value now and at its best
+  within the horizon, weeks left in its window, a plain verdict, and the
+  doubles and blanks ahead.
+- **Dream team** (Home → Tools): the best 15 for your own squad value plus
+  bank, as a wildcard draft, marking the players you already own.
+- **Track record** (Home → Tools): how the captain, lineup and transfer
+  advice actually performed, graded automatically after each gameweek.
 - **Planner** (from Transfers): the best transfer path step by step, with
   free transfers, hits, bank, points per gameweek, the runner-up at each
   decision, and a warning when a planned buy is close to a price rise.
@@ -34,7 +49,8 @@ Supabase Auth, RevenueCat and the stores; it holds no backend credential.
 - **News** (from Home): your alerts (mark read), the availability feed by
   category with its source, price watch.
 - **Push notifications:** availability alerts for your squad, price alerts,
-  and a deadline reminder two hours out, each switchable in Profile →
+  and a deadline reminder two hours out carrying your recommended transfers
+  and captain, each switchable in Profile →
   Notifications. Permission is asked from a button, never at launch. Tapping
   one opens the player, News or Transfers.
 - **Profile:** account and connected team, subscription status, Manage
