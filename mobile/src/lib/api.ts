@@ -380,6 +380,178 @@ export interface AlertItem {
   created_at: string;
 }
 
+// ── Mini-leagues ─────────────────────────────────────────────────────────────
+
+export interface LeagueSummary {
+  id: number;
+  name: string;
+  /** Created by players, rather than FPL's overall, country and club leagues. */
+  private: boolean;
+  rank: number | null;
+  last_rank: number | null;
+  size: number | null;
+}
+
+export interface LeaguePlayer {
+  player_id: number;
+  name: string;
+  team: string;
+  position: Position;
+  price: number;
+  /** Projected points next gameweek. */
+  xpts: number;
+  owned_by?: number;
+  captained_by?: number;
+}
+
+export interface StandingRow {
+  rank: number;
+  last_rank: number;
+  entry: number;
+  team_name: string;
+  manager_name: string;
+  total: number;
+  gameweek_points: number;
+  is_you: boolean;
+}
+
+export interface LeagueView {
+  league: { id: number; name: string; private: boolean; size: number | null };
+  your_rank: number | null;
+  gaps: { to_leader: number; to_next: number } | null;
+  standings: StandingRow[];
+  rivals_sampled: number;
+  squads_as_of_gameweek: number;
+  projections_for_gameweek: number;
+  threats: LeaguePlayer[];
+  differentials: LeaguePlayer[];
+  most_captained: LeaguePlayer[];
+}
+
+export interface RivalView {
+  league_id: number;
+  rival: { entry: number; team_name: string; manager_name: string; rank: number; total: number; gameweek_points: number; captain: string | null };
+  you: { rank: number | null; total: number | null; gameweek_points: number | null; captain: string | null };
+  points_gap: number | null;
+  shared: LeaguePlayer[];
+  only_yours: LeaguePlayer[];
+  only_theirs: LeaguePlayer[];
+  edge_next_gameweek: number;
+  squads_as_of_gameweek: number;
+  projections_for_gameweek: number;
+}
+
+// ── Chips ────────────────────────────────────────────────────────────────────
+
+export interface ChipItem {
+  name: string;
+  label: string;
+  available: boolean;
+  used_in_gameweek: number | null;
+  window: { start: number; end: number };
+  weeks_remaining: number;
+  value_now: number | null;
+  best_value: number | null;
+  best_gameweek: number | null;
+  baseline: number | null;
+  /** use_now | use_soon | consider | hold | used | not_yet | expired | unknown */
+  verdict: string;
+  confidence: string;
+  reasons: string[];
+}
+
+export interface ChipAdvice {
+  manager_id: number;
+  target_gameweek: number;
+  horizon: number[];
+  fixture_shape: {
+    doubles: Record<string, string[]>;
+    blanks: Record<string, string[]>;
+    gameweeks_scheduled: number;
+    note: string | null;
+  };
+  squad_this_gameweek: { playing: number; doubling: number; blank: number };
+  chips: ChipItem[];
+  history_available: boolean;
+  caveat: string;
+}
+
+// ── Dream team ───────────────────────────────────────────────────────────────
+
+export interface DreamPick {
+  player_id: number;
+  name: string;
+  team: string;
+  position: Position;
+  price: number;
+  photo: string | null;
+  xpts: number;
+  gw_xpts: number;
+  p_start: number;
+  is_starting: boolean;
+  is_captain: boolean;
+  is_vice_captain: boolean;
+  bench_order: number | null;
+  reasons: string[];
+}
+
+export interface DreamTeam {
+  solver_status: string;
+  gameweeks: number[];
+  horizon: number;
+  budget: number;
+  squad_cost: number;
+  money_left: number;
+  formation: string;
+  projected_next_gw: number;
+  projected_horizon: number;
+  captain: string | null;
+  vice_captain: string | null;
+  starting: DreamPick[];
+  bench: DreamPick[];
+  explanation_note: string;
+  proven_optimal?: boolean;
+}
+
+// ── Track record ─────────────────────────────────────────────────────────────
+
+export interface CategoryAccuracy {
+  decisions: number;
+  hit_rate: number | null;
+  mean_error: number;
+  mean_absolute_error: number;
+  mean_regret: number;
+  follow_rate: number | null;
+  points_lost_by_overriding: number | null;
+}
+
+export interface AccuracySummary {
+  manager_id: number;
+  gameweeks_scored: number;
+  gameweeks?: number[];
+  categories: Record<string, CategoryAccuracy>;
+  note?: string;
+  interpretation?: Record<string, string>;
+}
+
+export interface OutcomeRow {
+  gameweek: number;
+  kind: string;
+  predicted: number;
+  actual: number;
+  error: number;
+  regret: number;
+  correct: boolean | null;
+  followed: boolean | null;
+  override_delta: number | null;
+  detail: Record<string, unknown> | null;
+}
+
+export interface PendingAdvice {
+  count: number;
+  pending: { snapshot_id: number; gameweek: number; kind: string; gameweek_finished: boolean }[];
+}
+
 // ── Transport ────────────────────────────────────────────────────────────────
 
 export type ApiErrorCode =
@@ -531,4 +703,19 @@ export const api = {
     return request<ExplorerPage>(`/players?${qs.toString()}`);
   },
   player: (playerId: number) => request<PlayerDetail>(`/players/${playerId}`),
+
+  leagues: (managerId: number) => request<{ leagues: LeagueSummary[] }>(`/leagues/${managerId}`),
+  // Reads up to ten rival squads from FPL on a cold cache.
+  league: (managerId: number, leagueId: number) =>
+    request<LeagueView>(`/leagues/${managerId}/${leagueId}`, { timeoutMs: 45_000 }),
+  rival: (managerId: number, leagueId: number, rivalId: number) =>
+    request<RivalView>(`/leagues/${managerId}/${leagueId}/rivals/${rivalId}`),
+  chips: (managerId: number, horizon = 5) =>
+    request<ChipAdvice>(`/chips/${managerId}?horizon=${horizon}`, { timeoutMs: 90_000 }),
+  // A whole-pool solve: seconds on a warm server.
+  dreamTeam: (budget: number, horizon: number) =>
+    request<DreamTeam>(`/dream-team?budget=${budget.toFixed(1)}&horizon=${horizon}`, { timeoutMs: 60_000 }),
+  accuracy: (managerId: number) => request<AccuracySummary>(`/feedback/${managerId}/accuracy`),
+  accuracyHistory: (managerId: number) => request<OutcomeRow[]>(`/feedback/${managerId}/history?limit=40`),
+  pendingAdvice: (managerId: number) => request<PendingAdvice>(`/feedback/${managerId}/pending`),
 };

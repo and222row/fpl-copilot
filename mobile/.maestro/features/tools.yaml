@@ -1,0 +1,81 @@
+appId: com.fplcopilot.app
+name: Home tools open - mini-leagues, chips, dream team, track record, recording transfers
+tags: [features]
+---
+- runFlow:
+    file: ../common/sign-in.yaml
+    env:
+      EMAIL: e2e-trial@fplcopilot.test
+- extendedWaitUntil:
+    visible:
+      id: "home-screen"
+    timeout: 90000
+
+# Mini-leagues: the seeded team is in FPL's own leagues at least.
+- scrollUntilVisible:
+    element:
+      id: "tool-leagues"
+- tapOn:
+    id: "tool-leagues"
+- extendedWaitUntil:
+    visible:
+      id: "leagues-screen"
+    timeout: 30000
+- assertNotVisible:
+    id: "error-view"
+- back
+
+# Chip advisor values every chip; allow for a cold solve.
+- scrollUntilVisible:
+    element:
+      id: "tool-chips"
+- tapOn:
+    id: "tool-chips"
+- extendedWaitUntil:
+    visible:
+      id: "chips-screen"
+    timeout: 30000
+- extendedWaitUntil:
+    visible: "Your chips"
+    timeout: 90000
+- back
+
+- scrollUntilVisible:
+    element:
+      id: "tool-dream-team"
+- tapOn:
+    id: "tool-dream-team"
+- extendedWaitUntil:
+    visible: "Starting XI"
+    timeout: 90000
+- back
+
+- scrollUntilVisible:
+    element:
+      id: "tool-track-record"
+- tapOn:
+    id: "tool-track-record"
+- extendedWaitUntil:
+    visible:
+      id: "track-record-screen"
+    timeout: 30000
+- assertNotVisible:
+    id: "error-view"
+- back
+
+# Recording transfers lists the squad to sell from; nothing is saved here.
+- tapOn: "Transfers"
+- extendedWaitUntil:
+    visible:
+      id: "transfers-screen"
+    timeout: 60000
+- scrollUntilVisible:
+    element:
+      id: "record-transfers-row"
+- tapOn:
+    id: "record-transfers-row"
+- extendedWaitUntil:
+    visible:
+      id: "record-transfers-screen"
+    timeout: 30000
+- assertVisible: "Who did you sell?"

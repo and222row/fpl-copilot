@@ -59,12 +59,22 @@ export default function Home() {
 
       <AlertsView alerts={alerts.data} />
 
+      <SectionHeader title="Tools" />
       <ListGroup>
-        <ListRow title="News and alerts" subtitle="Injuries, price changes and your alerts" onPress={() => router.push('/news')} />
         <ListRow
-          title="Planner"
-          subtitle="Your best transfers, gameweek by gameweek"
-          onPress={() => router.push('/planner')}
+          testID="tool-leagues"
+          title="Mini-leagues"
+          subtitle="Your rank, the gaps, and what rivals own that you don't"
+          onPress={() => router.push('/leagues')}
+        />
+        <ListRow testID="tool-chips" title="Chip advisor" subtitle="When to play each chip, doubles and blanks" onPress={() => router.push('/chips')} />
+        <ListRow testID="tool-dream-team" title="Dream team" subtitle="The best 15 your budget can buy: a wildcard draft" onPress={() => router.push('/dream-team')} />
+        <ListRow testID="tool-track-record" title="Track record" subtitle="How the advice has actually performed" onPress={() => router.push('/track-record')} />
+        <ListRow title="Planner" subtitle="Your best transfers, gameweek by gameweek" onPress={() => router.push('/planner')} />
+        <ListRow
+          title="News and alerts"
+          subtitle="Injuries, price changes and your alerts"
+          onPress={() => router.push('/news')}
           last={push.data !== 'off'}
         />
         {push.data === 'off' ? (

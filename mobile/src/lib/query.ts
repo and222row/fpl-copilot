@@ -19,10 +19,16 @@ export const queryKeys = {
   teams: ['teams'] as const,
   players: (filters: ExplorerFilters) => ['players', filters] as const,
   player: (playerId: number) => ['player', playerId] as const,
+  leagues: (managerId: number) => ['leagues', managerId] as const,
+  league: (managerId: number, leagueId: number) => ['league', managerId, leagueId] as const,
+  rival: (managerId: number, leagueId: number, rivalId: number) => ['rival', managerId, leagueId, rivalId] as const,
+  chips: (managerId: number) => ['chips', managerId] as const,
+  dreamTeam: (budget: number, horizon: number) => ['dream-team', budget, horizon] as const,
+  accuracy: (managerId: number) => ['accuracy', managerId] as const,
 };
 
 // Everything derived from the squad, refreshed together after the squad changes.
-const SQUAD_DERIVED = ['recommendation', 'transfers', 'captain', 'alerts', 'planner'];
+const SQUAD_DERIVED = ['recommendation', 'transfers', 'captain', 'alerts', 'planner', 'league', 'rival', 'chips'];
 
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
@@ -138,6 +144,68 @@ export function usePlayer(playerId: number) {
     queryKey: queryKeys.player(playerId),
     queryFn: () => api.player(playerId),
     staleTime: 5 * 60_000,
+  });
+}
+
+export function useLeagues(teamId: number | undefined) {
+  return useQuery({
+    queryKey: queryKeys.leagues(teamId ?? 0),
+    queryFn: () => api.leagues(teamId!),
+    enabled: !!teamId,
+    staleTime: 10 * 60_000,
+  });
+}
+
+export function useLeague(teamId: number | undefined, leagueId: number) {
+  return useQuery({
+    queryKey: queryKeys.league(teamId ?? 0, leagueId),
+    queryFn: () => api.league(teamId!, leagueId),
+    enabled: !!teamId,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useRival(teamId: number | undefined, leagueId: number, rivalId: number) {
+  return useQuery({
+    queryKey: queryKeys.rival(teamId ?? 0, leagueId, rivalId),
+    queryFn: () => api.rival(teamId!, leagueId, rivalId),
+    enabled: !!teamId,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useChips(teamId: number | undefined) {
+  return useQuery({
+    queryKey: queryKeys.chips(teamId ?? 0),
+    queryFn: () => api.chips(teamId!),
+    enabled: !!teamId,
+    staleTime: 30 * 60_000,
+  });
+}
+
+export function useDreamTeam(budget: number | undefined, horizon: number) {
+  return useQuery({
+    queryKey: queryKeys.dreamTeam(budget ?? 0, horizon),
+    queryFn: () => api.dreamTeam(budget!, horizon),
+    enabled: budget !== undefined,
+    staleTime: 30 * 60_000,
+  });
+}
+
+/** Accuracy, graded history and the advice still waiting for its gameweek, together. */
+export function useTrackRecord(teamId: number | undefined) {
+  return useQuery({
+    queryKey: queryKeys.accuracy(teamId ?? 0),
+    queryFn: async () => {
+      const [summary, history, pending] = await Promise.all([
+        api.accuracy(teamId!),
+        api.accuracyHistory(teamId!),
+        api.pendingAdvice(teamId!),
+      ]);
+      return { summary, history, pending };
+    },
+    enabled: !!teamId,
+    staleTime: 10 * 60_000,
   });
 }
 

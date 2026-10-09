@@ -54,6 +54,12 @@ export default function Transfers() {
       {data && teamId ? <TransferView data={data} teamId={teamId} /> : null}
       <ListGroup>
         <ListRow
+          testID="record-transfers-row"
+          title="Record transfers you made"
+          subtitle="Any players, so the advice matches your real squad"
+          onPress={() => router.push('/record-transfers')}
+        />
+        <ListRow
           title="Plan ahead, gameweek by gameweek"
           subtitle="When to use transfers and whether a hit pays off"
           onPress={() => router.push('/planner')}

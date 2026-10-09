@@ -14,7 +14,7 @@ import { queryClient } from '@/lib/query';
 const KINDS: { key: keyof NotificationSettings; title: string; detail: string }[] = [
   { key: 'availability', title: 'Injuries and availability', detail: 'A player in your squad is injured, doubtful, suspended or back.' },
   { key: 'price', title: 'Price changes', detail: 'A player you own changed price or is about to.' },
-  { key: 'deadline', title: 'Deadline reminder', detail: 'Two hours before each gameweek deadline.' },
+  { key: 'deadline', title: 'Deadline reminder', detail: 'Two hours before each deadline, with your recommended transfers and captain.' },
 ];
 
 const SETTINGS_KEY = ['notification-settings'];

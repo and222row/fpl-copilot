@@ -105,6 +105,16 @@ function GatedStack() {
           name="delete-account"
           options={{ headerShown: true, title: 'Delete account', headerBackTitle: 'Back' }}
         />
+        <Stack.Screen
+          name="record-transfers"
+          options={{ headerShown: true, title: 'Record transfers', headerBackTitle: 'Back' }}
+        />
+        <Stack.Screen name="leagues" options={{ headerShown: true, title: 'Mini-leagues', headerBackTitle: 'Back' }} />
+        <Stack.Screen name="league/[id]" options={{ headerShown: true, title: '', headerBackTitle: 'Back' }} />
+        <Stack.Screen name="rival/[id]" options={{ headerShown: true, title: '', headerBackTitle: 'Back' }} />
+        <Stack.Screen name="chips" options={{ headerShown: true, title: 'Chip advisor', headerBackTitle: 'Back' }} />
+        <Stack.Screen name="dream-team" options={{ headerShown: true, title: 'Dream team', headerBackTitle: 'Back' }} />
+        <Stack.Screen name="track-record" options={{ headerShown: true, title: 'Track record', headerBackTitle: 'Back' }} />
       </Stack.Protected>
       {/* After the tabs, so a user with access lands on the tabs, not here.
           Required when access has ended; an optional sheet ("Upgrade")
