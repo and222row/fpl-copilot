@@ -19,6 +19,22 @@ function httpsUnlessDev(name: string, url: string): string {
   return url.replace(/\/+$/, '');
 }
 
+/**
+ * RevenueCat Test Store keys (test_…) fake every purchase. RevenueCat forbids
+ * submitting an app configured with one, so a release build refuses to start
+ * with it; development and e2e builds may use it.
+ */
+export function checkStoreKey(name: string, value: string, build: { dev: boolean; e2e: boolean }): string {
+  if (value.startsWith('test_') && !build.dev && !build.e2e) {
+    throw new Error(
+      `${name} is a RevenueCat Test Store key. Release builds must use the store key (appl_… or goog_…).`,
+    );
+  }
+  return value;
+}
+
+const build = { dev: __DEV__, e2e: process.env.EXPO_PUBLIC_E2E === 'true' };
+
 export const config = {
   apiUrl: httpsUnlessDev(
     'EXPO_PUBLIC_API_URL',
@@ -33,8 +49,12 @@ export const config = {
   googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '',
   // RevenueCat PUBLIC SDK keys (appl_... / goog_...), one per store. The secret
   // key belongs to the backend only.
-  revenuecatIosKey: process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? '',
-  revenuecatAndroidKey: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? '',
+  revenuecatIosKey: checkStoreKey('EXPO_PUBLIC_REVENUECAT_IOS_KEY', process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? '', build),
+  revenuecatAndroidKey: checkStoreKey(
+    'EXPO_PUBLIC_REVENUECAT_ANDROID_KEY',
+    process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? '',
+    build,
+  ),
   termsUrl: process.env.EXPO_PUBLIC_TERMS_URL ?? '',
   privacyUrl: process.env.EXPO_PUBLIC_PRIVACY_URL ?? '',
 };
