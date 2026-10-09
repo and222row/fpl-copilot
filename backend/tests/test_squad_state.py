@@ -525,3 +525,34 @@ def test_photo_url_shape():
     from app.routers.fpl import player_photo
     assert player_photo(223094).endswith("/110x140/p223094.png")
     assert player_photo(0) is None, "a missing code must not produce a broken URL"
+
+
+# ── Free-form transfers follow FPL's squad rules ─────────────────────────────
+
+async def test_a_transfer_must_swap_like_for_like(squad):
+    squad.add(make_player(200, team_id=2, position=2, now_cost=45, web_name="Defender"))
+    await squad.commit()
+    with patch("app.services.squad_state.fetch_manager_picks", _fpl_picks(bank=20)):
+        with pytest.raises(ValueError, match="different positions"):
+            await apply_transfers(
+                squad, manager_id=1, gameweek_id=2, picks_gw=1,
+                moves=[{"out": 1, "in": 200}], player_costs={1: 50, 200: 45},
+            )
+
+
+async def test_a_fourth_player_from_one_club_is_refused(squad):
+    squad.add(make_player(104, team_id=2, now_cost=60, web_name="Fourth"))
+    await squad.commit()
+    moves = [{"out": o, "in": i} for o, i in [(1, 100), (2, 101), (3, 102), (4, 104)]]
+    costs = {**{o: 50 for o in (1, 2, 3, 4)}, **{i: 60 for i in (100, 101, 102, 104)}}
+    with patch("app.services.squad_state.fetch_manager_picks", _fpl_picks(bank=50)):
+        with pytest.raises(ValueError, match="4 players from Team 2.*3 per club"):
+            await apply_transfers(squad, manager_id=1, gameweek_id=2, picks_gw=1, moves=moves, player_costs=costs)
+
+
+async def test_three_from_one_club_is_allowed(squad):
+    moves = [{"out": o, "in": i} for o, i in [(1, 100), (2, 101), (3, 102)]]
+    costs = {**{o: 50 for o in (1, 2, 3)}, **{i: 60 for i in (100, 101, 102)}}
+    with patch("app.services.squad_state.fetch_manager_picks", _fpl_picks(bank=50)):
+        r = await apply_transfers(squad, manager_id=1, gameweek_id=2, picks_gw=1, moves=moves, player_costs=costs)
+    assert {100, 101, 102} <= set(r.player_ids)

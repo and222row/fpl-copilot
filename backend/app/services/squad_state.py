@@ -18,10 +18,11 @@ the manager tell us, and to be explicit about which source is in use so a stale
 squad is never presented as current.
 """
 import logging
+from collections import Counter
 from dataclasses import dataclass
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
-from app.models.fpl import Gameweek, utcnow
+from app.models.fpl import Gameweek, Player, Team, utcnow
 from app.models.feedback import SquadOverride
 from app.services.fpl_client import fetch_manager_picks
 from app.services.fpl_sync import deadline_has_passed
@@ -177,6 +178,10 @@ async def save_override(
     return row
 
 
+# FPL's squad rule; checked again here because recorded transfers are free-form.
+MAX_PER_CLUB = 3
+
+
 async def apply_transfers(
     db: AsyncSession,
     *,
@@ -198,6 +203,16 @@ async def apply_transfers(
     bank = current.bank
     free = current.free_transfers
 
+    # Position and club for every player involved. Rows can be missing only
+    # for players FPL has removed; those are not checked rather than refused.
+    ids = set(squad) | {m.get("out") for m in moves} | {m.get("in") for m in moves}
+    meta = {
+        pid: (position, team_id, name)
+        for pid, position, team_id, name in (await db.execute(
+            select(Player.id, Player.position, Player.team_id, Player.web_name).where(Player.id.in_(ids))
+        )).all()
+    }
+
     applied = []
     for move in moves:
         out_id, in_id = move.get("out"), move.get("in")
@@ -205,6 +220,11 @@ async def apply_transfers(
             raise ValueError(f"Player {out_id} is not in the squad")
         if in_id in squad:
             raise ValueError(f"Player {in_id} is already in the squad")
+        if out_id in meta and in_id in meta and meta[out_id][0] != meta[in_id][0]:
+            raise ValueError(
+                f"{meta[out_id][2]} and {meta[in_id][2]} play different positions. "
+                f"A transfer swaps like for like."
+            )
 
         squad.remove(out_id)
         squad.append(in_id)
@@ -218,6 +238,18 @@ async def apply_transfers(
         raise ValueError(
             f"Those transfers leave the bank at £{bank / 10:.1f}m. Check the "
             f"players — selling prices may differ from current prices."
+        )
+
+    # Only clubs a recorded transfer brought players from: FPL's own squad is
+    # legal by definition, and judging it again would only add false alarms.
+    clubs = Counter(meta[pid][1] for pid in squad if pid in meta)
+    incoming = {meta[m["in"]][1] for m in applied if m["in"] in meta}
+    over = [team_id for team_id in incoming if clubs[team_id] > MAX_PER_CLUB]
+    if over:
+        club = await db.get(Team, over[0])
+        raise ValueError(
+            f"That gives you {clubs[over[0]]} players from {club.name if club else 'one club'}. "
+            f"FPL allows {MAX_PER_CLUB} per club."
         )
 
     existing = (current.transfers_applied or []) + applied
