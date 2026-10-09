@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models.accounts import FplAccount
+from app.models.feedback import RecommendationSnapshot
 from app.models.fpl import utcnow
 from app.models.news import Alert
 from app.models.notifications import Device, NotificationPreference, PushDelivery
@@ -122,6 +123,38 @@ async def _deliver(db: AsyncSession, queued: list[tuple[uuid.UUID, Message]], cl
     return {"sent": sum(1 for t in tickets if t.get("status") == "ok"), "pruned": pruned}
 
 
+GENERIC_DEADLINE_BODY = "Last chance to make transfers and pick your captain."
+
+
+async def plan_summary(db: AsyncSession, fpl_entry_id: int, gameweek_id: int) -> str | None:
+    """
+    "Transfer Wissa → Watkins (−4) · Captain Haaland", from the advice saved
+    when the manager last opened the app before this deadline. None when no
+    advice was saved, rather than running the optimiser for every user here.
+    """
+    snaps = {
+        s.kind: s
+        for s in (await db.execute(
+            select(RecommendationSnapshot)
+            .where(RecommendationSnapshot.fpl_entry_id == fpl_entry_id, RecommendationSnapshot.gameweek_id == gameweek_id)
+            .order_by(RecommendationSnapshot.created_at)
+        )).scalars()
+    }
+    parts = []
+    transfer = (snaps.get("transfer").payload or {}) if "transfer" in snaps else None
+    if transfer is not None:
+        outs, ins = transfer.get("out") or [], transfer.get("in") or []
+        if outs and ins:
+            moves = ", ".join(f"{o.get('name')} → {i.get('name')}" for o, i in zip(outs, ins))
+            hit = transfer.get("hit") or 0
+            parts.append(f"Transfer {moves}" + (f" (−{hit})" if hit else ""))
+        else:
+            parts.append("Roll your transfer")
+    if "captain" in snaps and (snaps["captain"].payload or {}).get("name"):
+        parts.append(f"Captain {snaps['captain'].payload['name']}")
+    return " · ".join(parts) or None
+
+
 async def send_due(db: AsyncSession, now: datetime | None = None) -> dict:
     """Queue and send everything due: recent squad alerts and the deadline reminder."""
     now = now or utcnow()
@@ -164,10 +197,12 @@ async def send_due(db: AsyncSession, now: datetime | None = None) -> dict:
         if timedelta(0) < remaining <= DEADLINE_WARNING:
             minutes = int(remaining.total_seconds() // 60)
             when = f"{minutes // 60}h {minutes % 60}m" if minutes >= 60 else f"{minutes} min"
-            for user_id in {u for u, _ in accounts}:
+            for user_id, entry in accounts:
+                plan = await plan_summary(db, entry, gw.id)
                 await queue(
                     user_id, "deadline", f"gw:{gw.id}", f"{gw.name} deadline in {when}",
-                    "Last chance to make transfers and pick your captain.", {"type": "deadline"},
+                    f"Your plan: {plan}" if plan else GENERIC_DEADLINE_BODY,
+                    {"type": "deadline"},
                 )
 
     result = await _deliver(db, queued, claims)

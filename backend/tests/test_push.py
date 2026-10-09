@@ -247,3 +247,39 @@ async def test_send_raises_on_http_failure(monkeypatch):
     monkeypatch.setattr(push.httpx, "AsyncClient", lambda **kw: real(**{**kw, "transport": httpx.MockTransport(handler)}))
     with pytest.raises(push.PushUnavailable):
         await push.send([push.Message("ExponentPushToken[0000000000000000000000]", "t", "b")])
+
+
+async def test_deadline_push_carries_the_saved_plan(world, expo):
+    from app.models.feedback import RecommendationSnapshot
+
+    world.add_all([
+        RecommendationSnapshot(
+            fpl_entry_id=1234, gameweek_id=9, kind="transfer", model_version="proj-v1", predicted_value=4.0,
+            payload={"action": "TRANSFER", "out": [{"player_id": 1, "name": "Wissa"}],
+                     "in": [{"player_id": 2, "name": "Watkins"}], "hit": 4},
+        ),
+        RecommendationSnapshot(
+            fpl_entry_id=1234, gameweek_id=9, kind="captain", model_version="proj-v1", predicted_value=14.0,
+            payload={"player_id": 3, "name": "Haaland"},
+        ),
+    ])
+    gw = await world.get(Gameweek, 9)
+    gw.deadline_time = utcnow() + timedelta(minutes=95)
+    await world.commit()
+    await push.send_due(world)
+    bodies = [m.body for m in expo.sent]
+    assert "Your plan: Transfer Wissa → Watkins (−4) · Captain Haaland" in bodies
+    # B saved no advice, so B gets the generic reminder rather than nothing.
+    assert push.GENERIC_DEADLINE_BODY in bodies
+
+
+async def test_a_hold_plan_says_roll(world):
+    from app.models.feedback import RecommendationSnapshot
+
+    world.add(RecommendationSnapshot(
+        fpl_entry_id=1234, gameweek_id=9, kind="transfer", model_version="proj-v1", predicted_value=0.0,
+        payload={"action": "HOLD", "out": [], "in": [], "hit": 0},
+    ))
+    await world.commit()
+    assert await push.plan_summary(world, 1234, 9) == "Roll your transfer"
+    assert await push.plan_summary(world, 5678, 9) is None
