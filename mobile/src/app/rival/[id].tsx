@@ -2,6 +2,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ErrorView } from '@/components/error-view';
+import { KitPitch } from '@/components/kit-pitch';
 import { openPlayer } from '@/components/pitch';
 import { Card, Screen, SectionHeader } from '@/components/screen';
 import { Stat, StatRow } from '@/components/stat';
@@ -49,6 +50,19 @@ function RivalBody({ data }: { data: RivalView }) {
         </ThemedText>
       </Card>
 
+      {data.squad.length ? (
+        <>
+          <SectionHeader title="Their team" />
+          <KitPitch squad={data.squad} />
+          <View style={styles.legend}>
+            <View style={[styles.dot, { backgroundColor: theme.brand }]} />
+            <ThemedText type="caption" themeColor="textSecondary">
+              You own him too · tap a player for details
+            </ThemedText>
+          </View>
+        </>
+      ) : null}
+
       <Side title={`Only you have (${data.only_yours.length})`} players={data.only_yours} tone="highlight" />
       <Side title={`Only they have (${data.only_theirs.length})`} players={data.only_theirs} tone="danger" />
       <Side title={`Both have (${data.shared.length})`} players={data.shared} />
@@ -93,5 +107,6 @@ const styles = StyleSheet.create({
   list: { paddingVertical: 4, gap: 0 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
   dot: { width: 8, height: 8, borderRadius: 4 },
+  legend: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: -4 },
   grow: { flex: 1 },
 });

@@ -154,6 +154,11 @@ describe('mini-leagues', () => {
       rival: { entry: 4276486, team_name: 'Poehlerboyz', manager_name: 'Jonas', rank: 1, total: 358, gameweek_points: 57, captain: 'Haaland' },
       you: { rank: 3, total: 335, gameweek_points: 60, captain: 'Salah' },
       points_gap: 23,
+      squad: [
+        { player_id: 1, name: 'Raya', team: 'ARS', position: 'GKP', price: 5.5, xpts: 3.8, kit: 'https://kit/shirt_3_1-110.png', fixtures: ['LEE (H)'], slot: 1, starting: true, is_captain: false, is_vice_captain: false, you_own: false },
+        { player_id: 5, name: 'Haaland', team: 'MCI', position: 'FWD', price: 15, xpts: 8, kit: 'https://kit/shirt_43-110.png', fixtures: ['LIV (A)'], slot: 11, starting: true, is_captain: true, is_vice_captain: false, you_own: true },
+        { player_id: 7, name: 'Dubravka', team: 'BUR', position: 'GKP', price: 4, xpts: 2, kit: null, fixtures: [], slot: 12, starting: false, is_captain: false, is_vice_captain: false, you_own: false },
+      ],
       shared: [],
       only_yours: [{ player_id: 4, name: 'Salah', team: 'LIV', position: 'MID', price: 13, xpts: 7 }],
       only_theirs: [{ player_id: 10, name: 'Palmer', team: 'CHE', position: 'MID', price: 10.5, xpts: 6 }],
@@ -165,6 +170,12 @@ describe('mini-leagues', () => {
     expect(screen.getByText('23 ahead')).toBeTruthy();
     expect(screen.getByText(/Your differences project 1\.0 points more/)).toBeTruthy();
     expect(screen.getByText('Only you have (1)')).toBeTruthy();
+
+    // Their team on a pitch, as the FPL app shows it.
+    expect(screen.getByTestId('kit-pitch')).toBeTruthy();
+    expect(screen.getByLabelText('Haaland, MCI, LIV (A), captain, you own him too')).toBeTruthy();
+    expect(screen.getByText('No fixture')).toBeTruthy(); // the benched keeper blanks
+    expect(screen.getByLabelText('Their bench')).toBeTruthy();
   });
 });
 

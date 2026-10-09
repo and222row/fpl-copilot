@@ -12,13 +12,15 @@ Supabase Auth, RevenueCat and the stores; it holds no backend credential.
 ## Features
 
 - **Sign in** with Apple (iOS) and Google (iOS and Android) through Supabase.
-- **Onboarding:** enter an FPL Team ID → add a code to the FPL team name →
-  verified, and the 30-day trial starts.
+- **Onboarding:** swipeable slides first explain where the Team ID is and
+  how to add the code to the team name on the FPL website (Pick Team → Admin
+  → Team Details; the FPL app cannot rename a team). Then enter the Team ID →
+  add the code → verified, and the 30-day trial starts.
 - **Paywall:** monthly and annual subscriptions through Apple IAP and Google
   Play Billing via RevenueCat, prices and the annual saving from the store,
   Restore purchases, renewal disclosure, terms and privacy links.
-- **Home:** gameweek and deadline, the recommended action, captain, warnings,
-  latest alerts.
+- **Home:** gameweek and deadline, the recommended action, captain, and
+  squad warnings and latest alerts as swipeable cards.
 - **My Team:** starting XI on a pitch with START / BENCH / SELL per player,
   availability and captaincy, bench order, captain ranking in safe / balanced
   / differential modes.
@@ -32,7 +34,9 @@ Supabase Auth, RevenueCat and the stores; it holds no backend credential.
 - **Mini-leagues** (Home → Tools): your leagues with rank and movement; a
   league's table, the gap to the leader and the next place, the players most
   of the top ten own that you don't, and your differentials; head to head
-  with any rival, with who your differences favour next gameweek.
+  with any rival: their team drawn on a pitch like the FPL app (kits, next
+  fixtures, captain, bench, players you also own), and who your differences
+  favour next gameweek.
 - **Chip advisor** (Home → Tools): each chip's value now and at its best
   within the horizon, weeks left in its window, a plain verdict, and the
   doubles and blanks ahead.
@@ -210,6 +214,12 @@ set secrets such as `SENTRY_AUTH_TOKEN` there as sensitive variables. Release
 steps are in [DEPLOYMENT.md](DEPLOYMENT.md#mobile-app).
 
 ## Known limits
+
+- Player photos and club kits are loaded from FPL's own image servers. They
+  are the Premier League's and the clubs' intellectual property; App Review
+  guideline 5.2 can reject an app that uses third-party trademarks without
+  permission. Decide before submitting: get permission, or replace kits with
+  plain shirts in club colours and photos with position badges.
 
 - Screens are covered by render tests but have not yet been run end to end on
   a physical device.

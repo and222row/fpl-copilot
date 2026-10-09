@@ -14,7 +14,10 @@ import { useTheme } from '@/hooks/use-theme';
 import { ApiError, api, type VerifiedConnection } from '@/lib/api';
 import { refreshAccount } from '@/lib/query';
 
-const FPL_SITE = 'https://fantasy.premierleague.com/';
+// The Pick Team page, where Admin -> Team Details renames the team. Opened in
+// an in-app browser so a phone with the FPL app installed is not handed to
+// the app, which cannot rename teams.
+const PICK_TEAM = 'https://fantasy.premierleague.com/my-team';
 
 function formatDate(iso: string | null): string {
   return iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long' }) : '';
@@ -107,13 +110,16 @@ export default function Verify() {
       <Card>
         <Steps
           items={[
-            { body: 'Open FPL and go to Team Details.' },
-            { body: `Add ${code} anywhere in your team name (replace part of it if you hit the 20-character limit) and save.` },
+            { body: 'Tap Open FPL below and sign in. It has to be the website: the FPL app cannot rename a team.' },
+            { body: 'On Pick Team, scroll to Admin and tap Team Details.' },
+            {
+              body: `Add ${code} anywhere in your team name (replace part of it if you hit the 20-character limit) and tap Update details.`,
+            },
             { body: 'Come back and tap Verify. Changes can take a minute to show.' },
           ]}
         />
         <View style={styles.open}>
-          <Button title="Open FPL" variant="secondary" onPress={() => openBrowserAsync(FPL_SITE)} />
+          <Button title="Open FPL" variant="secondary" onPress={() => openBrowserAsync(PICK_TEAM)} />
         </View>
       </Card>
 

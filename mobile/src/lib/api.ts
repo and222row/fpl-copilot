@@ -402,6 +402,20 @@ export interface LeaguePlayer {
   xpts: number;
   owned_by?: number;
   captained_by?: number;
+  /** FPL's shirt image for the player's club (goalkeeper kit for keepers). */
+  kit?: string | null;
+  /** Next-gameweek opponents, e.g. "LIV (A)"; two in a double, none in a blank. */
+  fixtures?: string[];
+}
+
+/** One player in a rival's squad, as FPL lays it out. */
+export interface SquadSlot extends LeaguePlayer {
+  /** 1-11 start, 12-15 are the bench in order. */
+  slot: number;
+  starting: boolean;
+  is_captain: boolean;
+  is_vice_captain: boolean;
+  you_own: boolean;
 }
 
 export interface StandingRow {
@@ -433,6 +447,7 @@ export interface RivalView {
   rival: { entry: number; team_name: string; manager_name: string; rank: number; total: number; gameweek_points: number; captain: string | null };
   you: { rank: number | null; total: number | null; gameweek_points: number | null; captain: string | null };
   points_gap: number | null;
+  squad: SquadSlot[];
   shared: LeaguePlayer[];
   only_yours: LeaguePlayer[];
   only_theirs: LeaguePlayer[];

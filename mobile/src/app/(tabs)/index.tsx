@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
+import { Carousel } from '@/components/carousel';
 import { ErrorView } from '@/components/error-view';
+import { openPlayer } from '@/components/pitch';
 import { Card, ListGroup, ListRow, Pill, Screen, SectionHeader } from '@/components/screen';
 import { SquadBanner } from '@/components/squad-banner';
 import { Stat, StatRow } from '@/components/stat';
@@ -197,26 +199,20 @@ function RecommendationView({ rec }: { rec: Recommendation }) {
 
       {rec.squad_issues.length > 0 ? (
         <>
-          <SectionHeader title="Squad warnings" />
-          <Card>
-            {rec.squad_issues.map((p, i) => (
-              <View
+          <SectionHeader title={`Squad warnings · ${rec.squad_issues.length}`} />
+          <Carousel
+            testID="warnings-carousel"
+            pages={rec.squad_issues.map((p) => (
+              <NoticeCard
                 key={p.player_id}
-                style={[styles.issue, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.hairline }]}>
-                <View style={[styles.dot, { backgroundColor: p.chance_of_playing === 0 ? theme.danger : theme.warning }]} />
-                <View style={styles.grow}>
-                  <ThemedText type="smallBold">
-                    {p.name} · {p.reason}
-                  </ThemedText>
-                  {p.news ? (
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {p.news}
-                    </ThemedText>
-                  ) : null}
-                </View>
-              </View>
+                tone={p.chance_of_playing === 0 ? 'danger' : 'warning'}
+                label={p.reason}
+                title={p.name}
+                body={p.news}
+                onPress={() => openPlayer(p.player_id)}
+              />
             ))}
-          </Card>
+          />
         </>
       ) : null}
     </>
@@ -224,30 +220,73 @@ function RecommendationView({ rec }: { rec: Recommendation }) {
 }
 
 function AlertsView({ alerts }: { alerts: AlertItem[] | undefined }) {
-  const theme = useTheme();
-  const important = (alerts ?? []).filter((a) => a.severity !== 'info').slice(0, 3);
+  const important = (alerts ?? []).filter((a) => a.severity !== 'info').slice(0, 6);
   if (important.length === 0) return null;
   return (
     <>
-      <SectionHeader title="Latest alerts" />
-      <Card>
-        {important.map((a, i) => (
-          <View
+      <SectionHeader
+        title="Latest alerts"
+        action={
+          <ThemedText type="smallBold" themeColor="accent" onPress={() => router.push('/news')}>
+            All
+          </ThemedText>
+        }
+      />
+      <Carousel
+        testID="alerts-carousel"
+        pages={important.map((a) => (
+          <NoticeCard
             key={a.id}
-            style={[styles.issue, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.hairline }]}>
-            <View style={[styles.dot, { backgroundColor: a.severity === 'critical' ? theme.danger : theme.warning }]} />
-            <View style={styles.grow}>
-              <ThemedText type="smallBold">{a.title}</ThemedText>
-              {a.body ? (
-                <ThemedText type="small" themeColor="textSecondary">
-                  {a.body}
-                </ThemedText>
-              ) : null}
-            </View>
-          </View>
+            tone={a.severity === 'critical' ? 'danger' : 'warning'}
+            label={a.severity === 'critical' ? 'Important' : 'Heads up'}
+            title={a.title}
+            body={a.body}
+            onPress={a.player_id ? () => openPlayer(a.player_id!) : undefined}
+          />
         ))}
-      </Card>
+      />
     </>
+  );
+}
+
+/** One warning or alert as a carousel card: coloured label, title, detail. */
+function NoticeCard({
+  tone,
+  label,
+  title,
+  body,
+  onPress,
+}: {
+  tone: 'danger' | 'warning';
+  label: string;
+  title: string;
+  body?: string | null;
+  onPress?: () => void;
+}) {
+  const theme = useTheme();
+  return (
+    <Pressable accessibilityRole={onPress ? 'button' : undefined} disabled={!onPress} onPress={onPress}>
+      <Card style={[styles.notice, { borderTopColor: theme[tone] }]}>
+        <View style={[styles.noticeLabel, { backgroundColor: tone === 'danger' ? theme.dangerSoft : theme.warningSoft }]}>
+          <ThemedText type="caption" style={{ color: theme[tone], fontWeight: '800' }}>
+            {label}
+          </ThemedText>
+        </View>
+        <ThemedText type="headline" numberOfLines={2}>
+          {title}
+        </ThemedText>
+        {body ? (
+          <ThemedText type="small" themeColor="textSecondary" numberOfLines={3}>
+            {body}
+          </ThemedText>
+        ) : null}
+        {onPress ? (
+          <ThemedText type="caption" themeColor="accent" style={styles.noticeLink}>
+            See player ›
+          </ThemedText>
+        ) : null}
+      </Card>
+    </Pressable>
   );
 }
 
@@ -257,8 +296,9 @@ const styles = StyleSheet.create({
   moves: { gap: Spacing.two },
   move: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderRadius: Radius.md, padding: 12 },
   moveLabel: { fontWeight: '800', letterSpacing: 0.6 },
-  issue: { flexDirection: 'row', gap: 10, paddingVertical: Spacing.two },
-  dot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
+  notice: { borderTopWidth: 4, minHeight: 150 },
+  noticeLabel: { alignSelf: 'flex-start', borderRadius: Radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
+  noticeLink: { marginTop: 'auto', fontWeight: '700' },
   grow: { flex: 1 },
   alignEnd: { alignItems: 'flex-end' },
 });
