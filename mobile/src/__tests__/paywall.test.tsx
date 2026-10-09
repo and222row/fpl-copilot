@@ -133,6 +133,17 @@ describe('opened from Upgrade during the trial', () => {
     expect(mockBack).toHaveBeenCalled();
   });
 
+  test('a trial is not mistaken for a confirmed purchase', async () => {
+    const user = userEvent.setup();
+    mockPurchase.mockResolvedValue('purchased');
+    // The server could not find the subscription yet; the trial still grants access.
+    mockSync.mockResolvedValue({ premium: true, status: 'TRIALING', provider: 'TRIAL' });
+    await show();
+    await user.press(screen.getByText('Subscribe'));
+    expect(await screen.findByText(/Payment received\. Confirming with the store/)).toBeTruthy();
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
   test('closes itself once the server confirms the purchase', async () => {
     const user = userEvent.setup();
     mockPurchase.mockResolvedValue('purchased');

@@ -51,10 +51,11 @@ export default function Paywall() {
   const choice = selected === 'annual' && !plans.data?.annual && plans.data?.monthly ? 'monthly' : selected;
   const pkg: PurchasesPackage | null = plans.data?.[choice] ?? null;
 
+  /** True once the server has a paid subscription; a running trial does not count. */
   async function confirmWithServer(): Promise<boolean> {
     const result = await api.syncBilling();
     await refreshAccount();
-    return result.premium;
+    return result.premium && result.provider !== 'TRIAL';
   }
 
   function close() {
