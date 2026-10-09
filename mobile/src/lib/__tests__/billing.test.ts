@@ -105,3 +105,11 @@ test('only live store subscriptions get a manage button', () => {
   expect(managedInStore(ent({ status: 'EXPIRED' }))).toBe(false);
   expect(managedInStore(ent({ provider: 'TRIAL', status: 'TRIALING' }))).toBe(false);
 });
+
+test('a date today shows the time, so a renewal hours away does not read as a year away', () => {
+  const { date } = jest.requireActual('@/lib/subscription') as typeof import('@/lib/subscription');
+  const now = new Date(2026, 9, 9, 13, 6);
+  expect(date(new Date(2026, 9, 9, 13, 53).toISOString(), now)).toMatch(/^today at /);
+  expect(date(new Date(2026, 10, 8, 9, 0).toISOString(), now)).not.toMatch(/today/);
+  expect(date(null, now)).toBe('');
+});

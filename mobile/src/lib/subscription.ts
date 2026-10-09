@@ -1,8 +1,16 @@
 import type { Entitlement } from '@/lib/api';
 
-// "8 Nov 2026" rather than the locale's numeric form, which reads ambiguously.
-const date = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+// "8 Nov 2026" rather than the locale's numeric form, which reads ambiguously;
+// "today at 13:53" when it is today, where the date alone would hide that it
+// is hours away (store sandboxes run a year in about an hour).
+export function date(iso: string | null, now: Date = new Date()): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (d.toDateString() === now.toDateString()) {
+    return `today at ${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
+  }
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
 const planName = (e: Entitlement) => (e.plan === 'ANNUAL' ? 'Annual' : e.plan === 'MONTHLY' ? 'Monthly' : 'Pro');
 
 /** One line describing where the user stands, from the server's entitlement. */
