@@ -5,10 +5,12 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
-import { errorMessage } from '@/components/error-view';
-import { Card, Screen } from '@/components/screen';
+import { errorMessage, ErrorView } from '@/components/error-view';
+import { Card, Pill, Screen } from '@/components/screen';
+import { Steps } from '@/components/steps';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { ApiError, api, type VerifiedConnection } from '@/lib/api';
 import { refreshAccount } from '@/lib/query';
 
@@ -19,6 +21,7 @@ function formatDate(iso: string | null): string {
 }
 
 export default function Verify() {
+  const theme = useTheme();
   const { teamId, code, teamName } = useLocalSearchParams<{
     teamId: string;
     code: string;
@@ -53,18 +56,23 @@ export default function Verify() {
   if (done) {
     return (
       <Screen belowHeader title="You're connected" footer={<Button title="Continue" onPress={refreshAccount} />}>
-        <Card>
-          <ThemedText type="smallBold">{done.team_name}</ThemedText>
-          <ThemedText themeColor="textSecondary">{done.manager_name}</ThemedText>
+        <Card variant="hero">
+          <Pill label="Verified" color="onBrand" soft="brand" />
+          <ThemedText type="subtitle" style={{ color: theme.onHero }}>
+            {done.team_name}
+          </ThemedText>
+          <ThemedText style={{ color: theme.onHeroMuted }}>{done.manager_name}</ThemedText>
         </Card>
-        <ThemedText>
-          {done.trial_started
-            ? `Your 30-day free trial has started. It runs until ${formatDate(done.entitlement.trial_ends_at)}.`
-            : 'This team or account has already used its free trial.'}
-        </ThemedText>
-        <ThemedText themeColor="textSecondary">
-          You can change your FPL team name back now.
-        </ThemedText>
+        <Card>
+          <ThemedText type="headline">
+            {done.trial_started
+              ? `Your 30-day free trial has started. It runs until ${formatDate(done.entitlement.trial_ends_at)}.`
+              : 'This team or account has already used its free trial.'}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            You can change your FPL team name back now.
+          </ThemedText>
+        </Card>
       </Screen>
     );
   }
@@ -74,6 +82,7 @@ export default function Verify() {
       belowHeader
       testID="verify-screen"
       title="Prove it's your team"
+      subtitle="Anyone can type a Team ID, so we ask you to put this code in your team name for a moment. Only the owner can do that."
       footer={
         expired ? (
           <Button title="Get a new code" onPress={() => router.back()} />
@@ -81,45 +90,41 @@ export default function Verify() {
           <Button title="Verify" onPress={verify} loading={busy} />
         )
       }>
-      <ThemedText themeColor="textSecondary">
-        Anyone can type a Team ID, so we ask you to put this code in your team name for a moment.
-        Only the owner can do that.
-      </ThemedText>
-
-      <Card>
-        <ThemedText type="small" themeColor="textSecondary">
+      <Card variant="hero" style={styles.codeCard}>
+        <ThemedText type="eyebrow" style={{ color: theme.onHeroMuted }}>
           {teamName}
         </ThemedText>
-        <View style={styles.codeRow}>
-          <ThemedText testID="verify-code" type="subtitle" selectable accessibilityLabel={`Code ${code.split('').join(' ')}`}>
-            {code}
-          </ThemedText>
-          <Button title={copied ? 'Copied' : 'Copy'} variant="secondary" onPress={copy} />
+        <ThemedText
+          testID="verify-code"
+          selectable
+          accessibilityLabel={`Code ${code.split('').join(' ')}`}
+          style={[styles.code, { color: theme.brand }]}>
+          {code}
+        </ThemedText>
+        <Button title={copied ? 'Copied' : 'Copy'} variant="brand" compact onPress={copy} style={styles.copy} />
+      </Card>
+
+      <Card>
+        <Steps
+          items={[
+            { body: 'Open FPL and go to Team Details.' },
+            { body: `Add ${code} anywhere in your team name (replace part of it if you hit the 20-character limit) and save.` },
+            { body: 'Come back and tap Verify. Changes can take a minute to show.' },
+          ]}
+        />
+        <View style={styles.open}>
+          <Button title="Open FPL" variant="secondary" onPress={() => openBrowserAsync(FPL_SITE)} />
         </View>
       </Card>
 
-      <ThemedText>
-        1. Open FPL and go to Team Details.{'\n'}
-        2. Add {code} anywhere in your team name (replace part of it if you hit the 20-character
-        limit) and save.{'\n'}
-        3. Come back and tap Verify. Changes can take a minute to show.
-      </ThemedText>
-      <Button title="Open FPL" variant="secondary" onPress={() => openBrowserAsync(FPL_SITE)} />
-
-      {error ? (
-        <ThemedText themeColor="danger" accessibilityRole="alert">
-          {error}
-        </ThemedText>
-      ) : null}
+      {error ? <ErrorView error={new Error(error)} /> : null}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  codeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.three,
-  },
+  codeCard: { alignItems: 'center', paddingVertical: Spacing.four },
+  code: { fontSize: 40, lineHeight: 48, fontWeight: '900', letterSpacing: 8, fontVariant: ['tabular-nums'] },
+  copy: { alignSelf: 'center' },
+  open: { marginTop: Spacing.one },
 });

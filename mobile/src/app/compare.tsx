@@ -5,7 +5,8 @@ import { ErrorView } from '@/components/error-view';
 import { PlayerPhoto } from '@/components/player-photo';
 import { Card, Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import type { PlayerDetail } from '@/lib/api';
 import { usePlayer } from '@/lib/query';
 import { betterSide } from '@/lib/squad';
@@ -55,50 +56,79 @@ export default function Compare() {
 }
 
 function Table({ l, r }: { l: PlayerDetail; r: PlayerDetail }) {
+  const theme = useTheme();
   return (
-    <Card>
-      <View style={styles.row}>
-        <View style={styles.label} />
-        {[l, r].map((p) => (
-          <View key={p.id} style={styles.head}>
-            <PlayerPhoto uri={p.photo} position={p.position} size={48} />
-            <ThemedText type="smallBold" numberOfLines={1}>
-              {p.name}
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {p.team} · {p.position}
-            </ThemedText>
-          </View>
-        ))}
-      </View>
-      {ROWS.map((row) => {
-        const lv = row.value(l);
-        const rv = row.value(r);
-        const best = betterSide(row.better, lv, rv);
-        return (
-          <View key={row.label} style={styles.row}>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
-              {row.label}
-            </ThemedText>
-            {([['left', lv], ['right', rv]] as const).map(([side, v]) => (
-              <ThemedText
-                key={side}
-                type={best === side ? 'smallBold' : 'small'}
-                themeColor={best === side ? 'highlight' : 'text'}
-                style={styles.cell}>
-                {row.format(v)}
+    <>
+      <Card variant="hero">
+        <View style={styles.heads}>
+          {[l, r].map((p) => (
+            <View key={p.id} style={styles.head}>
+              <PlayerPhoto uri={p.photo} position={p.position} size={60} />
+              <ThemedText type="headline" numberOfLines={1} style={{ color: theme.onHero }}>
+                {p.name}
               </ThemedText>
-            ))}
+              <ThemedText type="caption" style={{ color: theme.onHeroMuted }}>
+                {p.team} · {p.position}
+              </ThemedText>
+            </View>
+          ))}
+          <View style={[styles.vs, { backgroundColor: theme.brand }]} pointerEvents="none">
+            <ThemedText type="caption" style={{ color: theme.onBrand, fontWeight: '900' }}>
+              VS
+            </ThemedText>
           </View>
-        );
-      })}
-    </Card>
+        </View>
+      </Card>
+      <Card style={styles.table}>
+        {ROWS.map((row, idx) => {
+          const lv = row.value(l);
+          const rv = row.value(r);
+          const best = betterSide(row.better, lv, rv);
+          return (
+            <View
+              key={row.label}
+              style={[styles.row, idx > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.hairline }]}>
+              {([['left', lv], ['right', rv]] as const).map(([side, v]) => (
+                <View key={side} style={styles.cellBox}>
+                  <View style={[styles.cell, best === side && { backgroundColor: theme.highlightSoft }]}>
+                    <ThemedText
+                      type={best === side ? 'smallBold' : 'small'}
+                      themeColor={best === side ? 'highlight' : 'text'}
+                      style={styles.number}>
+                      {row.format(v)}
+                    </ThemedText>
+                  </View>
+                </View>
+              ))}
+              <ThemedText type="caption" themeColor="textSecondary" style={styles.label}>
+                {row.label}
+              </ThemedText>
+            </View>
+          );
+        })}
+      </Card>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.one, gap: Spacing.two },
-  label: { flex: 1.2 },
-  head: { flex: 1, alignItems: 'center', gap: Spacing.half },
-  cell: { flex: 1, textAlign: 'center' },
+  heads: { flexDirection: 'row', alignItems: 'flex-start' },
+  head: { flex: 1, alignItems: 'center', gap: 4 },
+  vs: {
+    position: 'absolute',
+    left: '50%',
+    top: 22,
+    marginLeft: -16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  table: { paddingVertical: 4, gap: 0 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: Spacing.two },
+  label: { position: 'absolute', left: 0, right: 0, textAlign: 'center' },
+  cellBox: { flex: 1, alignItems: 'center' },
+  cell: { borderRadius: Radius.pill, paddingHorizontal: 12, paddingVertical: 3, minWidth: 64, alignItems: 'center' },
+  number: { fontVariant: ['tabular-nums'] },
 });

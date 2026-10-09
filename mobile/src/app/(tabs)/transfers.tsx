@@ -1,16 +1,15 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { Segmented } from '@/components/chip';
 import { errorMessage, ErrorView } from '@/components/error-view';
-import { openPlayer } from '@/components/pitch';
 import { Banner, Card, ListGroup, ListRow, Screen, SectionHeader } from '@/components/screen';
 import { SquadBanner } from '@/components/squad-banner';
 import { Stat, StatRow } from '@/components/stat';
+import { Swap } from '@/components/swap';
 import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { api, type ExplainedMove, type SquadMeta, type TransferPlan, type TransferRecommendation } from '@/lib/api';
 import { refreshSquadDerived, useRecommendation, useTeamId, useTransfers } from '@/lib/query';
@@ -183,13 +182,12 @@ function MoveCard({ move, horizon }: { move: ExplainedMove; horizon: number }) {
   const priceDiff = move.in.price - move.out.price;
   return (
     <Card>
-      <View style={styles.swap}>
-        <PlayerSide label="SELL" player={move.out} color={theme.danger} soft={theme.dangerSoft} />
-        <ThemedText type="headline" themeColor="textSecondary">
-          →
-        </ThemedText>
-        <PlayerSide label="BUY" player={move.in} color={theme.highlight} soft={theme.highlightSoft} />
-      </View>
+      <Swap
+        out={move.out}
+        into={move.in}
+        outDetail={`${move.out.horizon_xpts.toFixed(1)} xPts`}
+        inDetail={`${move.in.horizon_xpts.toFixed(1)} xPts`}
+      />
       <StatRow>
         <Stat label={`Gain · ${horizon} GW`} value={`${signed(move.xpts_gain)} pts`} tone="positive" />
         <Stat label="Budget" value={`${priceDiff > 0 ? '−' : '+'}£${Math.abs(priceDiff).toFixed(1)}m`} />
@@ -208,40 +206,7 @@ function MoveCard({ move, horizon }: { move: ExplainedMove; horizon: number }) {
   );
 }
 
-function PlayerSide({
-  label,
-  player,
-  color,
-  soft,
-}: {
-  label: 'SELL' | 'BUY';
-  player: ExplainedMove['out'];
-  color: string;
-  soft: string;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${label} ${player.name}`}
-      onPress={() => openPlayer(player.player_id)}
-      style={({ pressed }) => [styles.side, { backgroundColor: soft }, pressed && { opacity: 0.7 }]}>
-      <ThemedText type="caption" style={[styles.sideLabel, { color }]}>
-        {label}
-      </ThemedText>
-      <ThemedText type="headline" numberOfLines={1}>
-        {player.name}
-      </ThemedText>
-      <ThemedText type="caption" themeColor="textSecondary">
-        {player.team} · £{player.price.toFixed(1)}m · {player.horizon_xpts.toFixed(1)} xPts
-      </ThemedText>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  swap: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  side: { flex: 1, borderRadius: Radius.md, padding: 12, gap: 2 },
-  sideLabel: { fontWeight: '800', letterSpacing: 0.6 },
   reasons: { gap: 6 },
   reason: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
   bullet: { width: 6, height: 6, borderRadius: 3, marginTop: 7 },

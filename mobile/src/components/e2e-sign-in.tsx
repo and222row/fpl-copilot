@@ -1,17 +1,16 @@
 import { useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
+import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 import { supabase } from '@/lib/supabase';
 
 // Included only in e2e builds (see sign-in.tsx). It talks to the staging
 // Supabase project, the only one with the email provider enabled; production
 // has it off, so even a mistakenly shipped form could not sign anyone in.
 export function E2ESignIn() {
-  const theme = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -25,30 +24,25 @@ export function E2ESignIn() {
     setBusy(false);
   }
 
-  const input = [styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }];
   return (
     <View style={styles.box}>
       <ThemedText type="small" themeColor="warning">
         Test build sign-in
       </ThemedText>
-      <TextInput
+      <TextField
         testID="e2e-email"
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
         keyboardType="email-address"
         placeholder="Email"
-        placeholderTextColor={theme.textSecondary}
-        style={input}
       />
-      <TextInput
+      <TextField
         testID="e2e-password"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
         placeholder="Password"
-        placeholderTextColor={theme.textSecondary}
-        style={input}
       />
       <Button testID="e2e-sign-in" title="Sign in (test)" variant="secondary" loading={busy} onPress={submit} />
       {error ? (
@@ -62,5 +56,4 @@ export function E2ESignIn() {
 
 const styles = StyleSheet.create({
   box: { gap: Spacing.two, marginTop: Spacing.four },
-  input: { borderRadius: 12, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, fontSize: 16 },
 });

@@ -4,9 +4,9 @@ import { Linking, StyleSheet, Switch, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { errorMessage, ErrorView } from '@/components/error-view';
-import { Card, Screen } from '@/components/screen';
+import { Banner, Card, Screen, SectionHeader } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { api, type NotificationSettings } from '@/lib/api';
 import { enablePush, pushState, type PushState } from '@/lib/push';
 import { queryClient } from '@/lib/query';
@@ -20,6 +20,7 @@ const KINDS: { key: keyof NotificationSettings; title: string; detail: string }[
 const SETTINGS_KEY = ['notification-settings'];
 
 export default function Notifications() {
+  const theme = useTheme();
   const state = useQuery({ queryKey: ['push-state'], queryFn: pushState });
   const settings = useQuery({ queryKey: SETTINGS_KEY, queryFn: api.notificationSettings });
   const [enabling, setEnabling] = useState(false);
@@ -55,34 +56,36 @@ export default function Notifications() {
   return (
     <Screen testID="notifications-screen" belowHeader>
       <PermissionCard state={state.data} enabling={enabling} onEnable={onEnable} />
-      {error ? (
-        <ThemedText themeColor="danger" accessibilityRole="alert">
-          {error}
-        </ThemedText>
-      ) : null}
+      {error ? <ErrorView error={new Error(error)} /> : null}
       {settings.isError ? <ErrorView error={settings.error} onRetry={() => settings.refetch()} /> : null}
       {settings.data ? (
-        <Card>
-          {KINDS.map((k) => (
-            <View key={k.key} style={styles.row}>
-              <View style={styles.grow}>
-                <ThemedText type="smallBold">{k.title}</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {k.detail}
-                </ThemedText>
+        <>
+          <SectionHeader title="Notify me about" />
+          <Card style={styles.list}>
+            {KINDS.map((k, i) => (
+              <View
+                key={k.key}
+                style={[styles.row, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.hairline }]}>
+                <View style={styles.grow}>
+                  <ThemedText type="headline">{k.title}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {k.detail}
+                  </ThemedText>
+                </View>
+                <Switch
+                  testID={`notify-${k.key}`}
+                  accessibilityLabel={k.title}
+                  value={settings.data[k.key]}
+                  trackColor={{ true: theme.highlight, false: theme.backgroundSelected }}
+                  onValueChange={(value) => {
+                    setError(null);
+                    update.mutate({ [k.key]: value });
+                  }}
+                />
               </View>
-              <Switch
-                testID={`notify-${k.key}`}
-                accessibilityLabel={k.title}
-                value={settings.data[k.key]}
-                onValueChange={(value) => {
-                  setError(null);
-                  update.mutate({ [k.key]: value });
-                }}
-              />
-            </View>
-          ))}
-        </Card>
+            ))}
+          </Card>
+        </>
       ) : null}
     </Screen>
   );
@@ -97,37 +100,33 @@ function PermissionCard({
   enabling: boolean;
   onEnable: () => void;
 }) {
+  const theme = useTheme();
   if (state === 'enabled') {
-    return (
-      <ThemedText type="small" themeColor="textSecondary">
-        Notifications are on for this device.
-      </ThemedText>
-    );
+    return <Banner tone="info" title="Notifications are on for this device." />;
   }
   if (state === 'unavailable') {
-    return (
-      <ThemedText type="small" themeColor="warning">
-        Push notifications are not available on this device.
-      </ThemedText>
-    );
+    return <Banner title="Push notifications are not available on this device." />;
   }
   if (state === 'blocked') {
     return (
       <Card>
-        <ThemedText type="small">Notifications are turned off for FPL Copilot in your phone&apos;s settings.</ThemedText>
+        <ThemedText type="headline">Notifications are turned off for FPL Copilot in your phone&apos;s settings.</ThemedText>
         <Button title="Open settings" variant="secondary" onPress={() => Linking.openSettings()} />
       </Card>
     );
   }
   return (
-    <Card>
-      <ThemedText type="small">Get told when something changes for your squad, without opening the app.</ThemedText>
-      <Button title="Turn on notifications" onPress={onEnable} loading={enabling} disabled={state === undefined} />
+    <Card variant="hero">
+      <ThemedText type="headline" style={{ color: theme.onHero }}>
+        Get told when something changes for your squad, without opening the app.
+      </ThemedText>
+      <Button title="Turn on notifications" variant="brand" onPress={onEnable} loading={enabling} disabled={state === undefined} />
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two },
+  list: { paddingVertical: 4, gap: 0 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   grow: { flex: 1 },
 });

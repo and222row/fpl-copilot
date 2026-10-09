@@ -1,14 +1,15 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
 import { ChipGroup } from '@/components/chip';
 import { ErrorView } from '@/components/error-view';
 import { PlayerPhoto } from '@/components/player-photo';
+import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { CardShadow, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useDebounced } from '@/hooks/use-debounced';
 import { useTheme } from '@/hooks/use-theme';
 import type { ExplorerFilters, ExplorerRow } from '@/lib/api';
@@ -125,41 +126,44 @@ export default function Players() {
 
   const header = (
     <View style={styles.header}>
-      <ThemedText type="subtitle" accessibilityRole="header">
+      <ThemedText type="title" accessibilityRole="header">
         Players
       </ThemedText>
-      <TextInput
+      <TextField
         testID="players-search"
         value={search}
         onChangeText={setSearch}
         placeholder="Search players"
-        placeholderTextColor={theme.textSecondary}
         autoCorrect={false}
         autoCapitalize="none"
         clearButtonMode="while-editing"
         returnKeyType="search"
         accessibilityLabel="Search players"
-        style={[styles.search, { color: theme.text, backgroundColor: theme.backgroundElement }]}
       />
       <ChipGroup options={POSITIONS} value={position as 1 | 2 | 3 | 4 | undefined} onChange={setPosition} />
-      <ChipGroup options={SORTS} value={sort} onChange={setSort} />
+      <View style={styles.labelled}>
+        <ThemedText type="eyebrow" themeColor="textSecondary">
+          Sort by
+        </ThemedText>
+        <ChipGroup options={SORTS} value={sort} onChange={setSort} />
+      </View>
       <View style={styles.toolbar}>
-        <Pressable accessibilityRole="button" onPress={() => setShowFilters((s) => !s)}>
-          <ThemedText type="linkPrimary">
-            {showFilters ? 'Hide filters' : `Filters${activeFilters ? ` (${activeFilters})` : ''}`}
-          </ThemedText>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
+        <ToolbarButton
+          label={showFilters ? 'Hide filters' : `Filters${activeFilters ? ` (${activeFilters})` : ''}`}
+          active={showFilters || activeFilters > 0}
+          onPress={() => setShowFilters((s) => !s)}
+        />
+        <ToolbarButton
+          label={comparing ? 'Cancel compare' : 'Compare'}
+          active={comparing}
           onPress={() => {
             setComparing((c) => !c);
             setSelected([]);
-          }}>
-          <ThemedText type="linkPrimary">{comparing ? 'Cancel compare' : 'Compare'}</ThemedText>
-        </Pressable>
+          }}
+        />
       </View>
       {showFilters ? (
-        <View style={styles.filters}>
+        <View style={[styles.filters, { backgroundColor: theme.backgroundElement, borderColor: theme.hairline }]}>
           <ChipGroup options={clubs} value={teamId} onChange={setTeamId} />
           <ChipGroup options={PRICES} value={maxPrice as number | undefined} onChange={setMaxPrice} />
           <ChipGroup options={AVAILABILITY} value={availability} onChange={setAvailability} />
@@ -169,12 +173,12 @@ export default function Players() {
         </View>
       ) : null}
       {comparing ? (
-        <ThemedText type="small" themeColor="textSecondary">
+        <ThemedText type="smallBold" themeColor="accent">
           Pick two players to compare ({selected.length}/{MAX_COMPARE}).
         </ThemedText>
       ) : null}
       {total !== undefined ? (
-        <ThemedText type="small" themeColor="textSecondary">
+        <ThemedText type="caption" themeColor="textSecondary">
           {total} players · xPts for the next gameweek
         </ThemedText>
       ) : null}
@@ -207,7 +211,7 @@ export default function Players() {
         contentContainerStyle={styles.list}
       />
       {comparing && selected.length === MAX_COMPARE ? (
-        <View style={styles.compareBar}>
+        <View style={[styles.compareBar, { backgroundColor: theme.background, borderTopColor: theme.hairline }]}>
           <Button
             title="Compare"
             onPress={() =>
@@ -220,6 +224,25 @@ export default function Players() {
   );
 }
 
+function ToolbarButton({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={[
+        styles.toolButton,
+        active
+          ? { backgroundColor: theme.accentSoft, borderColor: theme.accent }
+          : { backgroundColor: theme.backgroundElement, borderColor: theme.hairline },
+      ]}>
+      <ThemedText type="smallBold" themeColor={active ? 'accent' : 'text'}>
+        {label}
+      </ThemedText>
+    </Pressable>
+  );
+}
+
 function PlayerRow({ row, selected, onPress }: { row: ExplorerRow; selected: boolean; onPress: () => void }) {
   const theme = useTheme();
   const availability = availabilityLabel(row.status, row.chance);
@@ -229,24 +252,37 @@ function PlayerRow({ row, selected, onPress }: { row: ExplorerRow; selected: boo
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={[styles.row, { backgroundColor: selected ? theme.backgroundSelected : 'transparent' }]}>
-      <PlayerPhoto uri={row.photo} position={row.position} size={36} />
+      style={({ pressed }) => [
+        styles.row,
+        CardShadow,
+        {
+          backgroundColor: theme.backgroundElement,
+          borderColor: selected ? theme.accent : theme.hairline,
+          borderWidth: selected ? 2 : StyleSheet.hairlineWidth,
+        },
+        pressed && { opacity: 0.8 },
+      ]}>
+      <PlayerPhoto uri={row.photo} position={row.position} size={40} />
       <View style={styles.grow}>
-        <ThemedText type="smallBold" numberOfLines={1}>
+        <ThemedText type="headline" numberOfLines={1}>
           {row.name}
         </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
+        <ThemedText type="caption" themeColor="textSecondary">
           {row.team} · {row.position} · £{row.price.toFixed(1)}m · {row.selected_by_percent.toFixed(1)}%
         </ThemedText>
         {availability ? (
-          <ThemedText type="small" themeColor={row.status === 'd' ? 'warning' : 'danger'}>
+          <ThemedText type="caption" themeColor={row.status === 'd' ? 'warning' : 'danger'} style={styles.bold}>
             {availability}
           </ThemedText>
         ) : null}
       </View>
       <View style={styles.right}>
-        <ThemedText type="smallBold">{row.xpts !== null ? row.xpts.toFixed(1) : '—'}</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
+        <View style={[styles.xpts, { backgroundColor: theme.highlightSoft }]}>
+          <ThemedText type="headline" themeColor="highlight" style={styles.number}>
+            {row.xpts !== null ? row.xpts.toFixed(1) : '—'}
+          </ThemedText>
+        </View>
+        <ThemedText type="caption" themeColor="textSecondary">
           {row.p_start !== null ? `${Math.round(row.p_start * 100)}% start` : `form ${row.form}`}
         </ThemedText>
       </View>
@@ -257,19 +293,25 @@ function PlayerRow({ row, selected, onPress }: { row: ExplorerRow; selected: boo
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   list: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', paddingBottom: Spacing.six },
-  header: { padding: Spacing.three, gap: Spacing.two },
-  search: { borderRadius: 12, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, fontSize: 16 },
-  toolbar: { flexDirection: 'row', justifyContent: 'space-between' },
-  filters: { gap: Spacing.two },
+  header: { padding: Spacing.three, paddingTop: Spacing.four, gap: 12 },
+  labelled: { gap: 6 },
+  toolbar: { flexDirection: 'row', gap: Spacing.two },
+  toolButton: { borderRadius: Radius.pill, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 7 },
+  filters: { gap: Spacing.two, borderRadius: Radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: 12 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+    gap: 12,
+    marginHorizontal: Spacing.three,
+    marginBottom: Spacing.two,
+    padding: 12,
+    borderRadius: Radius.md,
   },
   grow: { flex: 1 },
-  right: { alignItems: 'flex-end' },
+  bold: { fontWeight: '700' },
+  number: { fontVariant: ['tabular-nums'] },
+  right: { alignItems: 'flex-end', gap: 3 },
+  xpts: { borderRadius: Radius.sm, paddingHorizontal: 8, paddingVertical: 2 },
   footer: { padding: Spacing.four, textAlign: 'center' },
-  compareBar: { padding: Spacing.three },
+  compareBar: { padding: Spacing.three, borderTopWidth: StyleSheet.hairlineWidth },
 });
