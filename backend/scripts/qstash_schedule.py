@@ -26,6 +26,7 @@ Usage
     python scripts/qstash_schedule.py create --cron "*/15 * * * *"
     python scripts/qstash_schedule.py delete scd_xxx
     python scripts/qstash_schedule.py test          # deliver once, now
+    python scripts/qstash_schedule.py keepalive     # ping every 10 min so Render never sleeps
 
 Reads QSTASH_TOKEN, JOB_TOKEN and API_BASE_URL from backend/.env. Nothing is
 printed that could expose a secret.
@@ -56,6 +57,14 @@ RETRIES = 3
 
 DEFAULT_CRON = "*/15 * * * *"
 DEFAULT_HORIZON = 5
+
+# Render's free instance sleeps after 15 idle minutes and takes 30-50 s to
+# wake, which is what a user opening the app after a quiet spell waited for.
+# A ping every 10 minutes keeps it up: 144 messages a day, inside QStash's
+# free allowance alongside the refresh. One always-on free service fits in
+# Render's 750 monthly instance hours, but they are shared by every free
+# service in the workspace.
+KEEPALIVE_CRON = "*/10 * * * *"
 
 
 def _require(name: str) -> str:
@@ -137,6 +146,34 @@ def cmd_create(args) -> None:
     print(f"\nScheduled {args.cron} -> {destination}")
 
 
+def cmd_keepalive(args) -> None:
+    """Create (or replace) the schedule that pings the API's root."""
+    destination = _require("API_BASE_URL").rstrip("/") + "/"
+    existing = httpx.get(f"{QSTASH_BASE}/schedules", headers=_auth(), timeout=30)
+    existing.raise_for_status()
+    for s in existing.json():
+        if s.get("destination") == destination:
+            httpx.delete(f"{QSTASH_BASE}/schedules/{s['scheduleId']}", headers=_auth(), timeout=30)
+            print(f"removed {s['scheduleId']}")
+    r = httpx.post(
+        f"{QSTASH_BASE}/schedules/{quote(destination, safe=':/')}",
+        headers={
+            **_auth(),
+            "Upstash-Cron": args.cron,
+            "Upstash-Method": "GET",
+            # A missed ping is harmless and the next one is minutes away.
+            "Upstash-Retries": "0",
+            # Long enough to cover a cold start, so a slow wake is not a failure.
+            "Upstash-Timeout": "90s",
+        },
+        timeout=30,
+    )
+    if r.status_code >= 400:
+        sys.exit(f"QStash refused the schedule: HTTP {r.status_code}\n{r.text}")
+    print(json.dumps(r.json(), indent=2))
+    print(f"\nScheduled {args.cron} -> GET {destination}")
+
+
 def cmd_delete(args) -> None:
     r = httpx.delete(
         f"{QSTASH_BASE}/schedules/{args.schedule_id}", headers=_auth(), timeout=30
@@ -172,6 +209,10 @@ def main() -> None:
     c.add_argument("--replace", action="store_true",
                    help="delete any existing schedule for this endpoint first")
     c.set_defaults(func=cmd_create)
+
+    k = sub.add_parser("keepalive", help="ping the API every 10 minutes so Render never sleeps")
+    k.add_argument("--cron", default=KEEPALIVE_CRON)
+    k.set_defaults(func=cmd_keepalive)
 
     d = sub.add_parser("delete", help="delete a schedule by id")
     d.add_argument("schedule_id")
