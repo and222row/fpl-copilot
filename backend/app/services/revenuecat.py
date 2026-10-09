@@ -140,7 +140,18 @@ async def delete_subscriber(app_user_id: str) -> None:
 
 async def refresh_subscription(db: AsyncSession, user_id: uuid.UUID) -> Subscription | None:
     """Re-read one user's state from RevenueCat and store it."""
-    state = parse_subscriber(await fetch_subscriber(str(user_id)))
+    body = await fetch_subscriber(str(user_id))
+    state = parse_subscriber(body)
+    if state is None:
+        others = sorted(((body.get("subscriber") or {}).get("entitlements") or {}).keys())
+        if others:
+            # A paying customer whose entitlement has another name: the
+            # purchase would silently grant nothing. Seen when the RevenueCat
+            # entitlement was created as something other than the default.
+            logger.error(
+                "RevenueCat entitlement not found; check REVENUECAT_ENTITLEMENT_ID",
+                extra={"expected": settings.revenuecat_entitlement_id, "found": others},
+            )
     row = await db.scalar(select(Subscription).where(Subscription.user_id == user_id))
     if state is None:
         # Never subscribed, or RevenueCat no longer lists the entitlement.

@@ -334,3 +334,33 @@ async def test_premium_route_opens_after_a_purchase_and_closes_at_expiry(client,
     sub.expires_at = utcnow() - timedelta(seconds=1)
     await session.commit()
     assert (await client.get("/api/v1/projections", headers=bearer(USER_A))).status_code == 402
+
+
+# ── Entitlement naming ───────────────────────────────────────────────────────
+
+def renamed(body: dict, name: str) -> dict:
+    ents = body["subscriber"]["entitlements"]
+    ents[name] = ents.pop("pro")
+    return body
+
+
+async def test_a_differently_named_entitlement_grants_nothing_and_says_why(session, rc, users, caplog):
+    """Found in the first real test purchase: the entitlement was `fpl_copilot_pro`."""
+    from app.services.revenuecat import refresh_subscription
+
+    rc.responses[str(USER_A)] = renamed(subscriber(), "fpl_copilot_pro")
+    with caplog.at_level("ERROR", logger="fpl_copilot.billing"):
+        assert await refresh_subscription(session, USER_A) is None
+    assert any("REVENUECAT_ENTITLEMENT_ID" in r.getMessage() for r in caplog.records)
+    assert caplog.records[-1].found == ["fpl_copilot_pro"]
+
+
+async def test_the_configured_entitlement_name_is_used(session, rc, users, monkeypatch):
+    from app.services.revenuecat import refresh_subscription
+
+    monkeypatch.setattr(settings, "revenuecat_entitlement_id", "fpl_copilot_pro")
+    rc.responses[str(USER_A)] = renamed(subscriber(product="fplc_pro_annual", store="test_store"), "fpl_copilot_pro")
+    row = await refresh_subscription(session, USER_A)
+    await session.commit()
+    assert (row.status, row.plan, row.provider, row.is_sandbox) == ("ACTIVE", "ANNUAL", "TEST_STORE", True)
+    assert (await get_entitlement(session, USER_A)).premium
