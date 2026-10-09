@@ -65,6 +65,7 @@ async def sync_bootstrap(db: AsyncSession) -> dict:
             db.add(row)
         row.name = t["name"]
         row.short_name = t["short_name"]
+        row.code = _i(t.get("code"))
         row.strength = _i(t.get("strength"))
         row.strength_overall_home = _i(t.get("strength_overall_home"))
         row.strength_overall_away = _i(t.get("strength_overall_away"))

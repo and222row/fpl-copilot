@@ -10,10 +10,10 @@ import logging
 from collections import Counter
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.fpl import Player, Team
+from app.models.fpl import Fixture, Player, Team
 from app.models.projections import Projection
 from app.services.fpl_client import fetch_league_standings, fetch_manager_info, fetch_manager_picks
 from app.services.fpl_sync import get_latest_started_gameweek, get_next_open_gameweek
@@ -31,6 +31,32 @@ THREAT_SHARE = 0.5
 # A player you own that at most this share of rivals own is a differential.
 DIFFERENTIAL_SHARE = 0.2
 POSITIONS = {1: "GKP", 2: "DEF", 3: "MID", 4: "FWD"}
+KIT_URL = "https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_{code}{keeper}-110.png"
+
+
+def kit_url(team_code: int, position: int) -> str | None:
+    """FPL's own shirt image; goalkeepers wear the _1 variant."""
+    if not team_code:
+        return None
+    return KIT_URL.format(code=team_code, keeper="_1" if position == 1 else "")
+
+
+async def _fixtures(db: AsyncSession, team_ids: set[int], gameweek: int) -> dict[int, list[str]]:
+    """Each club's opponents in the gameweek, as "LIV (A)"; doubles list two."""
+    if not team_ids:
+        return {}
+    rows = (await db.execute(
+        select(Fixture.team_h, Fixture.team_a).where(
+            Fixture.gameweek_id == gameweek,
+            or_(Fixture.team_h.in_(team_ids), Fixture.team_a.in_(team_ids)),
+        ).order_by(Fixture.kickoff_time)
+    )).all()
+    short = dict((await db.execute(select(Team.id, Team.short_name))).all())
+    out: dict[int, list[str]] = {}
+    for home, away in rows:
+        out.setdefault(home, []).append(f"{short.get(away, '?')} (H)")
+        out.setdefault(away, []).append(f"{short.get(home, '?')} (A)")
+    return out
 
 
 class LeagueNotFound(Exception):
@@ -82,10 +108,11 @@ async def _player_rows(db: AsyncSession, ids: set[int], target_gw: int) -> dict[
     if not ids:
         return {}
     rows = (await db.execute(
-        select(Player.id, Player.web_name, Player.position, Player.now_cost, Team.short_name)
+        select(Player.id, Player.web_name, Player.position, Player.now_cost, Team.short_name, Team.code, Team.id)
         .join(Team, Team.id == Player.team_id)
         .where(Player.id.in_(ids))
     )).all()
+    fixtures = await _fixtures(db, {r[6] for r in rows}, target_gw)
     xpts = dict((await db.execute(
         select(Projection.player_id, Projection.xpts).where(
             Projection.player_id.in_(ids),
@@ -101,8 +128,10 @@ async def _player_rows(db: AsyncSession, ids: set[int], target_gw: int) -> dict[
             "position": POSITIONS.get(position, "UNK"),
             "price": round(cost / 10, 1),
             "xpts": round(float(xpts.get(pid, 0.0)), 2),
+            "kit": kit_url(code, position),
+            "fixtures": fixtures.get(team_id, []),
         }
-        for pid, name, position, cost, team in rows
+        for pid, name, position, cost, team, code, team_id in rows
     }
 
 
@@ -229,6 +258,21 @@ async def rival_view(db: AsyncSession, manager_id: int, league_id: int, rival_id
         return sorted((players[i] for i in ids if i in players), key=lambda p: -p["xpts"])
 
     only_mine, only_theirs = side(mine - their_ids), side(their_ids - mine)
+
+    # Their whole squad as FPL lays it out: slots 1-11 start, 12-15 are the
+    # bench in order. Drawn on a pitch like the FPL app's.
+    squad = [
+        {
+            **players[p["element"]],
+            "slot": p.get("position"),
+            "starting": (p.get("position") or 99) <= 11,
+            "is_captain": bool(p.get("is_captain")),
+            "is_vice_captain": bool(p.get("is_vice_captain")),
+            "you_own": p["element"] in mine,
+        }
+        for p in sorted(theirs.get("picks", []), key=lambda p: p.get("position") or 99)
+        if p["element"] in players
+    ]
     return {
         "league_id": league_id,
         "rival": {
@@ -247,6 +291,7 @@ async def rival_view(db: AsyncSession, manager_id: int, league_id: int, rival_id
             "captain": players.get(my_captain, {}).get("name") if my_captain else None,
         },
         "points_gap": (row["total"] - you_row["total"]) if you_row else None,
+        "squad": squad,
         "shared": side(mine & their_ids),
         "only_yours": only_mine,
         "only_theirs": only_theirs,

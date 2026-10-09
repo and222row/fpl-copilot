@@ -13,7 +13,7 @@ from app.models.fpl import Gameweek
 from app.models.projections import Projection
 from app.services import leagues
 from app.services.projection import MODEL_VERSION
-from tests.conftest import make_player, make_team
+from tests.conftest import make_fixture, make_player, make_team
 
 YOU = 6727534
 PRIVATE = 911741
@@ -53,20 +53,26 @@ RIVAL_SQUADS = {
 YOUR_SQUAD = [1, 2, 3, 13]
 
 
-def picks(ids, captain):
-    return {"picks": [{"element": i, "is_captain": i == captain} for i in ids]}
+def picks(ids, captain, vice=None):
+    return {"picks": [
+        {"element": i, "position": slot, "is_captain": i == captain, "is_vice_captain": i == vice}
+        for slot, i in enumerate(ids, start=1)
+    ]}
 
 
 @pytest.fixture
 async def world(session, monkeypatch):
-    session.add_all([make_team(1, "AAA"), make_team(2, "BBB")])
+    aaa, bbb = make_team(1, "AAA"), make_team(2, "BBB")
+    aaa.code, bbb.code = 3, 43
+    session.add_all([aaa, bbb])
     session.add_all([
         Gameweek(id=5, name="Gameweek 5", deadline_time=NOW - timedelta(days=3)),
         Gameweek(id=6, name="Gameweek 6", deadline_time=NOW + timedelta(days=2)),
     ])
     await session.flush()
     for pid in (1, 2, 3, 10, 11, 12, 13):
-        session.add(make_player(pid, team_id=1 if pid < 10 else 2, web_name=f"P{pid}"))
+        session.add(make_player(pid, team_id=1 if pid < 10 else 2, web_name=f"P{pid}", position=1 if pid == 10 else 3))
+    session.add(make_fixture(60, gameweek_id=6, team_h=1, team_a=2))
     await session.flush()
     for pid, x in {1: 6.0, 2: 3.0, 3: 2.0, 10: 7.5, 11: 5.0, 12: 4.0, 13: 3.5}.items():
         session.add(Projection(player_id=pid, gameweek_id=6, model_version=MODEL_VERSION, xpts=x))
@@ -81,7 +87,7 @@ async def world(session, monkeypatch):
     async def squad_picks(manager_id, gameweek):
         if manager_id == YOU:
             return picks(YOUR_SQUAD, captain=1)
-        return picks(RIVAL_SQUADS[manager_id], captain=10)
+        return picks(RIVAL_SQUADS[manager_id], captain=10, vice=11)
 
     async def resolved(db, manager_id, target_gw, picks_gw):
         return SimpleNamespace(player_ids=YOUR_SQUAD)
@@ -155,3 +161,16 @@ async def test_a_rival_without_picks_is_left_out_not_fatal(client, world, monkey
     monkeypatch.setattr(leagues, "fetch_manager_picks", flaky)
     body = (await client.get(f"/api/v1/leagues/{YOU}/{PRIVATE}")).json()
     assert body["rivals_sampled"] == 2
+
+
+async def test_head_to_head_lays_out_their_squad_with_kits_and_fixtures(client, world):
+    body = (await client.get(f"/api/v1/leagues/{YOU}/{PRIVATE}/rivals/4276486")).json()
+    squad = body["squad"]
+    assert [p["name"] for p in squad] == ["P10", "P11", "P12", "P1"]  # FPL's slot order
+    keeper, vice, _, shared = squad
+    assert keeper["kit"].endswith("/shirt_43_1-110.png")  # goalkeepers wear the _1 kit
+    assert shared["kit"].endswith("/shirt_3-110.png")
+    assert keeper["is_captain"] and vice["is_vice_captain"]
+    assert keeper["fixtures"] == ["AAA (A)"] and shared["fixtures"] == ["BBB (H)"]
+    assert shared["you_own"] and not keeper["you_own"]
+    assert all(p["starting"] for p in squad)  # slots 1-4, all inside the XI

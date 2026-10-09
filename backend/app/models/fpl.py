@@ -19,6 +19,8 @@ class Team(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)  # FPL team ID
     name: Mapped[str] = mapped_column(String(100))
     short_name: Mapped[str] = mapped_column(String(10))
+    # FPL's club code, which names kit images (shirt_{code}-110.png); not the id.
+    code: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     strength: Mapped[int] = mapped_column(SmallInteger, default=0)
     strength_overall_home: Mapped[int] = mapped_column(SmallInteger, default=0)
     strength_overall_away: Mapped[int] = mapped_column(SmallInteger, default=0)
