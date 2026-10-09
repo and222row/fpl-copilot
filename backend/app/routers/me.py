@@ -66,10 +66,12 @@ def _claim_dict(c: FplClaim) -> dict:
         "expires_at": c.expires_at,
         "attempts_remaining": MAX_VERIFY_ATTEMPTS - c.attempts,
         "instructions": (
-            f"In the FPL app or website, open Team Details and add {c.code} to "
-            "your team name (FPL allows 20 characters, so replace part of it if "
-            "needed). Save, then tap Verify. You can change the name back as "
-            "soon as you are verified."
+            # The FPL app cannot rename a team; only the website can.
+            f"In a web browser, sign in at fantasy.premierleague.com, open Pick "
+            f"Team, scroll to Admin and tap Team Details. Add {c.code} to your "
+            "team name (FPL allows 20 characters, so replace part of it if "
+            "needed) and tap Update details, then come back and tap Verify. "
+            "You can change the name back as soon as you are verified."
         ),
     }
 
