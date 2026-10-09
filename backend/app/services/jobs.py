@@ -29,7 +29,7 @@ from app.services.fpl_sync import (
     get_latest_started_gameweek, get_next_open_gameweek, record_verified,
 )
 from app.services.change_detection import detect_changes, generate_alerts
-from app.services import job_monitor, notifications, push
+from app.services import feedback, job_monitor, notifications, push
 from app.services import chips
 from app.services.team_strength import rebuild_team_strength
 from app.services.projection import rebuild_projections
@@ -139,6 +139,9 @@ async def refresh_everything(
     # error, because a failed refresh has confirmed nothing.
     if not report.errors:
         await step("verified", record_verified(db))
+
+    # Grade advice for gameweeks FPL has finished: the track record.
+    await step("accuracy", feedback.score_finished(db))
 
     if include_alerts:
         report.steps["alerts"] = await _alerts_for_tracked(db)

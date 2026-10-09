@@ -361,3 +361,64 @@ async def test_score_all_is_safe_with_nothing_recorded(client):
     r = await client.post("/api/v1/feedback/1/score-all")
     assert r.status_code == 200
     assert r.json()["scored_gameweeks"] == []
+
+
+# ── Automatic grading in the refresh ─────────────────────────────────────────
+
+@pytest.fixture
+async def finished_without_stats(session):
+    """A finished gameweek with a saved captain pick and no stored results."""
+    session.add(make_team(1, "AAA"))
+    session.add(make_gameweek(1, finished=True))
+    session.add(make_gameweek(2, finished=False))
+    await session.flush()
+    for pid in range(1, 16):
+        session.add(make_player(pid, team_id=1, web_name=f"P{pid}"))
+    await session.flush()
+    for gw in (1, 2):
+        await snapshot_recommendation(
+            session, fpl_entry_id=7, gameweek_id=gw, kind=KIND_CAPTAIN,
+            model_version="proj-v1", payload={"player_id": 1, "name": "P1"}, predicted_value=12.0,
+        )
+    return session
+
+
+def _live(points_by_player):
+    async def fetch(gameweek):
+        return {"elements": [{"id": pid, "stats": {"total_points": pts}} for pid, pts in points_by_player.items()]}
+    return fetch
+
+
+async def test_finished_gameweeks_are_graded_from_live_points(finished_without_stats, monkeypatch):
+    from app.services import feedback
+
+    async def actual(manager_id, gameweek_id):
+        return squad(captain=1)
+
+    monkeypatch.setattr(feedback, "fetch_actual_squad", actual)
+    monkeypatch.setattr(feedback, "fetch_live_points", _live({pid: (9 if pid == 1 else 2) for pid in range(1, 16)}))
+
+    result = await feedback.score_finished(finished_without_stats)
+    assert result == {"teams_gameweeks": 1, "scored": 1, "failures": []}  # GW2 is not finished
+
+    summary = await accuracy_summary(finished_without_stats, 7)
+    assert summary["gameweeks_scored"] == 1
+    assert summary["categories"]["captain"]["hit_rate"] == 1.0  # 9 was the best in the XI
+
+    again = await feedback.score_finished(finished_without_stats)
+    assert again["teams_gameweeks"] == 0  # already graded, nothing to redo
+
+
+async def test_live_points_outage_reports_instead_of_failing(finished_without_stats, monkeypatch):
+    from app.services import feedback
+
+    async def actual(manager_id, gameweek_id):
+        return squad(captain=1)
+
+    async def down(gameweek):
+        raise RuntimeError("FPL down")
+
+    monkeypatch.setattr(feedback, "fetch_actual_squad", actual)
+    monkeypatch.setattr(feedback, "fetch_live_points", down)
+    result = await feedback.score_finished(finished_without_stats)
+    assert result["scored"] == 0 and result["failures"]

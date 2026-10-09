@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.models.fpl import Gameweek, PlayerGameweekStat, utcnow
 from app.models.feedback import RecommendationSnapshot, RecommendationOutcome
-from app.services.fpl_client import fetch_manager_picks
+from app.services.fpl_client import fetch_live_points, fetch_manager_picks
 
 logger = logging.getLogger("fpl_copilot")
 
@@ -109,7 +109,21 @@ async def actual_points(
         )
         .group_by(PlayerGameweekStat.player_id)
     )).all()
-    return {pid: int(pts or 0) for pid, pts in rows}
+    points = {pid: int(pts or 0) for pid, pts in rows}
+
+    # Stored stats come from a heavy per-player ingest that rarely runs. FPL's
+    # live endpoint has every player's total for the gameweek in one request,
+    # doubles included, so it fills whatever is missing.
+    missing = set(player_ids) - set(points)
+    if missing:
+        try:
+            live = await fetch_live_points(gameweek_id)
+            for element in live.get("elements", []):
+                if element.get("id") in missing:
+                    points[element["id"]] = int((element.get("stats") or {}).get("total_points") or 0)
+        except Exception:
+            logger.warning("live points unavailable", extra={"gameweek": gameweek_id}, exc_info=True)
+    return points
 
 
 @dataclass
@@ -550,3 +564,33 @@ async def outcome_history(db: AsyncSession, manager_id: int, limit: int = 50) ->
         }
         for o in rows
     ]
+
+
+async def score_finished(db: AsyncSession) -> dict:
+    """
+    Grade every saved recommendation whose gameweek FPL has marked finished.
+
+    Run by the scheduled refresh, so the track record fills itself in a day or
+    two after each gameweek (FPL's `finished` flag waits for bonus points and
+    data checks). Already-graded snapshots are skipped, so it is cheap to
+    repeat.
+    """
+    finished = select(Gameweek.id).where(Gameweek.finished.is_(True))
+    graded = select(RecommendationOutcome.snapshot_id)
+    pairs = (await db.execute(
+        select(RecommendationSnapshot.fpl_entry_id, RecommendationSnapshot.gameweek_id)
+        .where(
+            RecommendationSnapshot.gameweek_id.in_(finished),
+            RecommendationSnapshot.id.not_in(graded),
+        )
+        .distinct()
+    )).all()
+
+    scored = 0
+    failures = []
+    for entry, gameweek in pairs:
+        result = await score_gameweek(db, entry, gameweek)
+        scored += result.get("scored", 0)
+        if result.get("error"):
+            failures.append({"gameweek": gameweek, "error": result["error"][:200]})
+    return {"teams_gameweeks": len(pairs), "scored": scored, "failures": failures}
