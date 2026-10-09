@@ -351,6 +351,9 @@ EXPECTED_PREMIUM_ROUTES = {
     "/api/v1/projections",
     "/api/v1/projections/player/{player_id}",
     "/api/v1/projections/team-strength",
+    "/api/v1/leagues/{manager_id}",
+    "/api/v1/leagues/{manager_id}/{league_id}",
+    "/api/v1/leagues/{manager_id}/{league_id}/rivals/{rival_id}",
 }
 
 

@@ -117,6 +117,20 @@ async def fetch_player_detail(player_id: int) -> dict:
     return await _get(f"/element-summary/{player_id}/")
 
 
+# Standings move only when points do (during matches); five minutes keeps a
+# league screen opened by several members from refetching for each of them.
+LEAGUE_TTL_SECONDS = 300
+
+
+async def fetch_league_standings(league_id: int, page: int = 1) -> dict:
+    """One page (50 managers) of a classic league's standings. Cached briefly."""
+    return await cached_json(
+        cache.key_league(league_id, page),
+        lambda: _get(f"/leagues-classic/{league_id}/standings/?page_standings={page}"),
+        ttl_seconds=LEAGUE_TTL_SECONDS,
+    )
+
+
 # Match history only changes after a match, so ten minutes is safe. Separate
 # from fetch_player_detail on purpose: the history ingest walks every player
 # and would spend hundreds of cache writes against a 10k/day Redis allowance.
