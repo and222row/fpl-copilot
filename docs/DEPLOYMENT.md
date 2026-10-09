@@ -86,6 +86,13 @@ Every setting is described in
   **before** pushing: there is no release-phase hook on the free plan.
   Migrations must be additive or backwards compatible with the running code,
   because the old version keeps serving until the new one is live.
+- **Settings:** the production service (`fpl-copilot-api`) was created by
+  hand, not from the Blueprint, so editing `render.yaml` changes nothing
+  there. Add every new setting in Render → the service → Environment too,
+  before pushing code that needs it. After a deploy, the release in
+  `/health/ops` should match the pushed commit, and a request with a bogus
+  bearer token should say "Malformed token", not "Authentication is not
+  configured".
 - **Web:** push to `main`; Vercel builds `frontend/`. Changing a
   `NEXT_PUBLIC_` variable needs a redeploy, since they are inlined at build.
 - **After a suspension:** Render resumes the image it had, not the newest
