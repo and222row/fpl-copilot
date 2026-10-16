@@ -149,6 +149,7 @@ jobs:
             echo "::error::The e2e sign-in form is in a non-e2e bundle"
             exit 1
           fi
+          echo "Not present."
 
       # Last, and non-blocking on the nightly run. expo-doctor compares
       # installed packages against the versions Expo currently recommends,
@@ -163,7 +164,6 @@ jobs:
       - name: Expo dependency versions
         continue-on-error: ${{ github.event_name == 'schedule' }}
         run: npx expo-doctor
-          echo "Not present."
 
   secrets:
     name: Secret scan
