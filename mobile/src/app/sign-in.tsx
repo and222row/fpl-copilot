@@ -11,6 +11,9 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/lib/auth';
+import { config, googleConfigured } from '@/lib/config';
+
+const GOOGLE = googleConfigured(Platform.OS, { web: config.googleWebClientId, ios: config.googleIosClientId });
 
 // Email/password sign-in for Maestro, which cannot drive Google's or Apple's
 // system sheets. Only the `e2e` EAS profile sets EXPO_PUBLIC_E2E (CI fails if
@@ -85,13 +88,15 @@ export default function SignIn() {
             onPress={() => run('apple', signInWithApple)}
           />
         ) : null}
-        <Button
-          title="Continue with Google"
-          variant="secondary"
-          loading={busy === 'google'}
-          disabled={busy !== null}
-          onPress={() => run('google', signInWithGoogle)}
-        />
+        {GOOGLE ? (
+          <Button
+            title="Continue with Google"
+            variant="secondary"
+            loading={busy === 'google'}
+            disabled={busy !== null}
+            onPress={() => run('google', signInWithGoogle)}
+          />
+        ) : null}
         {error ? (
           <ThemedText themeColor="danger" accessibilityRole="alert">
             {error}

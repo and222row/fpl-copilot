@@ -5,7 +5,7 @@ process.env.EXPO_PUBLIC_API_URL = 'https://api.test';
 process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://x.supabase.co';
 process.env.EXPO_PUBLIC_SUPABASE_KEY = 'sb_publishable_x';
 
-const { checkStoreKey } = require('@/lib/config') as typeof import('@/lib/config');
+const { checkStoreKey, googleConfigured } = require('@/lib/config') as typeof import('@/lib/config');
 
 const TEST_KEY = 'test_abc123';
 
@@ -25,5 +25,18 @@ describe('RevenueCat Test Store keys', () => {
     expect(checkStoreKey('K', 'appl_abc', { dev: false, e2e: false })).toBe('appl_abc');
     expect(checkStoreKey('K', 'goog_abc', { dev: false, e2e: false })).toBe('goog_abc');
     expect(checkStoreKey('K', '', { dev: false, e2e: false })).toBe('');
+  });
+});
+
+describe('googleConfigured', () => {
+  test('iOS needs both the web and the iOS client ID', () => {
+    expect(googleConfigured('ios', { web: 'w', ios: 'i' })).toBe(true);
+    expect(googleConfigured('ios', { web: 'w', ios: '' })).toBe(false);
+    expect(googleConfigured('ios', { web: '', ios: 'i' })).toBe(false);
+  });
+
+  test('Android needs only the web client ID', () => {
+    expect(googleConfigured('android', { web: 'w', ios: '' })).toBe(true);
+    expect(googleConfigured('android', { web: '', ios: '' })).toBe(false);
   });
 });

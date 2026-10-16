@@ -33,6 +33,15 @@ export function checkStoreKey(name: string, value: string, build: { dev: boolean
   return value;
 }
 
+/**
+ * Google sign-in needs the web client ID on both platforms (Supabase checks
+ * the token against it) and the iOS client ID on iOS, or the native SDK
+ * refuses to start. Without them the button is hidden rather than broken.
+ */
+export function googleConfigured(os: string, ids: { web: string; ios: string }): boolean {
+  return Boolean(ids.web) && (os !== 'ios' || Boolean(ids.ios));
+}
+
 const build = { dev: __DEV__, e2e: process.env.EXPO_PUBLIC_E2E === 'true' };
 
 export const config = {
