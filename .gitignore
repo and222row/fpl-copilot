@@ -42,5 +42,6 @@ Thumbs.db
 postgres_data/
 redis_data/
 
-# Claude Code local settings (machine-specific)
-.claude/settings.local.json
+# Claude Code local files: permission settings and the preview-server
+# config. Machine-specific, never project code.
+.claude/
