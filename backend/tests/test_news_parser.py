@@ -37,6 +37,8 @@ from app.services.news_parser import (
         ("Suspended - Expected back 1 Jan", "suspension", None),
         ("Has joined Como permanently", "transfer_out", None),
         ("has returned to Getafe CF", "transfer_out", None),
+        ("Has departed the club as a free agent.", "transfer_out", None),
+        ("Not included in squad.", "not_in_squad", None),
     ],
 )
 def test_parses_live_phrasings(text, cause, chance):

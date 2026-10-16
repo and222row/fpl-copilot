@@ -69,6 +69,8 @@ CAUSE_PATTERNS: list[tuple[str, str]] = [
     #   "Has joined Como permanently" / "has returned to Getafe CF"
     ("has joined", "transfer_out"),
     ("has returned to", "transfer_out"),
+    ("has departed", "transfer_out"),
+    ("not included in squad", "not_in_squad"),
     ("international duty", "international_duty"),
     ("personal reasons", "personal"),
     ("self-isolating", "unavailable_other"),
