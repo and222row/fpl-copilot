@@ -188,7 +188,7 @@ them with the publishable key; the backend connects as the owner role.
 | Decision | Why | Alternative rejected |
 |---|---|---|
 | Supabase Auth, verified locally | Free, Apple and Google built in, no auth server to run; local JWT verification keeps Supabase off the request path. | Own auth service; Firebase Auth. |
-| Team ownership by a code in the FPL team name | FPL has no OAuth; team IDs are public, so first-come claiming allowed squatting. | Trusting the entered ID. |
+| Instant connect, one account per team, takeover by a code in the FPL team name | FPL has no OAuth. Asking every user for a code up front cost sign-ups; asking only to take a team back from another account still stops squatting. | A code for everyone; trusting the entered ID. |
 | Store billing through RevenueCat | Required for in-app digital subscriptions; RevenueCat handles both stores' receipts and renewals for free at this scale. | Direct StoreKit/Play Billing validation; Stripe in the app. |
 | Entitlement computed, not stored | One function answers "premium?" from trials and subscriptions on the server clock; nothing to keep in sync. | An entitlements table updated by webhooks. |
 | Expo (React Native) for the app | One codebase for both platforms, cloud builds without local Xcode or Android Studio, good native module support. | Two native apps; Flutter. |

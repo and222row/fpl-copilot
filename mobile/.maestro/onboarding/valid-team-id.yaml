@@ -1,14 +1,16 @@
-# A real team id reaches the ownership step and gets a code. Completing it
-# means renaming a real FPL team, so verification itself is covered by the
-# backend tests (test_onboarding.py), not here.
+# A real team id connects straight away. The free trial waits for proof of
+# ownership, which a test cannot give (it would mean renaming a real FPL team),
+# so the flow checks the offer is made on both screens that make it. Uses its
+# own persona so the other onboarding flows still find a user with no team; the
+# seed disconnects it and clears its trial before the next run.
 appId: com.fplcopilot.app
-name: A real FPL Team ID gets a verification code
+name: A real FPL Team ID connects and is offered the trial
 tags: [onboarding, smoke]
 ---
 - runFlow:
     file: ../common/sign-in.yaml
     env:
-      EMAIL: e2e-new@fplcopilot.test
+      EMAIL: e2e-connect@fplcopilot.test
 - extendedWaitUntil:
     visible:
       id: "onboarding-welcome"
@@ -18,12 +20,19 @@ tags: [onboarding, smoke]
     id: "team-id-input"
 - inputText: ${NEW_TEAM_ID}
 - hideKeyboard
-- tapOn: "Continue"
+- tapOn: "Connect"
 - extendedWaitUntil:
     visible:
-      id: "verify-screen"
+      id: "connected-screen"
     timeout: 30000
 - assertVisible:
-    id: "verify-code"
-- assertVisible: "Verify"
-- assertVisible: "Open FPL"
+    id: "trial-offer"
+- assertNotVisible: "Your 30-day free trial has started.*"
+- tapOn: "Not now"
+# No trial yet, so access goes through the paywall — which must offer the
+# trial, not claim it was used up.
+- extendedWaitUntil:
+    visible:
+      id: "paywall-trial-offer"
+    timeout: 60000
+- assertNotVisible: "This team has already used its free trial."

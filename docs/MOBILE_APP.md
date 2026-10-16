@@ -12,10 +12,13 @@ Supabase Auth, RevenueCat and the stores; it holds no backend credential.
 ## Features
 
 - **Sign in** with Apple (iOS) and Google (iOS and Android) through Supabase.
-- **Onboarding:** swipeable slides first explain where the Team ID is and
-  how to add the code to the team name on the FPL website (Pick Team → Admin
-  → Team Details; the FPL app cannot rename a team). Then enter the Team ID →
-  add the code → verified, and the 30-day trial starts.
+- **Onboarding:** swipeable slides explain where the Team ID is. Enter it and
+  the team connects straight away. The 30-day trial starts once the team is
+  proven yours, by adding a short code to its name on the FPL website for a
+  moment (Pick Team → Admin → Team Details; the FPL app cannot rename a team).
+  That step is offered right after connecting and again on the paywall. The
+  same proof takes over a team another account already holds ("It's my
+  team"). Both open the `prove` screen.
 - **Paywall:** monthly and annual subscriptions through Apple IAP and Google
   Play Billing via RevenueCat, prices and the annual saving from the store,
   Restore purchases, renewal disclosure, terms and privacy links.

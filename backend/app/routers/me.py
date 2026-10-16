@@ -16,7 +16,7 @@ from app.models.fpl import utcnow
 from app.models.notifications import Device, NotificationPreference
 from app.rate_limit import UPSTREAM, limiter
 from app.services.accounts import delete_account_data, release_team
-from app.services.entitlements import get_entitlement, start_trial_if_eligible
+from app.services.entitlements import get_entitlement, start_trial_if_eligible, trial_eligible
 from app.services.fpl_client import fetch_manager_info, fetch_manager_info_fresh
 from app.services.jobs import register_manager
 from app.services.push import KINDS as PUSH_KINDS, TOKEN_PATTERN
@@ -46,6 +46,7 @@ def _account_dict(a: FplAccount) -> dict:
         "team_name": a.team_name,
         "manager_name": a.manager_name,
         "connected_at": a.created_at,
+        "verified": a.verified_at is not None,
     }
 
 
@@ -113,9 +114,43 @@ async def entitlements(user: AuthUser = Depends(current_user), db: AsyncSession 
     return (await get_entitlement(db, user.id)).as_dict()
 
 
-@router.post("/fpl-accounts", status_code=202)
+async def _connected(
+    db: AsyncSession, user: AuthUser, account: FplAccount, now, *, proven: bool
+) -> dict:
+    """
+    Finish a connection: alert tracking, the response, and the trial if proven.
+
+    An unproven connection starts no trial. Eligibility is once per team, so
+    granting it on an ID alone would let anyone spend a stranger's trial by
+    connecting their public team ID first. `trial_available` tells the client
+    that proving the team now would start one.
+    """
+    trial = (
+        await start_trial_if_eligible(db, user.id, account.fpl_entry_id, now)
+        if proven else None
+    )
+    available = (
+        not proven and await trial_eligible(db, user.id, account.fpl_entry_id)
+    )
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(409, "This team was just connected by another request. Try again.")
+    # register_manager commits the whole connection.
+    await register_manager(db, account.fpl_entry_id, account.team_name)
+    return {
+        "status": "connected",
+        **_account_dict(account),
+        "trial_started": trial is not None,
+        "trial_available": available,
+        "entitlement": (await get_entitlement(db, user.id)).as_dict(),
+    }
+
+
+@router.post("/fpl-accounts", status_code=201)
 @limiter.limit(UPSTREAM)
-async def start_fpl_connection(
+async def connect_fpl_account(
     request: Request,
     response: Response,
     body: ConnectFplAccount,
@@ -123,9 +158,15 @@ async def start_fpl_connection(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Begin connecting a team: confirm it exists, then issue the code that proves
-    control of it. Whether someone else has already connected the team is not
-    revealed; proving control takes it over either way.
+    Connect a team by its ID, straight away. No trial until the team is proven.
+
+    One account per team: a team already connected elsewhere answers 409
+    TEAM_TAKEN, and its real owner can take it over by proving control with a
+    code (POST .../claim, then .../verify). No proof is asked to connect: a
+    team's data is public, so holding one is harmless. The trial is different —
+    it is once per team, so it waits for the same proof, or anyone could spend
+    a stranger's by connecting their ID first. `trial_available` says whether
+    proving this team would start one.
     """
     owned = await _owned(db, user)
     for a in owned:
@@ -135,11 +176,56 @@ async def start_fpl_connection(
     if len(owned) >= MAX_FPL_ACCOUNTS:
         raise HTTPException(409, "Disconnect your current FPL team before connecting another")
 
+    if await db.scalar(select(FplAccount.id).where(FplAccount.fpl_entry_id == body.fpl_entry_id)):
+        raise HTTPException(409, {
+            "code": "TEAM_TAKEN",
+            "message": (
+                "This team is already connected to another FPL Copilot account. "
+                "If it is yours, prove it with a short code to take it over."
+            ),
+        })
+
+    info = await _fpl_entry(fetch_manager_info, body.fpl_entry_id)
+    account = FplAccount(
+        user_id=user.id,
+        fpl_entry_id=body.fpl_entry_id,
+        team_name=str(info.get("name") or "")[:120],
+        manager_name=" ".join(
+            s for s in (info.get("player_first_name"), info.get("player_last_name")) if s
+        )[:120],
+    )
+    db.add(account)
+    await db.execute(delete(FplClaim).where(FplClaim.user_id == user.id))
+    return await _connected(db, user, account, utcnow(), proven=False)
+
+
+@router.post("/fpl-accounts/{fpl_entry_id}/claim", status_code=202)
+@limiter.limit(UPSTREAM)
+async def claim_fpl_account(
+    request: Request,
+    response: Response,
+    fpl_entry_id: int,
+    user: AuthUser = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Issue the code that proves control of a team: put it in the team name, then
+    call .../verify. Used both to take over a team another account holds and to
+    prove one already connected here by ID, which is what starts the trial.
+    """
+    if not 1 <= fpl_entry_id <= 100_000_000:
+        raise HTTPException(422, "Not an FPL team ID")
+    owned = await _owned(db, user)
+    mine = next((a for a in owned if a.fpl_entry_id == fpl_entry_id), None)
+    if mine is not None and mine.verified_at is not None:
+        response.status_code = 200
+        return {"status": "connected", **_account_dict(mine)}
+    if mine is None and len(owned) >= MAX_FPL_ACCOUNTS:
+        raise HTTPException(409, "Disconnect your current FPL team before connecting another")
+
     now = utcnow()
     claim = await db.scalar(
-        select(FplClaim).where(
-            FplClaim.user_id == user.id, FplClaim.fpl_entry_id == body.fpl_entry_id
-        )
+        select(FplClaim).where(FplClaim.user_id == user.id, FplClaim.fpl_entry_id == fpl_entry_id)
     )
     # An exhausted code is replaced rather than reused, or the user would be
     # stuck until it expired. The cap limits FPL calls per code; the route's
@@ -152,14 +238,14 @@ async def start_fpl_connection(
     ):
         return _claim_dict(claim)
 
-    info = await _fpl_entry(fetch_manager_info, body.fpl_entry_id)
+    info = await _fpl_entry(fetch_manager_info, fpl_entry_id)
     team_name = str(info.get("name") or "")[:120]
     manager_name = " ".join(
         s for s in (info.get("player_first_name"), info.get("player_last_name")) if s
     )[:120]
 
     if claim is None:
-        claim = FplClaim(user_id=user.id, fpl_entry_id=body.fpl_entry_id)
+        claim = FplClaim(user_id=user.id, fpl_entry_id=fpl_entry_id)
         db.add(claim)
     claim.code = _new_code()
     claim.team_name = team_name
@@ -206,7 +292,15 @@ async def verify_fpl_connection(
             "attempts_remaining": MAX_VERIFY_ATTEMPTS - claim.attempts,
         })
 
-    if len(await _owned(db, user)) >= MAX_FPL_ACCOUNTS:
+    owned = await _owned(db, user)
+    mine = next((a for a in owned if a.fpl_entry_id == fpl_entry_id), None)
+    if mine is not None:
+        # Proving a team this account already holds: mark it, keep the row.
+        mine.verified_at = now
+        await db.execute(delete(FplClaim).where(FplClaim.fpl_entry_id == fpl_entry_id))
+        return await _connected(db, user, mine, now, proven=True)
+
+    if len(owned) >= MAX_FPL_ACCOUNTS:
         raise HTTPException(409, "Disconnect your current FPL team before connecting another")
 
     # Proving control outranks an earlier connection by someone else.
@@ -219,24 +313,11 @@ async def verify_fpl_connection(
     account = FplAccount(
         user_id=user.id, fpl_entry_id=fpl_entry_id,
         team_name=claim.team_name, manager_name=claim.manager_name,
+        verified_at=now,
     )
     db.add(account)
     await db.execute(delete(FplClaim).where(FplClaim.fpl_entry_id == fpl_entry_id))
-    trial = await start_trial_if_eligible(db, user.id, fpl_entry_id, now)
-    try:
-        await db.flush()
-    except IntegrityError:
-        await db.rollback()
-        raise HTTPException(409, "This team was just connected by another request. Try again.")
-
-    # register_manager commits the whole connection.
-    await register_manager(db, fpl_entry_id, account.team_name)
-    return {
-        "status": "connected",
-        **_account_dict(account),
-        "trial_started": trial is not None,
-        "entitlement": (await get_entitlement(db, user.id)).as_dict(),
-    }
+    return await _connected(db, user, account, now, proven=True)
 
 
 @router.delete("/fpl-accounts/{fpl_entry_id}", status_code=204)

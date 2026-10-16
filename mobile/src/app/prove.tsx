@@ -5,25 +5,21 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
+import { Connected } from '@/components/connected';
 import { errorMessage, ErrorView } from '@/components/error-view';
-import { Card, Pill, Screen } from '@/components/screen';
+import { Card, Screen } from '@/components/screen';
 import { Steps } from '@/components/steps';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ApiError, api, type VerifiedConnection } from '@/lib/api';
-import { refreshAccount } from '@/lib/query';
 
 // The Pick Team page, where Admin -> Team Details renames the team. Opened in
 // an in-app browser so a phone with the FPL app installed is not handed to
 // the app, which cannot rename teams.
 const PICK_TEAM = 'https://fantasy.premierleague.com/my-team';
 
-function formatDate(iso: string | null): string {
-  return iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long' }) : '';
-}
-
-export default function Verify() {
+export default function Prove() {
   const theme = useTheme();
   const { teamId, code, teamName } = useLocalSearchParams<{
     teamId: string;
@@ -56,36 +52,14 @@ export default function Verify() {
     setCopied(true);
   }
 
-  if (done) {
-    return (
-      <Screen belowHeader title="You're connected" footer={<Button title="Continue" onPress={refreshAccount} />}>
-        <Card variant="hero">
-          <Pill label="Verified" color="onBrand" soft="brand" />
-          <ThemedText type="subtitle" style={{ color: theme.onHero }}>
-            {done.team_name}
-          </ThemedText>
-          <ThemedText style={{ color: theme.onHeroMuted }}>{done.manager_name}</ThemedText>
-        </Card>
-        <Card>
-          <ThemedText type="headline">
-            {done.trial_started
-              ? `Your 30-day free trial has started. It runs until ${formatDate(done.entitlement.trial_ends_at)}.`
-              : 'This team or account has already used its free trial.'}
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            You can change your FPL team name back now.
-          </ThemedText>
-        </Card>
-      </Screen>
-    );
-  }
+  if (done) return <Connected result={done} proven />;
 
   return (
     <Screen
       belowHeader
       testID="verify-screen"
       title="Prove it's your team"
-      subtitle="Anyone can type a Team ID, so we ask you to put this code in your team name for a moment. Only the owner can do that."
+      subtitle="Put this code in your team name for a moment. Only the team's owner can, so it proves the team is yours."
       footer={
         expired ? (
           <Button title="Get a new code" onPress={() => router.back()} />

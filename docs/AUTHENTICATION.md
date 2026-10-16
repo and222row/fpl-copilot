@@ -112,21 +112,37 @@ entitlement that the server trusts. The app's screen routing
 
 ## Proving FPL team ownership
 
-FPL has no OAuth, and team IDs are public, so connecting a team must prove
-control of it (`backend/app/routers/me.py`):
+FPL has no OAuth, and team IDs are public. Connecting is instant, and proof
+is asked only when it matters (`backend/app/routers/me.py`):
 
-1. `POST /me/fpl-accounts` checks the team exists and issues a 6-character
-   code (no `0/O/1/I`), valid 30 minutes. Whether someone else has already
-   connected the team is not revealed.
-2. The user adds the code to their FPL team name.
-3. `POST /me/fpl-accounts/{id}/verify` reads the team from FPL, past both our
-   cache and FPL's CDN, and looks for the code. Ten attempts per code; each
-   attempt is committed before the check so failures count.
-4. On success the team is connected. If another account had it, proving
-   control takes it over, and the team's private state (pending transfers,
-   alert links) is dropped so the new owner inherits none.
+- `POST /me/fpl-accounts` checks the team exists and connects it straight
+  away. A team's data is public, so holding one reveals nothing private.
+- **One account per team.** A team already connected to another account
+  answers 409 `TEAM_TAKEN`, so signing up again with a new email cannot
+  connect the same team twice, and cannot get a second trial.
+- **Proving control** is how the trial starts, and how the real owner of a
+  team takes it over from someone who connected it first:
+  1. `POST /me/fpl-accounts/{id}/claim` issues a 6-character code (no
+     `0/O/1/I`), valid 30 minutes.
+  2. The user adds the code to their FPL team name on the website.
+  3. `POST /me/fpl-accounts/{id}/verify` reads the team from FPL, past both
+     our cache and FPL's CDN, and looks for the code. Ten attempts per code;
+     each attempt is committed before the check so failures count.
+  4. On success the account is marked `verified` and the trial starts if
+     eligible. For a team you already hold, the account is kept. For a
+     takeover, the team moves to the prover and its private state (pending
+     transfers, alert links) is dropped so the new owner inherits none.
 
 One team per account. Disconnecting drops the same private state.
+
+The trial is one per team and one per user, ever, and it starts only once
+control is proven. That ordering is what makes the limit safe. If connecting
+by ID started it, anyone could use up a stranger's trial by connecting their
+public team ID first, and throwaway accounts could collect trials with random
+IDs. With proof first, a squatter holds a team but no trial, so the real owner
+still gets one after taking it over, and a second email still cannot reset it.
+Accounts that existed before this rule were all created through proof, and
+the migration marks them verified.
 
 ## Account deletion
 

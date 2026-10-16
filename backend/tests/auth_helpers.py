@@ -7,6 +7,7 @@ import jwt
 from app.auth import jwks_cache
 from app.config import settings
 from app.models.accounts import FplAccount, User
+from app.models.fpl import utcnow
 
 SUPABASE_URL = "https://testproj.supabase.co"
 ISSUER = f"{SUPABASE_URL}/auth/v1"
@@ -51,5 +52,6 @@ async def seed_account(session, user_id: uuid.UUID, fpl_entry_id: int) -> None:
     """A user who has already proved control of a team."""
     if await session.get(User, user_id) is None:
         session.add(User(id=user_id))
-    session.add(FplAccount(user_id=user_id, fpl_entry_id=fpl_entry_id, team_name="Seeded"))
+    session.add(FplAccount(user_id=user_id, fpl_entry_id=fpl_entry_id, team_name="Seeded",
+                           verified_at=utcnow()))
     await session.commit()

@@ -332,6 +332,7 @@ async def test_operator_endpoints_need_the_job_token(client, monkeypatch, method
 # user, and the webhooks check their sender's secret.
 SELF_GUARDED_WRITES = {
     "/api/v1/me/fpl-accounts",
+    "/api/v1/me/fpl-accounts/{fpl_entry_id}/claim",
     "/api/v1/me/fpl-accounts/{fpl_entry_id}/verify",
     "/api/v1/me/fpl-accounts/{fpl_entry_id}",
     "/api/v1/telegram/webhook",

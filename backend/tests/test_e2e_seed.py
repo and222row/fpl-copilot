@@ -60,6 +60,7 @@ async def test_each_persona_lands_in_its_state(seed, session):
     await module.main()
     assert await statuses(session, fake) == {
         "e2e-new": "NONE",
+        "e2e-connect": "NONE",
         "e2e-trial": "TRIALING",
         "e2e-expired": "EXPIRED",
         "e2e-subscriber": "ACTIVE",
@@ -73,7 +74,7 @@ async def test_reseeding_is_safe_and_resets_state(seed, session):
     module, fake = seed
     await module.main()
     await module.main()
-    assert len(fake.users) == 5, "existing users are reused, not duplicated"
+    assert len(fake.users) == 6, "existing users are reused, not duplicated"
     assert await session.scalar(select(func.count()).select_from(FplAccount)) == 4
     assert (await statuses(session, fake))["e2e-expired"] == "EXPIRED"
 

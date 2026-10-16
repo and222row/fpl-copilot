@@ -6,6 +6,7 @@ persona, each with a known password, and writes their FPL team, trial and
 subscription rows directly:
 
     e2e-new@fplcopilot.test         signed up, no team         -> onboarding
+    e2e-connect@fplcopilot.test     signed up, no team         -> connects a team in a flow
     e2e-trial@fplcopilot.test       team + trial, 20 days left -> the app
     e2e-expired@fplcopilot.test     team, trial ended          -> paywall
     e2e-subscriber@fplcopilot.test  team + annual subscription -> the app
@@ -44,7 +45,7 @@ from app.services.jobs import register_manager  # noqa: E402
 
 DOMAIN = "fplcopilot.test"
 # persona -> index into E2E_FPL_TEAM_IDS, or None for "no team"
-PERSONAS = {"new": None, "trial": 0, "expired": 1, "subscriber": 2, "delete": 3}
+PERSONAS = {"new": None, "connect": None, "trial": 0, "expired": 1, "subscriber": 2, "delete": 3}
 
 
 def _guard() -> tuple[str, list[int]]:
@@ -108,7 +109,9 @@ async def main() -> None:
             await _reset(db, user_id, team)
 
             if team is not None:
-                db.add(FplAccount(user_id=user_id, fpl_entry_id=team, team_name=f"E2E {persona}"))
+                # Proven, like every account that holds a trial or subscription.
+                db.add(FplAccount(user_id=user_id, fpl_entry_id=team, team_name=f"E2E {persona}",
+                                  verified_at=now))
                 await register_manager(db, team, f"E2E {persona}")
             if persona in ("trial", "delete"):
                 db.add(Trial(fpl_entry_id=team, user_id=user_id, started_at=now - timedelta(days=10),

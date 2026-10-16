@@ -8,6 +8,7 @@ const mockRefresh = jest.fn();
 const mockAvailable = jest.fn();
 const mockEntitlement = jest.fn();
 const mockBack = jest.fn();
+const mockProve = jest.fn();
 
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 jest.mock('react-native-purchases', () => ({}));
@@ -30,6 +31,7 @@ jest.mock('@/lib/billing', () => ({
   restore: (...a: unknown[]) => mockRestore(...a),
 }));
 jest.mock('@/lib/api', () => ({ api: { syncBilling: () => mockSync() } }));
+jest.mock('@/lib/prove', () => ({ proveTeam: (...a: unknown[]) => mockProve(...a) }));
 jest.mock('@/lib/query', () => ({
   refreshAccount: () => mockRefresh(),
   useEntitlement: () => ({ data: mockEntitlement(), isFetching: false }),
@@ -49,7 +51,9 @@ async function show() {
 }
 
 beforeEach(() => {
-  [mockPurchase, mockRestore, mockSync, mockRefresh, mockAvailable, mockEntitlement, mockBack].forEach((m) => m.mockReset());
+  [mockPurchase, mockRestore, mockSync, mockRefresh, mockAvailable, mockEntitlement, mockBack, mockProve].forEach((m) =>
+    m.mockReset(),
+  );
   mockEntitlement.mockReturnValue({ status: 'EXPIRED', premium: false });
   mockAvailable.mockReturnValue(true);
   mockSync.mockResolvedValue({ premium: true });
@@ -157,4 +161,25 @@ test('when access has ended there is no way to dismiss it', async () => {
   await show();
   expect(screen.queryByText('Not now')).toBeNull();
   expect(screen.getByText('Sign out')).toBeTruthy();
+});
+
+
+test('a team connected by ID is offered its trial, not told it was used', async () => {
+  // Status NONE alone cannot tell "never had a trial" from "used it up"; the
+  // server says which by naming the team whose proof would start one.
+  mockEntitlement.mockReturnValue({ status: 'NONE', premium: false, prove_to_start_trial: 1234 });
+  mockProve.mockResolvedValue(undefined);
+  await show();
+
+  expect(screen.getByText('Prove your team is yours to start a 30-day free trial.')).toBeTruthy();
+  expect(screen.queryByText('This team has already used its free trial.')).toBeNull();
+  await userEvent.setup().press(screen.getByTestId('paywall-start-trial'));
+  expect(mockProve).toHaveBeenCalledWith(1234);
+});
+
+test('a team whose trial is spent is told so, with no offer', async () => {
+  mockEntitlement.mockReturnValue({ status: 'NONE', premium: false, prove_to_start_trial: null });
+  await show();
+  expect(screen.getByText('This team has already used its free trial.')).toBeTruthy();
+  expect(screen.queryByTestId('paywall-trial-offer')).toBeNull();
 });

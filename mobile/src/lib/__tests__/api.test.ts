@@ -6,7 +6,7 @@ jest.mock('@/lib/supabase', () => ({
   supabase: { auth: { getSession: () => mockGetSession(), signOut: (o: unknown) => mockSignOut(o) } },
 }));
 
-import { ApiError, api, request } from '@/lib/api';
+import { ApiError, api, request, TEAM_TAKEN } from '@/lib/api';
 
 const fetchMock = jest.fn();
 globalThis.fetch = fetchMock as unknown as typeof fetch;
@@ -46,8 +46,8 @@ test('sends no Authorization header when signed out', async () => {
 });
 
 test('serialises JSON bodies', async () => {
-  respond(202, { status: 'verification_required' });
-  await api.startConnection(1234);
+  respond(201, { status: 'connected' });
+  await api.connectTeam(1234);
   const init = fetchMock.mock.calls[0][1];
   expect(init.method).toBe('POST');
   expect(init.headers['Content-Type']).toBe('application/json');
@@ -65,11 +65,25 @@ test('a 402 carries the server code so the app can show the paywall', async () =
 
 test('plain string details become the message', async () => {
   respond(409, { detail: 'Disconnect your current FPL team before connecting another' });
-  await expect(api.startConnection(1)).rejects.toMatchObject({
+  await expect(api.connectTeam(1)).rejects.toMatchObject({
     status: 409,
     code: 'HTTP_409',
     message: 'Disconnect your current FPL team before connecting another',
   });
+});
+
+test('a team held by another account fails with TEAM_TAKEN', async () => {
+  respond(409, { detail: { code: TEAM_TAKEN, message: 'This team is already connected' } });
+  await expect(api.connectTeam(1)).rejects.toMatchObject({ status: 409, code: TEAM_TAKEN });
+});
+
+test('claiming posts to the team without a body', async () => {
+  respond(202, { status: 'verification_required' });
+  await api.claimConnection(1234);
+  const [url, init] = fetchMock.mock.calls[0];
+  expect(url).toMatch(/\/api\/v1\/me\/fpl-accounts\/1234\/claim$/);
+  expect(init.method).toBe('POST');
+  expect(init.body).toBeUndefined();
 });
 
 test.each([

@@ -122,6 +122,13 @@ function GatedStack() {
       <Stack.Protected guard={gate === 'needs-premium' || gate === 'ready'}>
         <Stack.Screen name="paywall" options={{ presentation: gate === 'ready' ? 'modal' : 'card' }} />
       </Stack.Protected>
+      {/* Proving a team: from onboarding (taking one over, or starting the
+          trial right after connecting), from the paywall, and after. Listed
+          last so it is never where a gate change lands, and open in every
+          signed-in state so connecting a team mid-proof cannot strand it. */}
+      <Stack.Protected guard={gate === 'needs-team' || gate === 'needs-premium' || gate === 'ready'}>
+        <Stack.Screen name="prove" options={{ headerShown: true, title: '', headerBackTitle: 'Back' }} />
+      </Stack.Protected>
     </Stack>
   );
 }

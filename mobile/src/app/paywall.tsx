@@ -14,6 +14,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { billingAvailable, loadPlans, purchase, restore } from '@/lib/billing';
+import { proveTeam } from '@/lib/prove';
 import { refreshAccount, useEntitlement } from '@/lib/query';
 
 const STORE = Platform.OS === 'ios' ? 'Apple ID' : 'Google Play account';
@@ -27,9 +28,12 @@ const FEATURES = [
   'Alerts for injuries, price changes and the deadline',
 ];
 
-function headline(status: string | undefined): string {
+function headline(status: string | undefined, canStartTrial: boolean): string {
   if (status === 'TRIALING') return 'Keep every feature after your free trial.';
   if (status === 'EXPIRED') return 'Your free trial or subscription has ended.';
+  // A team connected by ID has had no trial yet: proving it starts one. Telling
+  // that user the trial was used up would be false and leave them stuck.
+  if (status === 'NONE' && canStartTrial) return 'Prove your team is yours to start a 30-day free trial.';
   if (status === 'NONE') return 'This team has already used its free trial.';
   return 'Subscribe to keep using FPL Copilot.';
 }
@@ -44,7 +48,8 @@ export default function Paywall() {
   const available = billingAvailable();
   const plans = useQuery({ queryKey: ['plans'], queryFn: loadPlans, enabled: available, staleTime: 3_600_000 });
   const [selected, setSelected] = useState<'annual' | 'monthly'>('annual');
-  const [busy, setBusy] = useState<'buy' | 'restore' | null>(null);
+  const [busy, setBusy] = useState<'buy' | 'restore' | 'prove' | null>(null);
+  const proveTarget = entitlement.data?.prove_to_start_trial ?? null;
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
 
   // If annual is not on sale in this store, fall back to what is.
@@ -56,6 +61,19 @@ export default function Paywall() {
     const result = await api.syncBilling();
     await refreshAccount();
     return result.premium && result.provider !== 'TRIAL';
+  }
+
+  async function onProve() {
+    if (proveTarget === null) return;
+    setBusy('prove');
+    setMessage(null);
+    try {
+      await proveTeam(proveTarget);
+    } catch (e) {
+      setMessage({ text: errorMessage(e), error: true });
+    } finally {
+      setBusy(null);
+    }
   }
 
   function close() {
@@ -137,7 +155,7 @@ export default function Paywall() {
         <ThemedText type="title" accessibilityRole="header" style={{ color: theme.onHero }}>
           FPL Copilot Pro
         </ThemedText>
-        <ThemedText style={{ color: theme.onHeroMuted }}>{headline(entitlement.data?.status)}</ThemedText>
+        <ThemedText style={{ color: theme.onHeroMuted }}>{headline(entitlement.data?.status, proveTarget !== null)}</ThemedText>
         <View style={styles.features}>
           {FEATURES.map((f) => (
             <View key={f} style={styles.feature}>
@@ -151,6 +169,23 @@ export default function Paywall() {
           ))}
         </View>
       </Card>
+
+      {proveTarget !== null ? (
+        <Card testID="paywall-trial-offer">
+          <ThemedText type="headline">Your free trial is waiting</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            Add a short code to your team name on the FPL website for a moment. Only the team&apos;s owner can, so it
+            proves the team is yours and the 30-day trial starts. No payment needed.
+          </ThemedText>
+          <Button
+            title="Start my free trial"
+            onPress={onProve}
+            loading={busy === 'prove'}
+            disabled={busy !== null}
+            testID="paywall-start-trial"
+          />
+        </Card>
+      ) : null}
 
       {!available ? (
         <ThemedText themeColor="warning">Subscriptions are not available on this device.</ThemedText>

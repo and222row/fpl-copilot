@@ -69,7 +69,13 @@ def http_error(status: int) -> httpx.HTTPStatusError:
 
 
 async def start(client, entry=1234, user=USER_A):
+    """Connect a team by ID: instant when nobody holds it."""
     return await client.post("/api/v1/me/fpl-accounts", json={"fpl_entry_id": entry}, headers=bearer(user))
+
+
+async def claim(client, entry=1234, user=USER_A):
+    """Ask for the code that takes a team over from another account."""
+    return await client.post(f"/api/v1/me/fpl-accounts/{entry}/claim", headers=bearer(user))
 
 
 async def verify(client, entry=1234, user=USER_A):
@@ -77,44 +83,102 @@ async def verify(client, entry=1234, user=USER_A):
 
 
 async def connect(client, fpl, entry=1234, user=USER_A):
-    """The whole happy path: claim, put the code in the name, verify."""
-    code = (await start(client, entry, user)).json()["code"]
+    """
+    How a user ends up with a trial: connect by ID, then prove the team is
+    theirs. A failed connect is returned as it is, so tests expecting a 409
+    still see it.
+    """
+    r = await start(client, entry, user)
+    if r.status_code != 201:
+        return r
+    return await prove(client, fpl, entry, user)
+
+
+async def prove(client, fpl, entry=1234, user=USER_A):
+    """The takeover path: claim, put the code in the name, verify."""
+    code = (await claim(client, entry, user)).json()["code"]
     fpl.name = f"GT {code}"
     r = await verify(client, entry, user)
     fpl.name = ORIGINAL_NAME
     return r
 
 
-# ── Starting a connection ────────────────────────────────────────────────────
+# ── Connecting ───────────────────────────────────────────────────────────────
 
-async def test_start_issues_a_code_without_connecting(client, session, fpl):
+async def test_connecting_a_free_team_is_instant_but_starts_no_trial(client, session, fpl):
     r = await start(client)
-    assert r.status_code == 202
+    assert r.status_code == 201, r.text
     body = r.json()
-    assert body["status"] == "verification_required"
-    assert len(body["code"]) == CODE_LENGTH and set(body["code"]) <= set(CODE_ALPHABET)
+    assert body["status"] == "connected"
     assert body["team_name"] == ORIGINAL_NAME
-    assert body["attempts_remaining"] == MAX_VERIFY_ATTEMPTS
-    assert (await session.execute(select(FplAccount))).scalars().all() == []
+    assert body["verified"] is False
+    assert body["trial_started"] is False
+    assert body["trial_available"] is True, "the client offers proof to start it"
+    assert body["entitlement"]["status"] != "TRIALING"
+    account = await session.scalar(select(FplAccount))
+    assert account.user_id == USER_A and account.fpl_entry_id == 1234
+    assert account.verified_at is None
+    assert await session.get(TrackedManager, 1234) is not None
+
+
+# ── The trial waits for proof ────────────────────────────────────────────────
+
+async def test_proving_your_own_team_starts_the_trial_and_keeps_the_account(client, session, fpl):
+    await start(client)
+    before = await session.scalar(select(FplAccount))
+    r = await prove(client, fpl)
+    assert r.status_code == 201, r.text
+    assert r.json()["trial_started"] is True
+    assert r.json()["verified"] is True
+
+    session.expire_all()
+    after = (await session.execute(select(FplAccount))).scalars().all()
+    assert [a.id for a in after] == [before.id], "proved in place, not recreated"
+    assert after[0].verified_at is not None
+
+
+async def test_a_stranger_connecting_your_team_cannot_spend_its_trial(client, session, fpl):
+    """
+    The hole this closes. Eligibility is once per team, and a team ID is public.
+    If connecting by ID started the trial, anyone could use up yours first.
+    """
+    assert (await start(client, 1234, USER_B)).status_code == 201
+    assert (await session.execute(select(Trial))).scalars().all() == []
+
+    r = await prove(client, fpl, 1234, USER_A)      # the real owner takes it over
+    assert r.status_code == 201, r.text
+    assert r.json()["trial_started"] is True
+
+
+async def test_unproven_connections_never_create_trials(client, session, fpl):
+    """Without proof, throwaway accounts and random IDs collect nothing."""
+    for user, entry in ((USER_A, 1111), (USER_B, 2222)):
+        assert (await start(client, entry, user)).status_code == 201
     assert (await session.execute(select(Trial))).scalars().all() == []
 
 
-async def test_restarting_reuses_the_live_code(client, fpl):
-    first = (await start(client)).json()["code"]
-    assert (await start(client)).json()["code"] == first
-    assert fpl.calls == [1234]
+async def test_trial_available_is_false_once_this_user_has_had_one(client, fpl):
+    await connect(client, fpl, 1234)
+    await client.delete("/api/v1/me/fpl-accounts/1234", headers=bearer(USER_A))
+    body = (await start(client, 5678)).json()
+    assert body["trial_available"] is False
 
 
-async def test_expired_claim_gets_a_new_code(client, session, fpl):
-    await start(client)
-    claim = await session.scalar(select(FplClaim))
-    claim.expires_at = utcnow() - timedelta(minutes=1)
-    claim.attempts = 4
-    await session.commit()
-    second = (await start(client)).json()
-    assert second["status"] == "verification_required"
-    assert fpl.calls == [1234, 1234]
-    assert second["attempts_remaining"] == MAX_VERIFY_ATTEMPTS
+async def test_claiming_a_proven_team_just_says_connected(client, fpl):
+    await connect(client, fpl)
+    r = await claim(client)
+    assert r.status_code == 200
+    assert r.json()["status"] == "connected"
+
+
+async def test_a_team_connected_elsewhere_is_taken(client, session, fpl):
+    """One account per team: a second sign-up with the same team is refused."""
+    await seed_account(session, USER_A, 1234)
+    r = await start(client, 1234, USER_B)
+    assert r.status_code == 409
+    assert r.json()["detail"]["code"] == "TEAM_TAKEN"
+    owners = (await session.execute(select(FplAccount.user_id))).scalars().all()
+    assert owners == [USER_A]
 
 
 @pytest.mark.parametrize("error,status", [
@@ -140,15 +204,10 @@ async def test_start_requires_auth(client, fpl):
     assert r.status_code == 401
 
 
-async def test_start_does_not_reveal_another_users_ownership(client, session, fpl):
-    await seed_account(session, USER_A, 1234)
-    r = await start(client, 1234, USER_B)
-    assert r.status_code == 202
-
-
 async def test_one_team_per_account(client, fpl):
     assert (await connect(client, fpl, 1234)).status_code == 201
     assert (await start(client, 5678)).status_code == 409
+    assert (await claim(client, 5678)).status_code == 409
 
 
 async def test_start_on_own_team_says_connected(client, fpl):
@@ -157,40 +216,65 @@ async def test_start_on_own_team_says_connected(client, fpl):
     assert r.status_code == 200 and r.json()["status"] == "connected"
 
 
-# ── Verifying ────────────────────────────────────────────────────────────────
+# ── Taking a team over: claim, code in the name, verify ──────────────────────
 
-async def test_verify_connects_and_starts_the_trial(client, session, fpl):
-    code = (await start(client)).json()["code"]
+async def test_claim_issues_a_code_without_connecting(client, session, fpl):
+    r = await claim(client)
+    assert r.status_code == 202
+    body = r.json()
+    assert body["status"] == "verification_required"
+    assert len(body["code"]) == CODE_LENGTH and set(body["code"]) <= set(CODE_ALPHABET)
+    assert body["team_name"] == ORIGINAL_NAME
+    assert body["attempts_remaining"] == MAX_VERIFY_ATTEMPTS
+    assert "web browser" in body["instructions"] and "Team Details" in body["instructions"]
+    assert (await session.execute(select(FplAccount))).scalars().all() == []
+    assert (await session.execute(select(Trial))).scalars().all() == []
+
+
+async def test_reclaiming_reuses_the_live_code(client, fpl):
+    first = (await claim(client)).json()["code"]
+    assert (await claim(client)).json()["code"] == first
+    assert fpl.calls == [1234]
+
+
+async def test_expired_claim_gets_a_new_code(client, session, fpl):
+    await claim(client)
+    row = await session.scalar(select(FplClaim))
+    row.expires_at = utcnow() - timedelta(minutes=1)
+    row.attempts = 4
+    await session.commit()
+    second = (await claim(client)).json()
+    assert second["status"] == "verification_required"
+    assert fpl.calls == [1234, 1234]
+    assert second["attempts_remaining"] == MAX_VERIFY_ATTEMPTS
+
+
+async def test_verify_takes_the_team_over_and_keeps_the_stored_name_clean(client, session, fpl):
+    await seed_account(session, USER_A, 1234)
+    code = (await claim(client, 1234, USER_B)).json()["code"]
     fpl.name = f"fc {code.lower()[:3]} {code.lower()[3:]}"  # case and spacing forgiven
-    r = await verify(client)
+    r = await verify(client, 1234, USER_B)
     assert r.status_code == 201, r.text
     body = r.json()
     assert body["status"] == "connected"
     assert body["team_name"] == ORIGINAL_NAME, "stored name must not contain the code"
-    assert body["trial_started"] is True
-    assert body["entitlement"]["status"] == "TRIALING"
-    assert body["entitlement"]["premium"] is True
     assert fpl.fresh_calls == [1234], "verification must bypass every cache"
-
-    account = await session.scalar(select(FplAccount))
-    assert account.user_id == USER_A and account.fpl_entry_id == 1234
     assert (await session.execute(select(FplClaim))).scalars().all() == []
-    assert await session.get(TrackedManager, 1234) is not None
 
 
 async def test_wrong_name_is_rejected_and_the_attempt_counts(client, session, fpl):
-    await start(client)
+    await claim(client)
     fpl.name = "Nothing to see"
     r = await verify(client)
     assert r.status_code == 422
     assert r.json()["detail"]["code"] == "CODE_NOT_FOUND"
     assert r.json()["detail"]["attempts_remaining"] == MAX_VERIFY_ATTEMPTS - 1
-    assert (await start(client)).json()["attempts_remaining"] == MAX_VERIFY_ATTEMPTS - 1
+    assert (await claim(client)).json()["attempts_remaining"] == MAX_VERIFY_ATTEMPTS - 1
     assert (await session.execute(select(FplAccount))).scalars().all() == []
 
 
 async def test_attempts_are_capped(client, fpl):
-    await start(client)
+    await claim(client)
     fpl.name = "Nope"
     for _ in range(MAX_VERIFY_ATTEMPTS):
         assert (await verify(client)).status_code == 422
@@ -198,13 +282,13 @@ async def test_attempts_are_capped(client, fpl):
     assert len(fpl.fresh_calls) == MAX_VERIFY_ATTEMPTS
 
 
-async def test_exhausted_code_is_replaced_on_restart(client, fpl):
-    await start(client)
+async def test_exhausted_code_is_replaced_on_reclaim(client, fpl):
+    await claim(client)
     fpl.name = "Nope"
     for _ in range(MAX_VERIFY_ATTEMPTS):
         await verify(client)
     assert (await verify(client)).status_code == 429
-    fresh = (await start(client)).json()
+    fresh = (await claim(client)).json()
     assert fresh["attempts_remaining"] == MAX_VERIFY_ATTEMPTS
     fpl.name = fresh["code"]
     assert (await verify(client)).status_code == 201
@@ -215,16 +299,16 @@ async def test_verify_without_a_claim_is_404(client, fpl):
 
 
 async def test_verify_expired_claim_is_404(client, session, fpl):
-    code = (await start(client)).json()["code"]
-    claim = await session.scalar(select(FplClaim))
-    claim.expires_at = utcnow() - timedelta(seconds=1)
+    code = (await claim(client)).json()["code"]
+    row = await session.scalar(select(FplClaim))
+    row.expires_at = utcnow() - timedelta(seconds=1)
     await session.commit()
     fpl.name = code
     assert (await verify(client)).status_code == 404
 
 
 async def test_cannot_verify_using_someone_elses_claim(client, fpl):
-    code = (await start(client, 1234, USER_A)).json()["code"]
+    code = (await claim(client, 1234, USER_A)).json()["code"]
     fpl.name = code
     assert (await verify(client, 1234, USER_B)).status_code == 404
 
@@ -236,7 +320,7 @@ async def test_proving_control_takes_over_from_a_squatter(client, session, fpl):
     session.add(TrackedManager(fpl_entry_id=1234, telegram_chat_id="999", telegram_enabled=True))
     await session.commit()
 
-    assert (await connect(client, fpl, 1234, USER_B)).status_code == 201
+    assert (await prove(client, fpl, 1234, USER_B)).status_code == 201
 
     session.expire_all()
     owners = (await session.execute(select(FplAccount.user_id))).scalars().all()
@@ -246,11 +330,12 @@ async def test_proving_control_takes_over_from_a_squatter(client, session, fpl):
     assert tracked.telegram_chat_id is None and tracked.telegram_enabled is False
 
 
-async def test_an_unproven_claim_does_not_block_the_real_owner(client, fpl):
-    await start(client, 1234, USER_A)
-    assert (await connect(client, fpl, 1234, USER_B)).status_code == 201
-    # A's stale claim is gone too, so A cannot verify later with the old code.
-    assert (await verify(client, 1234, USER_A)).status_code == 404
+async def test_an_old_claim_cannot_take_a_team_back_without_the_code(client, fpl):
+    await claim(client, 1234, USER_A)
+    # B connects by ID only; proving would clear A's claim and test nothing.
+    assert (await start(client, 1234, USER_B)).status_code == 201
+    fpl.name = "anything"
+    assert (await verify(client, 1234, USER_A)).status_code == 422
 
 
 async def test_disconnect_then_another_user_can_connect(client, fpl):
@@ -309,6 +394,7 @@ async def test_entitlement_is_none_before_any_team(client):
     assert r.json() == {
         "premium": False, "status": "NONE", "plan": None, "provider": None,
         "trial_started_at": None, "trial_ends_at": None, "subscription_ends_at": None,
+        "prove_to_start_trial": None,
     }
 
 
@@ -419,3 +505,29 @@ async def test_anonymous_premium_only_while_auth_optional(client, monkeypatch):
     assert (await client.get(PREMIUM_ROUTE)).status_code != 402
     monkeypatch.setattr(settings, "auth_required", True)
     assert (await client.get(PREMIUM_ROUTE)).status_code == 401
+
+
+async def test_an_unproven_team_says_proving_it_would_start_the_trial(client, fpl):
+    """
+    Without this, someone who connected by ID and never had a trial reads
+    exactly like someone whose trial is used up, and the paywall told them so.
+    """
+    await start(client)
+    ent = (await client.get("/api/v1/me/entitlements", headers=bearer(USER_A))).json()
+    assert ent["status"] == "NONE"
+    assert ent["prove_to_start_trial"] == 1234
+
+
+async def test_proving_clears_the_offer(client, fpl):
+    await connect(client, fpl)
+    ent = (await client.get("/api/v1/me/entitlements", headers=bearer(USER_A))).json()
+    assert ent["status"] == "TRIALING"
+    assert ent["prove_to_start_trial"] is None
+
+
+async def test_no_offer_when_the_team_has_had_its_trial(client, fpl):
+    await connect(client, fpl, 1234, USER_A)
+    await client.delete("/api/v1/me/fpl-accounts/1234", headers=bearer(USER_A))
+    await start(client, 1234, USER_B)
+    ent = (await client.get("/api/v1/me/entitlements", headers=bearer(USER_B))).json()
+    assert ent["prove_to_start_trial"] is None

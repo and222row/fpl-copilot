@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.accounts import Trial
+from app.models.accounts import FplAccount, Trial
 from app.models.billing import Subscription
 from app.models.fpl import utcnow
 
@@ -40,6 +40,10 @@ class Entitlement:
     trial_started_at: datetime | None = None
     trial_ends_at: datetime | None = None
     subscription_ends_at: datetime | None = None
+    # The team that would start a free trial if its owner proved control. Set
+    # only when nothing else applies: without it, a user who connected by ID
+    # and has never had a trial reads exactly like one whose trial is used up.
+    prove_to_start_trial: int | None = None
 
     def as_dict(self) -> dict:
         return {
@@ -50,6 +54,7 @@ class Entitlement:
             "trial_started_at": self.trial_started_at,
             "trial_ends_at": self.trial_ends_at,
             "subscription_ends_at": self.subscription_ends_at,
+            "prove_to_start_trial": self.prove_to_start_trial,
         }
 
 
@@ -94,7 +99,25 @@ async def get_entitlement(
         return Entitlement(premium=False, status=STATUS_EXPIRED, **paid, **trial_dates)
     if trial is not None:
         return Entitlement(premium=False, status=STATUS_EXPIRED, **trial_dates)
+
+    unproven = await db.scalar(
+        select(FplAccount.fpl_entry_id).where(
+            FplAccount.user_id == user_id, FplAccount.verified_at.is_(None)
+        )
+    )
+    if unproven is not None and await trial_eligible(db, user_id, unproven):
+        return Entitlement(premium=False, status=STATUS_NONE, prove_to_start_trial=unproven)
     return Entitlement(premium=False, status=STATUS_NONE)
+
+
+async def trial_eligible(db: AsyncSession, user_id: uuid.UUID, fpl_entry_id: int) -> bool:
+    """Whether proving this team would start a trial: neither has had one."""
+    used = await db.scalar(
+        select(Trial.fpl_entry_id).where(
+            or_(Trial.user_id == user_id, Trial.fpl_entry_id == fpl_entry_id)
+        )
+    )
+    return used is None
 
 
 async def start_trial_if_eligible(
@@ -103,13 +126,13 @@ async def start_trial_if_eligible(
     """
     Start the trial when a user first proves a team, unless this user or this
     team has ever had one. Returns the new trial, or None if not eligible.
+
+    Only ever called once control is proven. Eligibility is once per user *and*
+    once per team, so starting it on an unproven connection would let anyone
+    use up a stranger's trial by connecting their public team ID first, or
+    collect trials with throwaway accounts and random IDs.
     """
-    used = await db.scalar(
-        select(Trial.fpl_entry_id).where(
-            or_(Trial.user_id == user_id, Trial.fpl_entry_id == fpl_entry_id)
-        )
-    )
-    if used is not None:
+    if not await trial_eligible(db, user_id, fpl_entry_id):
         return None
     now = now or utcnow()
     trial = Trial(

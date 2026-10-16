@@ -20,7 +20,8 @@ which shows an email/password sign-in on the sign-in screen. Safeguards:
 
 | Email | State | Used by |
 |---|---|---|
-| `e2e-new@fplcopilot.test` | signed up, no team | onboarding |
+| `e2e-new@fplcopilot.test` | signed up, no team | onboarding (stays without a team) |
+| `e2e-connect@fplcopilot.test` | signed up, no team | onboarding/valid-team-id (connects `NEW_TEAM_ID`) |
 | `e2e-trial@fplcopilot.test` | team, trial 20 days left | auth, trial, features, account, network |
 | `e2e-expired@fplcopilot.test` | team, trial ended yesterday | trial, subscription |
 | `e2e-subscriber@fplcopilot.test` | team, annual subscription | subscription |
@@ -55,11 +56,12 @@ payment failing) are tested where the logic lives.
 | Session restoration | `auth/session-restore` | Encrypted session survives restart |
 | Wrong credentials | `auth/wrong-password` | |
 | Account linking | Supabase automatic linking; manual check | Same verified email links identities |
-| Valid FPL Team ID | `onboarding/valid-team-id` + backend `test_onboarding` | Flow reaches the ownership code; verification needs a real team rename |
+| Valid FPL Team ID | `onboarding/valid-team-id` + backend `test_onboarding` | Connects straight away and lands on Home |
+| Team already connected elsewhere | backend `test_onboarding`, mobile `team-id.test` | The takeover's code check needs a real team rename |
 | Invalid FPL Team ID | `onboarding/invalid-team-id` | |
 | FPL API unavailable | backend `test_onboarding` (502/503), mobile `api.test` | Cannot take FPL down from a test |
 | Squad imported | `features/my-team` | Pitch renders the squad |
-| New user receives trial | backend `test_verify_connects_and_starts_the_trial` | |
+| New user is offered the trial, which needs proof | `onboarding/valid-team-id`, backend `test_connecting_a_free_team_is_instant_but_starts_no_trial`, `test_a_stranger_connecting_your_team_cannot_spend_its_trial` | Proving needs a real FPL team rename, so the flow checks the offer, not the start |
 | Trial active before expiry | `trial/trial-user` | |
 | Trial expires / loses premium | `trial/expired-user` + backend boundary and 402 tests | |
 | Client clock cannot extend trial | backend `test_client_clock_cannot_extend_the_trial` | Access uses only the server clock |

@@ -66,7 +66,8 @@ use premium features right now?". `GET /me/entitlements` returns it, and the
 
 ```json
 {"premium": true, "status": "TRIALING", "plan": null, "provider": "TRIAL",
- "trial_started_at": "...", "trial_ends_at": "...", "subscription_ends_at": null}
+ "trial_started_at": "...", "trial_ends_at": "...", "subscription_ends_at": null,
+ "prove_to_start_trial": null}
 ```
 
 Rules, in order:
@@ -88,7 +89,8 @@ There is no `entitlements` table: entitlement is computed from `trials` and
 
 ## The trial
 
-Started inside `POST /me/fpl-accounts/{id}/verify` by
+Started when a team is connected (`POST /me/fpl-accounts`, or
+`.../verify` after a takeover) by
 `start_trial_if_eligible`, only if neither this user nor this team has ever
 had one. The `trials` row is keyed by team and survives account deletion with
 its user detached, so deleting the account and signing up again with the same

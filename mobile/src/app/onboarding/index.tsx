@@ -13,9 +13,11 @@ import { useTheme } from '@/hooks/use-theme';
 const FPL_SITE = 'https://fantasy.premierleague.com/';
 
 /**
- * How connecting works, before the user starts: where the Team ID is, and
- * that the ownership code goes into the team name on the FPL website (the
- * FPL app cannot rename a team).
+ * How connecting works, before the user starts: where the Team ID is, and the
+ * short code in the team name on the FPL website (the FPL app cannot rename a
+ * team) that proves a team is yours. That proof starts the free trial — it is
+ * once per team, so an ID alone cannot claim it — and takes a team back if
+ * another account connected it first.
  */
 export default function Welcome() {
   const theme = useTheme();
@@ -29,26 +31,26 @@ export default function Welcome() {
         pages={[
           <Card key="welcome" variant="hero" style={styles.slide}>
             <ThemedText type="eyebrow" style={{ color: theme.brand }}>
-              Getting started · 1 of 4
+              Getting started · 1 of 3
             </ThemedText>
             <ThemedText type="title" accessibilityRole="header" style={{ color: theme.onHero }}>
               Welcome
             </ThemedText>
             <ThemedText style={{ color: theme.onHeroMuted }}>
-              Connect your FPL team in about two minutes. Swipe for how it works, or tap Connect my team.
+              Connect your FPL team in under a minute. Swipe for how it works, or tap Connect my team.
             </ThemedText>
             <Steps
               items={[
                 { title: 'Find your Team ID', body: 'A number on the FPL website.' },
-                { title: 'Prove the team is yours', body: 'Add a short code to your team name.' },
-                { title: '30 days free', body: 'Your trial starts the moment it is verified.' },
+                { title: 'Enter it', body: 'Your team connects straight away.' },
+                { title: '30 days free', body: 'It starts once a quick code proves the team is yours.' },
               ]}
             />
           </Card>,
 
           <Card key="team-id" style={styles.slide}>
             <ThemedText type="eyebrow" themeColor="textSecondary">
-              Step 1 of 3 · 2 of 4
+              Find your team · 2 of 3
             </ThemedText>
             <ThemedText type="subtitle">Find your Team ID</ThemedText>
             <Steps
@@ -62,37 +64,24 @@ export default function Welcome() {
             <Button title="Open the FPL website" variant="secondary" compact onPress={() => openBrowserAsync(FPL_SITE)} />
           </Card>,
 
-          <Card key="code" style={styles.slide}>
+          <Card key="taken" style={styles.slide}>
             <ThemedText type="eyebrow" themeColor="textSecondary">
-              Step 2 of 3 · 3 of 4
+              If your team is taken · 3 of 3
             </ThemedText>
-            <ThemedText type="subtitle">Add the code to your team name</ThemedText>
+            <ThemedText type="subtitle">A quick code proves it&apos;s yours</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              Anyone can type a Team ID, so we give you a 6-character code to put in your team name. Do it on the FPL
-              website: the FPL app cannot rename a team.
+              Add a short code to your team name for a moment. Only the owner can, so it starts your free trial, and
+              takes the team back if someone else connected it first. Do it on the FPL website: the FPL app cannot
+              rename a team.
             </ThemedText>
             <Steps
               items={[
                 { body: 'On fantasy.premierleague.com, open Pick Team.' },
                 { body: 'Scroll to Admin and tap Team Details.' },
-                { body: 'Add the code anywhere in your team name, then tap Update details.' },
+                { body: 'Add the code anywhere in your team name, tap Update details, then come back and tap Verify.' },
               ]}
             />
             <TeamNameField />
-          </Card>,
-
-          <Card key="verify" style={styles.slide}>
-            <ThemedText type="eyebrow" themeColor="textSecondary">
-              Step 3 of 3 · 4 of 4
-            </ThemedText>
-            <ThemedText type="subtitle">Verify, then change it back</ThemedText>
-            <Steps
-              items={[
-                { body: 'Come back to FPL Copilot and tap Verify. A name change can take a minute to show.' },
-                { body: 'Once verified, change your team name back whenever you like.' },
-                { body: 'Your 30-day free trial starts straight away.' },
-              ]}
-            />
           </Card>,
         ]}
       />

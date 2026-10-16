@@ -19,7 +19,7 @@ tags: [onboarding]
     id: "team-id-input"
 - inputText: "999999999"
 - hideKeyboard
-- tapOn: "Continue"
+- tapOn: "Connect"
 - extendedWaitUntil:
     visible:
       id: "team-id-error"

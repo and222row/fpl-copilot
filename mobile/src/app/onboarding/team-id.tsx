@@ -1,14 +1,15 @@
-import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { Button } from '@/components/button';
+import { Connected } from '@/components/connected';
 import { errorMessage } from '@/components/error-view';
 import { Card, Screen } from '@/components/screen';
 import { Steps } from '@/components/steps';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { api } from '@/lib/api';
+import { ApiError, api, TEAM_TAKEN, type ConnectResult } from '@/lib/api';
+import { proveTeam } from '@/lib/prove';
 import { refreshAccount } from '@/lib/query';
 
 export default function TeamId() {
@@ -16,6 +17,9 @@ export default function TeamId() {
   const [showHelp, setShowHelp] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The team ID another account already holds, offered for takeover.
+  const [taken, setTaken] = useState<number | null>(null);
+  const [done, setDone] = useState<ConnectResult | null>(null);
 
   const teamId = /^\d{1,9}$/.test(value) ? Number(value) : null;
 
@@ -23,20 +27,26 @@ export default function TeamId() {
     if (!teamId) return;
     setBusy(true);
     setError(null);
+    setTaken(null);
     try {
-      const result = await api.startConnection(teamId);
-      if (result.status === 'connected') {
-        await refreshAccount();
-        return;
-      }
-      router.push({
-        pathname: '/onboarding/verify',
-        params: {
-          teamId: String(result.fpl_entry_id),
-          code: result.code,
-          teamName: result.team_name,
-        },
-      });
+      const result = await api.connectTeam(teamId);
+      // trial_started is absent when the team was already ours: nothing new to show.
+      if (result.trial_started === undefined) await refreshAccount();
+      else setDone(result);
+    } catch (e) {
+      if (e instanceof ApiError && e.code === TEAM_TAKEN) setTaken(teamId);
+      else setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function takeOver() {
+    if (!taken) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await proveTeam(taken);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -44,13 +54,21 @@ export default function TeamId() {
     }
   }
 
+  if (done) return <Connected result={done} />;
+
   return (
     <Screen
       belowHeader
       testID="team-id-screen"
       title="Your FPL Team ID"
       subtitle="The number FPL gives your team. We use it to read your squad."
-      footer={<Button title="Continue" onPress={submit} loading={busy} disabled={!teamId} />}>
+      footer={
+        taken === teamId && teamId ? (
+          <Button title="It's my team: take it over" onPress={takeOver} loading={busy} testID="take-over" />
+        ) : (
+          <Button title="Connect" onPress={submit} loading={busy} disabled={!teamId} />
+        )
+      }>
       <TextField
         large
         testID="team-id-input"
@@ -68,6 +86,19 @@ export default function TeamId() {
         <ThemedText testID="team-id-error" themeColor="danger" accessibilityRole="alert">
           {error}
         </ThemedText>
+      ) : null}
+
+      {taken === teamId && teamId ? (
+        <Card testID="team-taken">
+          <ThemedText type="headline" accessibilityRole="alert">
+            This team is already connected to another account
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            Each team can be connected to one FPL Copilot account. If you signed up before with another email, sign in
+            with that one. If the team is yours, take it over: you add a short code to your team name on the FPL
+            website for a moment, which only the owner can do.
+          </ThemedText>
+        </Card>
       ) : null}
 
       <ThemedText type="smallBold" themeColor="accent" accessibilityRole="button" onPress={() => setShowHelp((s) => !s)} style={styles.help}>

@@ -38,6 +38,11 @@ class FplAccount(Base):
     team_name: Mapped[str] = mapped_column(String(120), default="")
     manager_name: Mapped[str] = mapped_column(String(120), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    # When control was proven with a code in the team name. Null for a team
+    # connected by ID alone, which needs no proof since its data is public.
+    # The free trial waits for this: it is once per team, so granting it on
+    # an unproven connection would let anyone spend a stranger's.
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class FplClaim(Base):

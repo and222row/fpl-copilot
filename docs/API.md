@@ -67,11 +67,30 @@ means onboarding; `premium: false` means the paywall.
 
 ```text
 POST /me/fpl-accounts {"fpl_entry_id": 1234567}
-  202 {"status": "verification_required", "code": "K7QM2X", "expires_at": ..., "instructions": ...}
+  201 {"status": "connected", "verified": false, "trial_started": false,
+       "trial_available": true, "entitlement": {...}}
       (200 {"status": "connected"} if it is already yours)
-user adds K7QM2X to their FPL team name
+  409 {"code": "TEAM_TAKEN"} if another account holds the team
+```
+
+Connecting needs no proof, but the free trial does: it is once per team, and a
+team ID is public, so starting it on an ID alone would let anyone use up a
+stranger's. `trial_available: true` means proving the team now would start it.
+The same `claim` / `verify` below proves a team you already hold — the account
+is kept and marked `verified`, and the trial starts. Until then
+`GET /me/entitlements` carries `"prove_to_start_trial": 1234567`, so a client
+can offer the proof instead of reporting the trial as used.
+
+One account per team. The real owner of a team someone else holds takes it
+over the same way, which releases it from the other account:
+
+```text
+POST /me/fpl-accounts/1234567/claim
+  202 {"status": "verification_required", "code": "K7QM2X", "expires_at": ..., "instructions": ...}
+user adds K7QM2X to their FPL team name (on the website; the FPL app cannot rename)
 POST /me/fpl-accounts/1234567/verify
-  201 {"status": "connected", "trial_started": true, "entitlement": {...}}
+  201 {"status": "connected", "verified": true, "trial_started": true, "entitlement": {...}}
+      (trial_started is false if this user or this team has had one)
   422 CODE_NOT_FOUND (name not changed yet), 429 after 10 attempts, 404 if the code expired (30 min)
 ```
 
@@ -220,7 +239,8 @@ parameters and response shapes are in the Swagger UI.
 |---|---|---|---|---|
 | GET | `/api/v1/me` | signed in | default | The caller's identity (from the token) and connected FPL team. |
 | GET | `/api/v1/me/entitlements` | signed in | default | Whether the caller has premium access right now. |
-| POST | `/api/v1/me/fpl-accounts` | signed in | UPSTREAM | Begin connecting a team: confirm it exists, then issue the code that proves control of it. |
+| POST | `/api/v1/me/fpl-accounts` | signed in | UPSTREAM | Connect a team by its ID, straight away. |
+| POST | `/api/v1/me/fpl-accounts/{fpl_entry_id}/claim` | signed in | UPSTREAM | Issue the code that proves control of a team: put it in the team name, then call .../verify. |
 | POST | `/api/v1/me/fpl-accounts/{fpl_entry_id}/verify` | signed in | UPSTREAM | Check FPL for the code in the team name; on success the team is yours. |
 | DELETE | `/api/v1/me/fpl-accounts/{fpl_entry_id}` | signed in | default | Disconnect a team and drop its private state (overrides, alert links). |
 | PUT | `/api/v1/me/devices` | signed in | default | Register this install for push. |

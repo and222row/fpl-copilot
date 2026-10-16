@@ -19,6 +19,8 @@ export interface Entitlement {
   trial_started_at: string | null;
   trial_ends_at: string | null;
   subscription_ends_at: string | null;
+  /** The team whose proof would start a free trial; null when none would. */
+  prove_to_start_trial?: number | null;
 }
 
 export interface FplAccount {
@@ -26,6 +28,8 @@ export interface FplAccount {
   team_name: string;
   manager_name: string;
   connected_at: string;
+  /** Control proven with a code in the team name. The trial waits for it. */
+  verified?: boolean;
 }
 
 export interface Me {
@@ -52,13 +56,21 @@ export interface PendingConnection {
   instructions: string;
 }
 
-export type StartConnectionResult = PendingConnection | ({ status: 'connected' } & FplAccount);
-
 export interface VerifiedConnection extends FplAccount {
   status: 'connected';
   trial_started: boolean;
+  /** Not started yet, but proving the team now would start it. */
+  trial_available?: boolean;
   entitlement: Entitlement;
 }
+
+// trial_started and entitlement are absent when the team was already yours.
+export type ConnectResult = { status: 'connected' } & FplAccount & Partial<VerifiedConnection>;
+
+export type ClaimResult = PendingConnection | ({ status: 'connected' } & FplAccount);
+
+/** The team is connected to another account; its owner can take it over. */
+export const TEAM_TAKEN = 'TEAM_TAKEN';
 
 export interface Gameweek {
   id: number;
@@ -664,11 +676,15 @@ export const api = {
   // Asks the server to confirm with RevenueCat after a purchase or restore.
   // Sends nothing: the server reads the signed-in user's own state.
   syncBilling: () => request<Entitlement>('/billing/sync', { method: 'POST' }),
-  startConnection: (fplEntryId: number) =>
-    request<StartConnectionResult>('/me/fpl-accounts', {
+  // Connects straight away, or fails with TEAM_TAKEN if another account holds it.
+  connectTeam: (fplEntryId: number) =>
+    request<ConnectResult>('/me/fpl-accounts', {
       method: 'POST',
       body: { fpl_entry_id: fplEntryId },
     }),
+  // Taking a team over: a code to put in the team name, then verifyConnection.
+  claimConnection: (fplEntryId: number) =>
+    request<ClaimResult>(`/me/fpl-accounts/${fplEntryId}/claim`, { method: 'POST' }),
   verifyConnection: (fplEntryId: number) =>
     request<VerifiedConnection>(`/me/fpl-accounts/${fplEntryId}/verify`, { method: 'POST' }),
   disconnect: (fplEntryId: number) =>
