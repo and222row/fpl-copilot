@@ -122,7 +122,6 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test -- --ci
-      - run: npx expo-doctor
 
       # Critical only: the open highs are in Expo's build tooling (node-forge,
       # braces), not in the app bundle, and have no fix within SDK 57. See
@@ -150,6 +149,20 @@ jobs:
             echo "::error::The e2e sign-in form is in a non-e2e bundle"
             exit 1
           fi
+
+      # Last, and non-blocking on the nightly run. expo-doctor compares
+      # installed packages against the versions Expo currently recommends,
+      # fetched live, so it flips from pass to fail whenever Expo publishes a
+      # patch — with no change in this repository. Placed before the steps
+      # above, that failure skipped the vulnerability audit and both test
+      # sign-in leak checks for three nights running (13–15 Oct 2026).
+      #
+      # On a push or PR it still fails the job: someone is changing the code
+      # and can run `npx expo install --fix`. On the nightly nothing in the
+      # repo changed, so it is reported as a warning rather than an outage.
+      - name: Expo dependency versions
+        continue-on-error: ${{ github.event_name == 'schedule' }}
+        run: npx expo-doctor
           echo "Not present."
 
   secrets:
