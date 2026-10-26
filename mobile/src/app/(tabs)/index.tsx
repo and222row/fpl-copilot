@@ -12,8 +12,9 @@ import { Stat, StatRow } from '@/components/stat';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import type { AlertItem, Entitlement, Recommendation } from '@/lib/api';
-import { useAlerts, useEntitlement, useMe, useRecommendation } from '@/lib/query';
+import type { AlertItem, Entitlement, LiveView, Recommendation } from '@/lib/api';
+import { liveBadge } from '@/lib/live';
+import { useAlerts, useEntitlement, useLive, useMe, useRecommendation } from '@/lib/query';
 import { pushState } from '@/lib/push';
 import { money, signed } from '@/lib/squad';
 
@@ -39,12 +40,14 @@ export default function Home() {
 
   const rec = useRecommendation(teamId);
   const alerts = useAlerts(teamId);
+  const live = useLive(teamId);
   const push = useQuery({ queryKey: ['push-state'], queryFn: pushState });
 
   const daysLeft = trialDaysLeft(entitlement.data);
   const refresh = () => {
     rec.refetch();
     alerts.refetch();
+    live.refetch();
     entitlement.refetch();
   };
 
@@ -55,6 +58,7 @@ export default function Home() {
       subtitle={daysLeft !== null ? <TrialStatus daysLeft={daysLeft} /> : undefined}
       onRefresh={refresh}
       refreshing={rec.isRefetching}>
+      {live.data ? <LiveCard live={live.data} /> : null}
       {rec.isPending ? <ThemedText themeColor="textSecondary">Working out your best moves…</ThemedText> : null}
       {rec.isError ? <ErrorView error={rec.error} onRetry={() => rec.refetch()} /> : null}
       {rec.data ? <RecommendationView rec={rec.data} /> : null}
@@ -63,6 +67,12 @@ export default function Home() {
 
       <SectionHeader title="Tools" />
       <ListGroup>
+        <ListRow
+          testID="tool-live"
+          title="Live gameweek"
+          subtitle="Your points as they happen, and your leagues live"
+          onPress={() => router.push('/live')}
+        />
         <ListRow
           testID="tool-leagues"
           title="Mini-leagues"
@@ -219,6 +229,31 @@ function RecommendationView({ rec }: { rec: Recommendation }) {
   );
 }
 
+/** The gameweek being played, at a glance: points so far and who is left. */
+function LiveCard({ live }: { live: LiveView }) {
+  const badge = liveBadge(live);
+  return (
+    <Pressable testID="home-live" accessibilityRole="button" onPress={() => router.push('/live')}>
+      <Card style={styles.live}>
+        <View style={styles.grow}>
+          <View style={styles.liveTitle}>
+            <ThemedText type="smallBold">{live.gameweek.name}</ThemedText>
+            <Pill label={badge.label} color={badge.color} soft={badge.soft} />
+          </View>
+          <ThemedText type="caption" themeColor="textSecondary">
+            {live.finished
+              ? `Average ${live.gameweek.average ?? '—'} · highest ${live.gameweek.highest ?? '—'}`
+              : `${live.players_left} still to play${live.provisional_bonus ? ` · ${live.provisional_bonus} provisional bonus` : ''}`}
+          </ThemedText>
+        </View>
+        <ThemedText type="title" style={styles.livePoints}>
+          {live.points}
+        </ThemedText>
+      </Card>
+    </Pressable>
+  );
+}
+
 function AlertsView({ alerts }: { alerts: AlertItem[] | undefined }) {
   const important = (alerts ?? []).filter((a) => a.severity !== 'info').slice(0, 6);
   if (important.length === 0) return null;
@@ -301,4 +336,7 @@ const styles = StyleSheet.create({
   noticeLink: { marginTop: 'auto', fontWeight: '700' },
   grow: { flex: 1 },
   alignEnd: { alignItems: 'flex-end' },
+  live: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  liveTitle: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, flexWrap: 'wrap' },
+  livePoints: { fontVariant: ['tabular-nums'] },
 });

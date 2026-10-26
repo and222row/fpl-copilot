@@ -27,13 +27,18 @@ jest.mock('@/lib/query', () => ({
   useChips: () => mockQueries.chips,
   useDreamTeam: () => mockQueries.dream,
   useTrackRecord: () => mockQueries.record,
+  useLive: () => mockQueries.live,
+  useLiveLeague: () => mockQueries.liveLeague,
   refreshSquadDerived: () => mockRefresh(),
 }));
+jest.mock('expo-image', () => ({ Image: () => null }));
 
 import Chips from '@/app/chips';
 import DreamTeam from '@/app/dream-team';
 import League from '@/app/league/[id]';
 import Leagues from '@/app/leagues';
+import Live from '@/app/live';
+import LiveLeagueScreen from '@/app/live-league/[id]';
 import RecordTransfers from '@/app/record-transfers';
 import Rival from '@/app/rival/[id]';
 import TrackRecord from '@/app/track-record';
@@ -176,6 +181,66 @@ describe('mini-leagues', () => {
     expect(screen.getByLabelText('Haaland, MCI, LIV (A), captain, you own him too')).toBeTruthy();
     expect(screen.getByText('No fixture')).toBeTruthy(); // the benched keeper blanks
     expect(screen.getByLabelText('Their bench')).toBeTruthy();
+  });
+});
+
+describe('live gameweek', () => {
+  const slot = (player_id: number, name: string, position: string, extra = {}) => ({
+    player_id, name, team: 'ARS', position, price: 6, xpts: 4, kit: null, fixtures: ['LIV (A)'], slot: player_id,
+    starting: true, is_captain: false, is_vice_captain: false, you_own: false,
+    points: 2, provisional_bonus: 0, multiplier: 1, minutes: 90, state: 'done', subbed_in: false, subbed_out: false, ...extra,
+  });
+  const status = { in_play: true, finished: false, matches_done: 6, matches_total: 10, next_kickoff: null };
+
+  test('your points, the armband, projected subs and points on the pitch', async () => {
+    mockQueries.leagues = ok({ leagues: [{ id: 911741, name: 'Hossam Hassan Ball', private: true, rank: 3, last_rank: 5, size: 11 }] });
+    mockQueries.live = ok({
+      ...status,
+      gameweek: { id: 8, name: 'Gameweek 8', average: 45, highest: 120 },
+      points: 52, provisional_bonus: 6, transfer_cost: 4, players_left: 3, chip: '3xc',
+      captain: 'Haaland', armband: 'Salah', auto_subs: [{ out: 'Gabriel', in: 'Saliba' }], total: 512,
+      squad: [
+        slot(1, 'Raya', 'GKP'),
+        slot(4, 'Salah', 'MID', { points: 8, provisional_bonus: 2, multiplier: 3, state: 'playing', is_vice_captain: true }),
+        slot(5, 'Haaland', 'FWD', { points: 0, minutes: 0, multiplier: 0, is_captain: true, starting: false, slot: 12 }),
+        slot(6, 'Saka', 'MID', { points: 0, minutes: 0, state: 'to_play' }),
+      ],
+    });
+    await render(<Live />);
+    expect(screen.getByTestId('live-points').props.children).toEqual([52, ' pts']);
+    expect(screen.getByText('includes 6 provisional bonus · −4 for transfers')).toBeTruthy();
+    expect(screen.getByText('Live')).toBeTruthy();
+    expect(screen.getByText(/Triple Captain played/)).toBeTruthy();
+    expect(screen.getByText("Haaland didn't play, so Salah takes the armband.")).toBeTruthy();
+    expect(screen.getByText('Saliba on for Gabriel')).toBeTruthy();
+    expect(screen.getByLabelText('Salah, ARS, 24 pts · live, vice captain')).toBeTruthy(); // 8 x 3
+    expect(screen.getByLabelText('Saka, ARS, LIV (A)')).toBeTruthy(); // yet to play: the fixture
+    expect(screen.getByLabelText('Your bench')).toBeTruthy();
+
+    await userEvent.setup().press(screen.getByTestId('live-league-911741'));
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/live-league/[id]', params: { id: '911741', name: 'Hossam Hassan Ball' } });
+  });
+
+  test('the live table re-ranks and shows who is still to play', async () => {
+    mockQueries.params = { id: '911741' };
+    mockQueries.liveLeague = ok({
+      ...status,
+      league: { id: 911741, name: 'Hossam Hassan Ball', size: 11 },
+      gameweek: { id: 8, name: 'Gameweek 8' },
+      managers_read: 11, partial: false, your_live_rank: 1, gap_to_leader: 0, gap_to_next: null,
+      standings: [
+        { entry: 6727534, team_name: "Andrew's Team", manager_name: 'Andrew', rank: 3, last_rank: 3, live_rank: 1, gameweek_points: 70, total: 405, players_left: 2, captain: 'Salah', chip: null, is_you: true },
+        { entry: 4276486, team_name: 'Poehlerboyz', manager_name: 'Jonas', rank: 1, last_rank: 1, live_rank: 2, gameweek_points: 40, total: 398, players_left: 0, captain: 'Haaland', chip: 'bboost', is_you: false },
+      ],
+    });
+    await render(<LiveLeagueScreen />);
+    expect(screen.getByText('#1')).toBeTruthy();
+    expect(screen.getByText('Top')).toBeTruthy();
+    expect(screen.getByText('(C) Salah · 2 to play')).toBeTruthy();
+    expect(screen.getByText('(C) Haaland · 0 to play · Bench Boost')).toBeTruthy();
+    expect(screen.getByText('▲')).toBeTruthy(); // you, 3rd at the start of the gameweek
+    await userEvent.setup().press(screen.getByTestId('live-standing-4276486'));
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/rival/[id]', params: { id: '4276486', league: '911741' } });
   });
 });
 

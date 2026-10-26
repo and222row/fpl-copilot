@@ -1,5 +1,5 @@
 appId: com.fplcopilot.app
-name: Home tools open - mini-leagues, chips, dream team, track record, recording transfers
+name: Home tools open - live gameweek, mini-leagues, chips, dream team, track record, recording transfers
 tags: [features]
 ---
 - runFlow:
@@ -10,6 +10,20 @@ tags: [features]
     visible:
       id: "home-screen"
     timeout: 90000
+
+# Live gameweek: the seeded team's points for the gameweek in play, on a pitch.
+- scrollUntilVisible:
+    element:
+      id: "tool-live"
+- tapOn:
+    id: "tool-live"
+- extendedWaitUntil:
+    visible:
+      id: "live-points"
+    timeout: 30000
+- assertVisible:
+    id: "kit-pitch"
+- back
 
 # Mini-leagues: the seeded team is in FPL's own leagues at least.
 - scrollUntilVisible:

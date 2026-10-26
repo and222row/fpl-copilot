@@ -1,6 +1,6 @@
 import { QueryCache, QueryClient, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 
-import { api, ApiError, type ExplorerFilters } from '@/lib/api';
+import { api, ApiError, type ExplorerFilters, type LiveStatus } from '@/lib/api';
 
 // Errors that retrying cannot fix.
 const PERMANENT = new Set([400, 401, 402, 403, 404, 409, 422]);
@@ -22,6 +22,8 @@ export const queryKeys = {
   leagues: (managerId: number) => ['leagues', managerId] as const,
   league: (managerId: number, leagueId: number) => ['league', managerId, leagueId] as const,
   rival: (managerId: number, leagueId: number, rivalId: number) => ['rival', managerId, leagueId, rivalId] as const,
+  live: (managerId: number) => ['live', managerId] as const,
+  liveLeague: (managerId: number, leagueId: number) => ['live-league', managerId, leagueId] as const,
   chips: (managerId: number) => ['chips', managerId] as const,
   dreamTeam: (budget: number, horizon: number) => ['dream-team', budget, horizon] as const,
   accuracy: (managerId: number) => ['accuracy', managerId] as const,
@@ -171,6 +173,34 @@ export function useRival(teamId: number | undefined, leagueId: number, rivalId: 
     queryFn: () => api.rival(teamId!, leagueId, rivalId),
     enabled: !!teamId,
     staleTime: 5 * 60_000,
+  });
+}
+
+// The server refreshes FPL's live data once a minute, so polling faster gains
+// nothing. Only while a match is being played: otherwise nothing moves.
+export const LIVE_POLL_MS = 60_000;
+
+function livePoll(data: LiveStatus | undefined): number | false {
+  return data?.in_play ? LIVE_POLL_MS : false;
+}
+
+export function useLive(teamId: number | undefined) {
+  return useQuery({
+    queryKey: queryKeys.live(teamId ?? 0),
+    queryFn: () => api.live(teamId!),
+    enabled: !!teamId,
+    staleTime: LIVE_POLL_MS,
+    refetchInterval: (q) => livePoll(q.state.data),
+  });
+}
+
+export function useLiveLeague(teamId: number | undefined, leagueId: number) {
+  return useQuery({
+    queryKey: queryKeys.liveLeague(teamId ?? 0, leagueId),
+    queryFn: () => api.liveLeague(teamId!, leagueId),
+    enabled: !!teamId,
+    staleTime: LIVE_POLL_MS,
+    refetchInterval: (q) => livePoll(q.state.data),
   });
 }
 

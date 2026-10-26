@@ -17,15 +17,28 @@ function fixtureText(p: SquadSlot): string {
   return p.fixtures && p.fixtures.length ? p.fixtures.join(', ') : 'No fixture';
 }
 
-/** A squad drawn the way the FPL app draws it: shirts on a pitch, bench below. */
-export function KitPitch({ squad }: { squad: SquadSlot[] }) {
+/**
+ * A squad drawn the way the FPL app draws it: shirts on a pitch, bench below.
+ * Under each shirt is the next fixture, or whatever `caption` returns (the
+ * live screen shows points there).
+ */
+export function KitPitch<T extends SquadSlot>({
+  squad,
+  caption,
+  whose = 'Their',
+}: {
+  squad: T[];
+  caption?: (p: T) => string;
+  whose?: 'Their' | 'Your';
+}) {
   const starters = squad.filter((p) => p.starting);
   const bench = squad.filter((p) => !p.starting).sort((a, b) => a.slot - b.slot);
   const rows = ORDER.map((pos) => starters.filter((p) => p.position === pos)).filter((r) => r.length);
+  const label = (p: T) => (caption ? caption(p) : fixtureText(p));
 
   return (
     <View testID="kit-pitch" style={styles.wrap}>
-      <View style={styles.pitch} accessibilityLabel="Their starting eleven">
+      <View style={styles.pitch} accessibilityLabel={`${whose} starting eleven`}>
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
           {Array.from({ length: 8 }, (_, i) => (
             <View key={i} style={[styles.stripe, { backgroundColor: i % 2 ? GRASS_STRIPE : GRASS }]} />
@@ -38,17 +51,17 @@ export function KitPitch({ squad }: { squad: SquadSlot[] }) {
         {rows.map((row) => (
           <View key={row[0].position} style={styles.row}>
             {row.map((p) => (
-              <Shirt key={p.player_id} player={p} />
+              <Shirt key={p.player_id} player={p} caption={label(p)} />
             ))}
           </View>
         ))}
       </View>
       {bench.length ? (
-        <View style={styles.bench} accessibilityLabel="Their bench">
+        <View style={styles.bench} accessibilityLabel={`${whose} bench`}>
           {bench.map((p) => (
             <View key={p.player_id} style={styles.benchSlot}>
               <ThemedText style={styles.benchLabel}>{p.position}</ThemedText>
-              <Shirt player={p} />
+              <Shirt player={p} caption={label(p)} />
             </View>
           ))}
         </View>
@@ -57,13 +70,13 @@ export function KitPitch({ squad }: { squad: SquadSlot[] }) {
   );
 }
 
-function Shirt({ player }: { player: SquadSlot }) {
+function Shirt({ player, caption }: { player: SquadSlot; caption: string }) {
   const badge = player.is_captain ? 'C' : player.is_vice_captain ? 'V' : null;
   return (
     <Pressable
       testID={`kit-${player.player_id}`}
       accessibilityRole="button"
-      accessibilityLabel={`${player.name}, ${player.team}, ${fixtureText(player)}${badge === 'C' ? ', captain' : badge === 'V' ? ', vice captain' : ''}${player.you_own ? ', you own him too' : ''}`}
+      accessibilityLabel={`${player.name}, ${player.team}, ${caption}${badge === 'C' ? ', captain' : badge === 'V' ? ', vice captain' : ''}${player.you_own ? ', you own him too' : ''}`}
       onPress={() => openPlayer(player.player_id)}
       style={({ pressed }) => [styles.token, pressed && { opacity: 0.7 }]}>
       <View>
@@ -88,7 +101,7 @@ function Shirt({ player }: { player: SquadSlot }) {
       </View>
       <View style={styles.fixture}>
         <ThemedText numberOfLines={1} style={styles.fixtureText}>
-          {fixtureText(player)}
+          {caption}
         </ThemedText>
       </View>
     </Pressable>

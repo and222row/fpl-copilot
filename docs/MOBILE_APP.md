@@ -34,6 +34,11 @@ Supabase Auth, RevenueCat and the stores; it holds no backend credential.
   transfers already made in FPL, not just the recommended ones. Only legal,
   affordable replacements are offered (same position, at most 3 per club,
   within the bank), and the server checks the same rules.
+- **Live gameweek** (a card at the top of Home, and Home → Tools): your
+  points as matches are played, with provisional bonus, projected automatic
+  substitutions and captaincy, and points under each shirt on the pitch;
+  each of your private leagues re-ranked live, with every manager's captain,
+  chip and players left. Refreshes every minute while a match is on.
 - **Mini-leagues** (Home → Tools): your leagues with rank and movement; a
   league's table, the gap to the leader and the next place, the players most
   of the top ten own that you don't, and your differentials; head to head

@@ -468,6 +468,79 @@ export interface RivalView {
   projections_for_gameweek: number;
 }
 
+// ── Live gameweek ────────────────────────────────────────────────────────────
+
+export type LiveState = 'to_play' | 'playing' | 'done';
+
+/** Where the gameweek's matches stand. */
+export interface LiveStatus {
+  in_play: boolean;
+  finished: boolean;
+  matches_done: number;
+  matches_total: number;
+  next_kickoff: string | null;
+}
+
+/** One of your 15, with what they have scored so far. */
+export interface LivePlayer extends SquadSlot {
+  /** Points so far, provisional bonus included, before the captain's multiplier. */
+  points: number;
+  provisional_bonus: number;
+  /** 0 on the bench or subbed off, 2 (3 with triple captain) for the armband. */
+  multiplier: number;
+  minutes: number;
+  state: LiveState;
+  subbed_in: boolean;
+  subbed_out: boolean;
+}
+
+export interface LiveView extends LiveStatus {
+  gameweek: { id: number; name: string; average: number | null; highest: number | null };
+  /** Gameweek points after any transfer hit. */
+  points: number;
+  provisional_bonus: number;
+  transfer_cost: number;
+  players_left: number;
+  chip: string | null;
+  captain: string | null;
+  /** Who the multiplier applies to now: the vice if the captain didn't play. */
+  armband: string | null;
+  /** Projected substitutions FPL hasn't made yet. */
+  auto_subs: { out: string | null; in: string | null }[];
+  /** Season total including this gameweek so far. */
+  total: number;
+  squad: LivePlayer[];
+}
+
+export interface LiveStandingRow {
+  entry: number;
+  team_name: string;
+  manager_name: string;
+  /** FPL's rank, which lags during matches. */
+  rank: number;
+  last_rank: number;
+  /** Rank by live total among the managers read; null when you are below them. */
+  live_rank: number | null;
+  gameweek_points: number;
+  total: number;
+  players_left: number | null;
+  captain: string | null;
+  chip: string | null;
+  is_you: boolean;
+}
+
+export interface LiveLeague extends LiveStatus {
+  league: { id: number; name: string; size: number | null };
+  gameweek: { id: number; name: string };
+  managers_read: number;
+  /** The league is bigger than the part read, so lower managers aren't ranked live. */
+  partial: boolean;
+  your_live_rank: number | null;
+  gap_to_leader: number | null;
+  gap_to_next: number | null;
+  standings: LiveStandingRow[];
+}
+
 // ── Chips ────────────────────────────────────────────────────────────────────
 
 export interface ChipItem {
@@ -741,6 +814,10 @@ export const api = {
     request<LeagueView>(`/leagues/${managerId}/${leagueId}`, { timeoutMs: 45_000 }),
   rival: (managerId: number, leagueId: number, rivalId: number) =>
     request<RivalView>(`/leagues/${managerId}/${leagueId}/rivals/${rivalId}`),
+  live: (managerId: number) => request<LiveView>(`/live/${managerId}`),
+  // Reads up to thirty squads from FPL on a cold cache.
+  liveLeague: (managerId: number, leagueId: number) =>
+    request<LiveLeague>(`/live/${managerId}/leagues/${leagueId}`, { timeoutMs: 45_000 }),
   chips: (managerId: number, horizon = 5) =>
     request<ChipAdvice>(`/chips/${managerId}?horizon=${horizon}`, { timeoutMs: 90_000 }),
   // A whole-pool solve: seconds on a warm server.
