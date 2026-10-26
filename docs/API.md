@@ -19,6 +19,7 @@ docs are at http://localhost:8000/api/docs (Swagger) and `/api/redoc`; both and
 | owner | The `{manager_id}` in the path must be the FPL team connected to the caller's account. | 401 without a token, 403 for someone else's team |
 | premium | The caller has a live trial or subscription, decided by the server. | 402 with `code: PREMIUM_REQUIRED` and the entitlement |
 | operator | `X-Job-Token` header matching `JOB_TOKEN`. In production a missing `JOB_TOKEN` refuses every call (503). | 401 |
+| admin | An account whose `app_metadata.role` is `admin` (set by `scripts/make_admin.py`), signed in with a verified second factor (`aal2`). Every action takes a reason and is written to `admin_audit`. | 401 without a token, 403 otherwise (`code: MFA_REQUIRED` without the second factor) |
 | webhook secret | The provider's shared secret (and, for RevenueCat, an HMAC signature). | 401 |
 
 `owner` and `premium` only accept anonymous calls while `AUTH_REQUIRED=false`,
@@ -304,6 +305,21 @@ parameters and response shapes are in the Swagger UI.
 | Method | Path | Access | Rate limit | Purpose |
 |---|---|---|---|---|
 | GET | `/api/v1/preview/{team_id}` | public | HEAVY | Public, no sign-in: a team's public FPL details and a teaser of the advice (the gain, not the players). |
+
+### admin
+
+| Method | Path | Access | Rate limit | Purpose |
+|---|---|---|---|---|
+| GET | `/api/v1/admin/overview` | admin | UPSTREAM | Users, subscribers, sign-ups, trial conversion, notifications and job health. |
+| GET | `/api/v1/admin/users` | admin | UPSTREAM | Search users; emails are masked in the list and shown in full on a user's page. |
+| GET | `/api/v1/admin/users/{user_id}` | admin | UPSTREAM | One user in full: account, team, access, billing, devices, notifications, pushes, audit. |
+| GET | `/api/v1/admin/audit` | admin | UPSTREAM | The most recent admin actions, newest first. |
+| POST | `/api/v1/admin/users/{user_id}/grant` | admin | UPSTREAM | Free access for some days, on top of any free access already running. |
+| POST | `/api/v1/admin/users/{user_id}/end-grant` | admin | UPSTREAM | End free access granted from the dashboard. |
+| POST | `/api/v1/admin/users/{user_id}/release-team` | admin | UPSTREAM | Disconnect the user's team so its rightful owner can connect it, for an ownership dispute. |
+| POST | `/api/v1/admin/users/{user_id}/sync-billing` | admin | UPSTREAM | Re-read the user's subscription from RevenueCat, when the app and the store disagree. |
+| POST | `/api/v1/admin/users/{user_id}/test-push` | admin | UPSTREAM | Send a test notification to the user's phones, to check delivery. |
+| DELETE | `/api/v1/admin/users/{user_id}` | admin | UPSTREAM | Delete an account at the user's request, exactly as deleting it in the app does. |
 
 ### root
 

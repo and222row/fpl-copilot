@@ -42,6 +42,8 @@ def _access(path: str, calls: set) -> str:
         return "webhook secret"
     if auth.require_job_token in calls:
         return "operator"
+    if auth.require_admin in calls:
+        return "admin"
     parts = []
     if auth.require_manager_access in calls:
         parts.append("owner")

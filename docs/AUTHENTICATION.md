@@ -102,9 +102,29 @@ lists which each route uses):
 | `ManagerAccess` | Any route with `{manager_id}`: that FPL team must be connected to the caller. 403 otherwise. |
 | `Premium` | A live trial or subscription from the entitlement service (see [PAYMENTS.md](PAYMENTS.md)). 402 `PREMIUM_REQUIRED` otherwise. |
 | `JobToken` | Operator endpoints: `X-Job-Token`, constant-time compared. Fails closed in production if unset. |
+| `Admin` | The admin dashboard (`/admin/*`): `app_metadata.role == "admin"` in the signed token and `aal == "aal2"` (a second factor verified this session). 403 otherwise, `MFA_REQUIRED` when only the factor is missing. |
 
 Structural tests walk every route and fail if a `{manager_id}` route lacks
 ownership, an advice route lacks `Premium`, or a write route is unguarded.
+
+### The admin dashboard
+
+The website's `/admin` page, for support: users and subscribers, and a few
+audited actions (free access, ending it, re-checking a subscription with
+RevenueCat, a test notification, releasing a disputed team, deleting an
+account on request). Who is an admin is decided only by `app_metadata`, which
+users cannot write: `python scripts/make_admin.py <user-id>` sets it (and
+`--revoke` removes it), and it takes effect at the next sign-in. A
+`user_metadata.role` is ignored. The page enrols an authenticator app (TOTP)
+on first visit and asks for a code after that; the API checks `aal2` from the
+token itself, so the page is convenience and the server is the boundary.
+
+Every action takes a written reason and is written to `admin_audit` in the
+same transaction, including opening a user's page; the table has no foreign
+key to users, so the record of a deletion outlives the account. Store
+subscriptions are never edited: free access is a separate promotional
+subscription (`product_id = "admin_grant"`) that the RevenueCat sync leaves
+alone, and it is refused for anyone already paying through a store.
 
 The client never supplies a user id, team id it owns, role, price or
 entitlement that the server trusts. The app's screen routing

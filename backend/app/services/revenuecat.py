@@ -30,6 +30,10 @@ STORE_PROVIDERS = {
     "stripe": "STRIPE",
     "promotional": "PROMOTIONAL",
 }
+PROMOTIONAL = "PROMOTIONAL"
+# product_id of free access granted from our admin dashboard, as opposed to a
+# promotional entitlement granted in RevenueCat (which RevenueCat still owns).
+ADMIN_GRANT_PRODUCT = "admin_grant"
 
 
 class RevenueCatUnavailable(Exception):
@@ -155,6 +159,10 @@ async def refresh_subscription(db: AsyncSession, user_id: uuid.UUID) -> Subscrip
     row = await db.scalar(select(Subscription).where(Subscription.user_id == user_id))
     if state is None:
         # Never subscribed, or RevenueCat no longer lists the entitlement.
+        # Free access granted from the admin dashboard is not RevenueCat's to
+        # end: it runs out by its own date, or a purchase replaces it.
+        if row is not None and row.provider == PROMOTIONAL and row.product_id == ADMIN_GRANT_PRODUCT:
+            return row
         if row is not None:
             row.status = "EXPIRED"
             row.synced_at = utcnow()

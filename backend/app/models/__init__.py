@@ -12,6 +12,7 @@ from app.models.accounts import User, FplAccount, FplClaim, Trial, DeletedUser
 from app.models.billing import Subscription, BillingEvent
 from app.models.notifications import Device, NotificationPreference, PushDelivery
 from app.models.ops import JobRun
+from app.models.admin import AdminAudit
 
 __all__ = [
     "Team",
@@ -40,5 +41,6 @@ __all__ = [
     "NotificationPreference",
     "PushDelivery",
     "JobRun",
+    "AdminAudit",
     "utcnow",
 ]

@@ -347,7 +347,7 @@ SELF_GUARDED_WRITES = {
 
 def test_every_write_route_is_guarded():
     """A new POST/DELETE that nobody thought to protect fails here."""
-    from app.auth import JobToken
+    from app.auth import Admin, JobToken
     from app.main import app
 
     unguarded = [
@@ -356,6 +356,7 @@ def test_every_write_route_is_guarded():
         if r.methods & {"POST", "DELETE", "PUT", "PATCH"}
         and JobToken not in r.dependencies
         and ManagerAccess not in r.dependencies
+        and Admin not in r.dependencies
         and r.path not in SELF_GUARDED_WRITES
     ]
     assert unguarded == []

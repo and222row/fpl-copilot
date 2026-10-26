@@ -50,6 +50,13 @@ class AuthUser:
     email: str | None = None
     phone: str | None = None
     providers: list[str] = field(default_factory=list)
+    # From app_metadata, which only the Supabase admin API can write: a user
+    # cannot make themselves an admin. Not the token's top-level "role",
+    # which is the Postgres role ("authenticated") for every user.
+    app_role: str | None = None
+    # Authenticator assurance level: "aal2" once a second factor was verified
+    # in this session.
+    aal: str | None = None
 
 
 def _unauthorized(detail: str) -> HTTPException:
@@ -157,6 +164,8 @@ def _auth_user(claims: dict) -> AuthUser:
         email=claims.get("email") or None,
         phone=claims.get("phone") or None,
         providers=list(providers),
+        app_role=app_meta.get("role") or None,
+        aal=claims.get("aal") or None,
     )
 
 
@@ -275,6 +284,27 @@ async def require_job_token(
         raise HTTPException(401, "Invalid or missing X-Job-Token header")
 
 
+ADMIN_ROLE = "admin"
+
+
+async def require_admin(user: AuthUser = Depends(current_user)) -> AuthUser:
+    """
+    Gate the admin dashboard: an account marked admin in its app_metadata
+    (set only through Supabase's admin API, see scripts/make_admin.py) that
+    has verified a second factor in this session. Both come from the signed
+    token, never from anything the browser sends alongside it.
+    """
+    if user.app_role != ADMIN_ROLE:
+        raise HTTPException(403, "Admins only")
+    if user.aal != "aal2":
+        raise HTTPException(403, {
+            "code": "MFA_REQUIRED",
+            "message": "Verify your authenticator code to use the admin dashboard.",
+        })
+    return user
+
+
 ManagerAccess = Depends(require_manager_access)
 Premium = Depends(require_premium)
 JobToken = Depends(require_job_token)
+Admin = Depends(require_admin)

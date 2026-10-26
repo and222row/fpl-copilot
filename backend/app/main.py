@@ -15,7 +15,7 @@ from app.security import BodySizeLimitMiddleware, run_startup_checks
 from app.services.fpl_client import close_client as close_fpl_client
 from app.routers import (
     health, fpl, projections, decisions, news, feedback, planner, jobs,
-    dream_team, notifications, chips, me, players, billing, leagues, live, review, h2h, preview,
+    dream_team, notifications, chips, me, players, billing, leagues, live, review, h2h, preview, admin,
 )
 from app import scheduler
 
@@ -163,6 +163,7 @@ app.include_router(live.router, prefix="/api/v1")
 app.include_router(review.router, prefix="/api/v1")
 app.include_router(h2h.router, prefix="/api/v1")
 app.include_router(preview.router, prefix="/api/v1")
+app.include_router(admin.router, prefix="/api/v1")
 
 
 @app.get("/")
