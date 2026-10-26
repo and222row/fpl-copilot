@@ -15,7 +15,12 @@ const KINDS: { key: keyof NotificationSettings; title: string; detail: string }[
   { key: 'availability', title: 'Injuries and availability', detail: 'A player in your squad is injured, doubtful, suspended or back.' },
   { key: 'price', title: 'Price changes', detail: 'A player you own changed price or is about to.' },
   { key: 'deadline', title: 'Deadline reminder', detail: 'Two hours before each deadline, with your recommended transfers and captain.' },
-  { key: 'live', title: 'Goals and full time', detail: "Your players' goals, assists and red cards as they happen, and each match's points at full time." },
+  {
+    key: 'live',
+    title: 'Goals and full time',
+    detail:
+      "Your players' goals, assists and red cards as they happen, your rival's captain scoring, each match's points at full time, and your gameweek review.",
+  },
 ];
 
 const SETTINGS_KEY = ['notification-settings'];

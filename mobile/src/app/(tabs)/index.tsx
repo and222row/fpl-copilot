@@ -74,6 +74,12 @@ export default function Home() {
           onPress={() => router.push('/live')}
         />
         <ListRow
+          testID="tool-review"
+          title="Gameweek review"
+          subtitle="How your last gameweek went, and your season so far"
+          onPress={() => router.push('/review')}
+        />
+        <ListRow
           testID="tool-fixtures"
           title="Fixture planner"
           subtitle="Every club's next fixtures, rated for attackers and defenders"

@@ -25,6 +25,7 @@ export const queryKeys = {
   live: (managerId: number) => ['live', managerId] as const,
   liveLeague: (managerId: number, leagueId: number) => ['live-league', managerId, leagueId] as const,
   fixturePlanner: (gameweeks: number) => ['fixture-planner', gameweeks] as const,
+  review: (managerId: number) => ['review', managerId] as const,
   chips: (managerId: number) => ['chips', managerId] as const,
   dreamTeam: (budget: number, horizon: number) => ['dream-team', budget, horizon] as const,
   accuracy: (managerId: number) => ['accuracy', managerId] as const,
@@ -202,6 +203,16 @@ export function useLiveLeague(teamId: number | undefined, leagueId: number) {
     enabled: !!teamId,
     staleTime: LIVE_POLL_MS,
     refetchInterval: (q) => livePoll(q.state.data),
+  });
+}
+
+// A finished gameweek changes only when FPL confirms bonus or the next one ends.
+export function useReview(teamId: number | undefined) {
+  return useQuery({
+    queryKey: queryKeys.review(teamId ?? 0),
+    queryFn: () => api.review(teamId!),
+    enabled: !!teamId,
+    staleTime: 10 * 60_000,
   });
 }
 

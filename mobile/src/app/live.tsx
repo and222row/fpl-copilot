@@ -30,6 +30,17 @@ export default function Live() {
       {live.isPending ? <ThemedText themeColor="textSecondary">Reading the live scores…</ThemedText> : null}
       {live.isError ? <ErrorView error={live.error} onRetry={() => live.refetch()} /> : null}
       {live.data ? <LiveBody data={live.data} /> : null}
+      {live.data?.finished ? (
+        <ListGroup>
+          <ListRow
+            testID="live-review"
+            title="Your gameweek review"
+            subtitle="Best and worst picks, your captain, how the advice did"
+            onPress={() => router.push('/review')}
+            last
+          />
+        </ListGroup>
+      ) : null}
 
       {mine.length > 0 ? (
         <>

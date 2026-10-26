@@ -570,6 +570,59 @@ export interface LiveLeague extends LiveStatus {
   standings: LiveStandingRow[];
 }
 
+// ── Gameweek review ──────────────────────────────────────────────────────────
+
+export interface ReviewPlayer {
+  player_id: number;
+  name: string;
+  team: string;
+  position: Position;
+  points: number;
+  multiplier: number;
+  /** points x multiplier: what he added to your total. */
+  contribution: number;
+  minutes: number;
+}
+
+export interface ReviewAdvice {
+  kind: 'captain' | 'lineup' | 'transfer';
+  followed: boolean | null;
+  correct: boolean | null;
+  predicted: number;
+  actual: number;
+  regret: number;
+  /** What not following the advice gained (positive) or cost you (negative). */
+  override_delta: number | null;
+}
+
+export interface SeasonPoint {
+  gameweek: number;
+  /** After transfer hits. */
+  points: number;
+  average: number | null;
+  overall_rank: number | null;
+}
+
+export interface GameweekReview {
+  gameweek: { id: number; name: string; average: number | null; highest: number | null };
+  finished: boolean;
+  points: number;
+  transfer_cost: number;
+  chip: string | null;
+  gameweek_rank: number | null;
+  overall_rank: number | null;
+  previous_overall_rank: number | null;
+  best: ReviewPlayer[];
+  worst: ReviewPlayer[];
+  captain: { pick: ReviewPlayer | null; best: ReviewPlayer | null; missed: number };
+  bench_points: number;
+  bench: ReviewPlayer[];
+  auto_subs: { out: string | null; in: string | null }[];
+  advice: ReviewAdvice[];
+  leagues: { id: number; name: string; rank: number | null; last_rank: number | null; size: number | null }[];
+  season: SeasonPoint[];
+}
+
 // ── Fixture planner ──────────────────────────────────────────────────────────
 
 export type FixtureView = 'overall' | 'attack' | 'defence';
@@ -874,6 +927,7 @@ export const api = {
   rival: (managerId: number, leagueId: number, rivalId: number) =>
     request<RivalView>(`/leagues/${managerId}/${leagueId}/rivals/${rivalId}`),
   live: (managerId: number) => request<LiveView>(`/live/${managerId}`),
+  review: (managerId: number) => request<GameweekReview>(`/review/${managerId}`),
   fixturePlanner: (gameweeks: number) => request<FixturePlanner>(`/projections/fixture-planner?gameweeks=${gameweeks}`),
   // Reads up to thirty squads from FPL on a cold cache.
   liveLeague: (managerId: number, leagueId: number) =>

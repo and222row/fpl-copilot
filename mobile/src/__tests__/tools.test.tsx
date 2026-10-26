@@ -29,6 +29,7 @@ jest.mock('@/lib/query', () => ({
   useTrackRecord: () => mockQueries.record,
   useLive: () => mockQueries.live,
   useLiveLeague: () => mockQueries.liveLeague,
+  useReview: () => mockQueries.review,
   useFixturePlanner: (weeks: number) => (mockQueries.planner as (...a: number[]) => unknown)(weeks),
   refreshSquadDerived: () => mockRefresh(),
 }));
@@ -42,6 +43,7 @@ import Leagues from '@/app/leagues';
 import Live from '@/app/live';
 import LiveLeagueScreen from '@/app/live-league/[id]';
 import RecordTransfers from '@/app/record-transfers';
+import Review from '@/app/review';
 import Rival from '@/app/rival/[id]';
 import TrackRecord from '@/app/track-record';
 
@@ -261,6 +263,41 @@ describe('live gameweek', () => {
     await userEvent.setup().press(screen.getByTestId('live-standing-4276486'));
     expect(mockPush).toHaveBeenCalledWith({ pathname: '/rival/[id]', params: { id: '4276486', league: '911741' } });
   });
+});
+
+test('the gameweek review: points, ranks, captain, best and worst, advice, leagues and the season', async () => {
+  const user = userEvent.setup();
+  const p = (player_id: number, name: string, points: number, multiplier = 1) => ({
+    player_id, name, team: 'ARS', position: 'MID', points, multiplier, contribution: points * multiplier, minutes: 90,
+  });
+  mockQueries.review = ok({
+    gameweek: { id: 8, name: 'Gameweek 8', average: 45, highest: 120 },
+    finished: true, points: 49, transfer_cost: 4, chip: '3xc',
+    gameweek_rank: 4_000_000, overall_rank: 1_700_000, previous_overall_rank: 1_500_000,
+    best: [p(68, 'Tavernier', 10)], worst: [p(154, 'Palmer', -1, 3)],
+    captain: { pick: p(154, 'Palmer', -1, 3), best: p(68, 'Tavernier', 10), missed: 22 },
+    bench_points: 11, bench: [p(9, 'Kinsky', 9), p(10, 'Kostoulas', 2)], auto_subs: [],
+    advice: [{ kind: 'captain', followed: false, correct: true, predicted: 12, actual: 24, regret: 0, override_delta: -22 }],
+    leagues: [{ id: 6715, name: 'UKDH', rank: 7, last_rank: 9, size: 32 }],
+    season: [
+      { gameweek: 7, points: 67, average: 59, overall_rank: 1_500_000 },
+      { gameweek: 8, points: 49, average: 45, overall_rank: 1_700_000 },
+    ],
+  });
+  await render(<Review />);
+  expect(screen.getByTestId('review-points').props.children).toEqual([49, ' pts']);
+  expect(screen.getByText(/4 above the average · −4 for transfers · Triple Captain/)).toBeTruthy();
+  const n = (v: number) => v.toLocaleString(); // the phone's locale
+  expect(screen.getByText(`  ▼ ${n(200_000)}`)).toBeTruthy();
+  expect(screen.getByText('Tavernier scored 10: with the armband he would have given you 22 more.')).toBeTruthy();
+  expect(screen.getByText('11 points stayed on your bench, 9 of them from Kinsky.')).toBeTruthy();
+  expect(screen.getByText('Following our captain pick would have gained you 22 points.')).toBeTruthy();
+  expect(screen.getByText('▲ 2')).toBeTruthy(); // league rank 9 -> 7
+
+  // The season chart: tap a bar to read it.
+  expect(screen.getByTestId('season-readout').props.children).toBe(`GW8: 49 points · average 45 · rank ${n(1_700_000)}`);
+  await user.press(screen.getByLabelText('Gameweek 7: 67 points, average 59'));
+  expect(screen.getByTestId('season-readout').props.children).toBe(`GW7: 67 points · average 59 · rank ${n(1_500_000)}`);
 });
 
 test('the fixture planner ranks runs by the chosen view and marks doubles, blanks and your clubs', async () => {

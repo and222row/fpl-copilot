@@ -25,6 +25,18 @@ tags: [features]
     id: "kit-pitch"
 - back
 
+# Gameweek review: the last finished gameweek for the seeded team.
+- scrollUntilVisible:
+    element:
+      id: "tool-review"
+- tapOn:
+    id: "tool-review"
+- extendedWaitUntil:
+    visible:
+      id: "review-points"
+    timeout: 30000
+- back
+
 # Fixture planner: every club's run, rated by the model.
 - scrollUntilVisible:
     element:
