@@ -30,6 +30,7 @@ jest.mock('@/lib/query', () => ({
   useLive: () => mockQueries.live,
   useLiveLeague: () => mockQueries.liveLeague,
   useReview: () => mockQueries.review,
+  useTransferTrends: () => mockQueries.trends,
   useMe: () => ({ data: { fpl_accounts: [{ team_name: "Andrew's Team" }] } }),
   useFixturePlanner: (weeks: number) => (mockQueries.planner as (...a: number[]) => unknown)(weeks),
   refreshSquadDerived: () => mockRefresh(),
@@ -50,6 +51,7 @@ import Live from '@/app/live';
 import LiveLeagueScreen from '@/app/live-league/[id]';
 import RecordTransfers from '@/app/record-transfers';
 import Review from '@/app/review';
+import TransferTrendsScreen from '@/app/transfer-trends';
 import Rival from '@/app/rival/[id]';
 import TrackRecord from '@/app/track-record';
 
@@ -315,6 +317,40 @@ test('the gameweek review: points, ranks, captain, best and worst, advice, leagu
   await waitFor(() => expect(mockShare).toHaveBeenCalled());
   expect(mockCapture.mock.calls[0][1]).toMatchObject({ format: 'png', result: 'tmpfile', width: 1080, height: 1350 });
   expect(mockShare).toHaveBeenCalledWith('file:///tmp/card.png', expect.objectContaining({ mimeType: 'image/png', UTI: 'public.png' }));
+});
+
+test('transfer trends: buys with the model\'s alternative, sells it disagrees with, and tonight\'s prices', async () => {
+  const user = userEvent.setup();
+  const t = (player_id: number, name: string, extra = {}) => ({
+    player_id, name, team: 'ARS', position: 'FWD', price: 6.7, kit: null, ownership: 8, transfers_in: 0, transfers_out: 0,
+    net: 0, status: 'a', news: null, xpts_next: 3, xpts_horizon: 14.3, position_rank: 10, position_count: 79, price_move: null, ...extra,
+  });
+  mockQueries.trends = ok({
+    gameweek: { id: 9, name: 'Gameweek 9' },
+    horizon: 5,
+    most_bought: [
+      t(30, 'N.Jackson', { transfers_in: 397_922, alternative: t(31, 'Gonzalo', { price: 6, xpts_horizon: 16.9 }) }),
+      t(32, 'Isak', { transfers_in: 144_795, position_rank: 2, alternative: null }),
+    ],
+    most_sold: [t(3, 'Saka', { position: 'MID', transfers_out: 164_446, position_rank: 2, position_count: 299 })],
+    rising: [t(33, 'Tavernier', { price_move: { direction: 'rise', when: 'tonight', offset: 0, likelihood: 5, progress: 83 }, position_rank: 2 })],
+    // Raya is in the mocked squad.
+    falling: [t(1, 'Raya', { position: 'GKP', price_move: { direction: 'fall', when: 'tonight', offset: 0, likelihood: 4, progress: -90 } })],
+  });
+  await render(<TransferTrendsScreen />);
+  expect(screen.getByText('+398k')).toBeTruthy();
+  expect(screen.getByText('The model prefers Gonzalo (£6.0m): 16.9 vs 14.3 over 5 GW')).toBeTruthy();
+  expect(screen.getByText('The model agrees: 2nd of 79 forwards.')).toBeTruthy();
+
+  await user.press(screen.getByText('Most sold'));
+  expect(screen.getByText('−164k')).toBeTruthy();
+  expect(screen.getByText('The model ranks him 2nd of 299 midfielders: selling may be a mistake.')).toBeTruthy();
+  expect(screen.getByText('Yours')).toBeTruthy(); // Saka is in your squad
+
+  await user.press(screen.getByText('Price changes'));
+  expect(screen.getByText('Rises tonight (very likely)')).toBeTruthy();
+  expect(screen.getByText('The model rates him: buying before tonight saves £0.1m.')).toBeTruthy();
+  expect(screen.getByText('You own him: selling before tonight saves £0.1m.')).toBeTruthy();
 });
 
 test('the fixture planner ranks runs by the chosen view and marks doubles, blanks and your clubs', async () => {

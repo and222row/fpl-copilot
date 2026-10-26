@@ -623,6 +623,52 @@ export interface GameweekReview {
   season: SeasonPoint[];
 }
 
+// ── Transfer trends ──────────────────────────────────────────────────────────
+
+/** When FPL expects a price change, from its own forecast. likelihood is 1-5. */
+export interface PriceMove {
+  direction: 'rise' | 'fall';
+  when: string;
+  offset: number;
+  likelihood: number | null;
+  /** FPL's progress toward the change, −100 to 100. */
+  progress: number;
+}
+
+export interface TrendPlayer {
+  player_id: number;
+  name: string;
+  team: string;
+  position: Position;
+  price: number;
+  kit: string | null;
+  /** Percent of managers who own him. */
+  ownership: number;
+  transfers_in: number;
+  transfers_out: number;
+  net: number;
+  status: string;
+  news: string | null;
+  xpts_next: number;
+  /** Projected over the next `horizon` gameweeks. */
+  xpts_horizon: number;
+  /** Where the model ranks him in his position over the horizon. */
+  position_rank: number | null;
+  position_count: number | null;
+  price_move: PriceMove | null;
+  /** Most bought only: a cheaper-or-equal player the model clearly prefers. */
+  alternative?: TrendPlayer | null;
+}
+
+export interface TransferTrends {
+  gameweek: { id: number; name: string } | null;
+  horizon: number;
+  most_bought: TrendPlayer[];
+  most_sold: TrendPlayer[];
+  rising: TrendPlayer[];
+  falling: TrendPlayer[];
+}
+
 // ── Fixture planner ──────────────────────────────────────────────────────────
 
 export type FixtureView = 'overall' | 'attack' | 'defence';
@@ -928,6 +974,7 @@ export const api = {
     request<RivalView>(`/leagues/${managerId}/${leagueId}/rivals/${rivalId}`),
   live: (managerId: number) => request<LiveView>(`/live/${managerId}`),
   review: (managerId: number) => request<GameweekReview>(`/review/${managerId}`),
+  transferTrends: () => request<TransferTrends>('/projections/transfer-trends'),
   fixturePlanner: (gameweeks: number) => request<FixturePlanner>(`/projections/fixture-planner?gameweeks=${gameweeks}`),
   // Reads up to thirty squads from FPL on a cold cache.
   liveLeague: (managerId: number, leagueId: number) =>

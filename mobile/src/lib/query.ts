@@ -26,6 +26,7 @@ export const queryKeys = {
   liveLeague: (managerId: number, leagueId: number) => ['live-league', managerId, leagueId] as const,
   fixturePlanner: (gameweeks: number) => ['fixture-planner', gameweeks] as const,
   review: (managerId: number) => ['review', managerId] as const,
+  transferTrends: ['transfer-trends'] as const,
   chips: (managerId: number) => ['chips', managerId] as const,
   dreamTeam: (budget: number, horizon: number) => ['dream-team', budget, horizon] as const,
   accuracy: (managerId: number) => ['accuracy', managerId] as const,
@@ -214,6 +215,11 @@ export function useReview(teamId: number | undefined) {
     enabled: !!teamId,
     staleTime: 10 * 60_000,
   });
+}
+
+// Synced from FPL with each refresh, every half hour.
+export function useTransferTrends() {
+  return useQuery({ queryKey: queryKeys.transferTrends, queryFn: api.transferTrends, staleTime: 10 * 60_000 });
 }
 
 // Ratings move only when the refresh rebuilds them.

@@ -37,6 +37,21 @@ tags: [features]
     timeout: 30000
 - back
 
+# Transfer trends: the crowd's buys, sells and tonight's prices.
+- scrollUntilVisible:
+    element:
+      id: "tool-trends"
+- tapOn:
+    id: "tool-trends"
+- extendedWaitUntil:
+    visible:
+      id: "trends-screen"
+    timeout: 30000
+- assertVisible: "Most bought"
+- assertNotVisible:
+    id: "error-view"
+- back
+
 # Fixture planner: every club's run, rated by the model.
 - scrollUntilVisible:
     element:

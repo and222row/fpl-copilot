@@ -1,4 +1,5 @@
 import type { GameweekReview, LiveLeague, LiveView } from '@/lib/api';
+import { ordinal } from '@/lib/format';
 import { chipName } from '@/lib/live';
 import { rankMove } from '@/lib/review';
 
@@ -16,12 +17,6 @@ export interface CardContent {
 
 function signed(n: number): string {
   return n >= 0 ? String(n) : `−${-n}`;
-}
-
-function ordinal(n: number): string {
-  const tens = n % 100;
-  const suffix = tens >= 11 && tens <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th';
-  return `${n}${suffix}`;
 }
 
 export function reviewCard(r: GameweekReview, team: string): CardContent {

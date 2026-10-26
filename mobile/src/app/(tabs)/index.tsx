@@ -80,6 +80,12 @@ export default function Home() {
           onPress={() => router.push('/review')}
         />
         <ListRow
+          testID="tool-trends"
+          title="Transfer trends"
+          subtitle="Who everyone is buying and selling, and tonight's price changes"
+          onPress={() => router.push('/transfer-trends')}
+        />
+        <ListRow
           testID="tool-fixtures"
           title="Fixture planner"
           subtitle="Every club's next fixtures, rated for attackers and defenders"
