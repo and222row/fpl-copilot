@@ -498,6 +498,19 @@ average multiplier across the managers read. The rival is the manager just
 above you live, or just below if you lead. Players whose matches are over
 decide nothing more, so only those still to play or playing are listed.
 
+## Transfer trends
+
+`app/services/trends.py` sets the crowd against the model. The crowd's
+transfers, ownership and FPL's price forecast are already synced with the
+bootstrap; each projection there is FPL's forecast of price-change progress
+tonight and the next two nights, and 100 or more means a change (its
+likelihood is signed with the direction, so -5 is a likely fall). Every
+popular buy carries the best available player in his position at the same
+price or less, when that player projects at least a point more over the
+next five gameweeks; every player carries his rank in position by the same
+projection, which is what "the model agrees" or "selling may be a mistake"
+rests on. Nothing new is fetched or stored.
+
 ## The fixture planner
 
 `app/services/fixture_planner.py` rates every club's next fixtures from the

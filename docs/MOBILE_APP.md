@@ -53,6 +53,12 @@ Supabase Auth, RevenueCat and the stores; it holds no backend credential.
   as a 1080×1350 PNG and open the share sheet (`react-native-view-shot` and
   `expo-sharing`; both native, so they arrived with a new development
   build). Nothing leaves the phone unless the user picks an app.
+- **Transfer trends** (Home → Tools): the gameweek's most bought and most
+  sold players and FPL's forecast of tonight's price changes, each with the
+  model's five-gameweek projection and rank in position; a popular buy shows
+  a player the model clearly prefers at the same price or less, a popular
+  sell says when the model rates him, and price moves say what to do if you
+  own (or should own) the player. Your players are marked.
 - **Fixture planner** (Home → Tools): every club's next 3, 6 or 8 gameweeks
   in FPL's colours, rated by the team-strength model for attackers, for
   defenders or overall, easiest run first, with doubles, blanks and a badge

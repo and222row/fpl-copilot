@@ -10,6 +10,7 @@ from app.services.projection import rebuild_projections, MODEL_VERSION
 from app.services.team_strength import rebuild_team_strength, MODEL_VERSION as FDR_VERSION
 from app.services.backtest import backtest, ingest_player_history
 from app.services.fixture_planner import plan
+from app.services.trends import trends
 from app.services.fpl_sync import get_next_open_gameweek
 
 router = APIRouter(prefix="/projections", tags=["projections"])
@@ -248,6 +249,16 @@ async def fixture_planner(
     the team-strength ratings, easiest run first, with doubles and blanks.
     """
     return await plan(db, gameweeks)
+
+
+@router.get("/transfer-trends", dependencies=[Premium])
+async def transfer_trends(db: AsyncSession = Depends(get_db)):
+    """
+    This gameweek's most bought and sold players and tonight's likely price
+    changes, each with the projections, and a better alternative for the same
+    money where the model sees one.
+    """
+    return await trends(db)
 
 
 # ── Backtest ──────────────────────────────────────────────────────────────────
