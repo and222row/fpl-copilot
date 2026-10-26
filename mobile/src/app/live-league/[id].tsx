@@ -9,12 +9,15 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { LiveLeague, LiveStandingRow, Swing, SwingPlayer } from '@/lib/api';
 import { chipName, liveBadge, perPoint, role } from '@/lib/live';
-import { useLiveLeague, useTeamId } from '@/lib/query';
+import { useLiveLeague, useMe, useTeamId } from '@/lib/query';
+import { leagueCard } from '@/lib/share-card';
+import { ShareCardButton } from '@/components/share-card';
 
 export default function LiveLeagueScreen() {
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const teamId = useTeamId();
   const league = useLiveLeague(teamId, Number(id));
+  const team = useMe(true).data?.fpl_accounts[0]?.team_name ?? '';
 
   return (
     <Screen testID="live-league-screen" belowHeader onRefresh={() => league.refetch()} refreshing={league.isRefetching}>
@@ -22,6 +25,7 @@ export default function LiveLeagueScreen() {
       {league.isPending ? <ThemedText themeColor="textSecondary">Working out everyone&apos;s live points…</ThemedText> : null}
       {league.isError ? <ErrorView error={league.error} onRetry={() => league.refetch()} /> : null}
       {league.data ? <Body data={league.data} /> : null}
+      {league.data?.your_live_rank ? <ShareCardButton card={leagueCard(league.data, team)} title="Share your rank" /> : null}
     </Screen>
   );
 }

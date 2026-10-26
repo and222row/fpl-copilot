@@ -10,12 +10,15 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { LiveView } from '@/lib/api';
 import { chipName, liveBadge, liveCaption } from '@/lib/live';
-import { useLeagues, useLive, useTeamId } from '@/lib/query';
+import { useLeagues, useLive, useMe, useTeamId } from '@/lib/query';
+import { liveCard } from '@/lib/share-card';
+import { ShareCardButton } from '@/components/share-card';
 
 export default function Live() {
   const teamId = useTeamId();
   const live = useLive(teamId);
   const leagues = useLeagues(teamId);
+  const team = useMe(true).data?.fpl_accounts[0]?.team_name ?? '';
   const mine = leagues.data?.leagues.filter((l) => l.private) ?? [];
 
   return (
@@ -30,6 +33,7 @@ export default function Live() {
       {live.isPending ? <ThemedText themeColor="textSecondary">Reading the live scores…</ThemedText> : null}
       {live.isError ? <ErrorView error={live.error} onRetry={() => live.refetch()} /> : null}
       {live.data ? <LiveBody data={live.data} /> : null}
+      {live.data ? <ShareCardButton card={liveCard(live.data, team)} title="Share your score" /> : null}
       {live.data?.finished ? (
         <ListGroup>
           <ListRow

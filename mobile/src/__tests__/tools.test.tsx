@@ -1,4 +1,4 @@
-import { render, screen, userEvent, waitFor } from '@testing-library/react-native';
+import { render, screen, userEvent, waitFor, within } from '@testing-library/react-native';
 
 const mockRecord = jest.fn();
 const mockBack = jest.fn();
@@ -30,10 +30,16 @@ jest.mock('@/lib/query', () => ({
   useLive: () => mockQueries.live,
   useLiveLeague: () => mockQueries.liveLeague,
   useReview: () => mockQueries.review,
+  useMe: () => ({ data: { fpl_accounts: [{ team_name: "Andrew's Team" }] } }),
   useFixturePlanner: (weeks: number) => (mockQueries.planner as (...a: number[]) => unknown)(weeks),
   refreshSquadDerived: () => mockRefresh(),
 }));
 jest.mock('expo-image', () => ({ Image: () => null }));
+const mockCapture = jest.fn(async (..._a: unknown[]) => 'file:///tmp/card.png');
+const mockShare = jest.fn(async (..._a: unknown[]) => undefined);
+jest.mock('react-native-view-shot', () => ({ captureRef: (...a: unknown[]) => mockCapture(...a) }));
+jest.mock('expo-sharing', () => ({ isAvailableAsync: async () => true, shareAsync: (...a: unknown[]) => mockShare(...a) }));
+jest.mock('@/lib/monitoring', () => ({ reportError: jest.fn() }));
 
 import Chips from '@/app/chips';
 import DreamTeam from '@/app/dream-team';
@@ -298,6 +304,17 @@ test('the gameweek review: points, ranks, captain, best and worst, advice, leagu
   expect(screen.getByTestId('season-readout').props.children).toBe(`GW8: 49 points · average 45 · rank ${n(1_700_000)}`);
   await user.press(screen.getByLabelText('Gameweek 7: 67 points, average 59'));
   expect(screen.getByTestId('season-readout').props.children).toBe(`GW7: 67 points · average 59 · rank ${n(1_500_000)}`);
+
+  // Share: the card shows first, then becomes a 1080x1350 PNG for the share sheet.
+  await user.press(screen.getByText('Share your gameweek'));
+  const card = within(screen.getByTestId('share-card'));
+  expect(card.getByText("Andrew's Team")).toBeTruthy();
+  expect(card.getByText('Star: Tavernier 10')).toBeTruthy();
+  expect(card.getByText('Captain: Palmer −3')).toBeTruthy();
+  await user.press(screen.getByTestId('share-send'));
+  await waitFor(() => expect(mockShare).toHaveBeenCalled());
+  expect(mockCapture.mock.calls[0][1]).toMatchObject({ format: 'png', result: 'tmpfile', width: 1080, height: 1350 });
+  expect(mockShare).toHaveBeenCalledWith('file:///tmp/card.png', expect.objectContaining({ mimeType: 'image/png', UTI: 'public.png' }));
 });
 
 test('the fixture planner ranks runs by the chosen view and marks doubles, blanks and your clubs', async () => {

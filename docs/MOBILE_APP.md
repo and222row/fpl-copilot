@@ -48,6 +48,11 @@ Supabase Auth, RevenueCat and the stores; it holds no backend credential.
   picks, your captain against the best captain you had, points left on the
   bench, how the advice did, your league ranks, and a season chart of points
   per gameweek against the average (tap a bar to read it).
+- **Share cards:** "Share your gameweek" (review), "Share your score" (live)
+  and "Share your rank" (live league) show a branded 4:5 card, then save it
+  as a 1080×1350 PNG and open the share sheet (`react-native-view-shot` and
+  `expo-sharing`; both native, so they arrived with a new development
+  build). Nothing leaves the phone unless the user picks an app.
 - **Fixture planner** (Home → Tools): every club's next 3, 6 or 8 gameweeks
   in FPL's colours, rated by the team-strength model for attackers, for
   defenders or overall, easiest run first, with doubles, blanks and a badge

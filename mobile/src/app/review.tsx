@@ -10,16 +10,24 @@ import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
 import type { GameweekReview, ReviewPlayer } from '@/lib/api';
 import { chipName } from '@/lib/live';
-import { useReview, useTeamId } from '@/lib/query';
+import { useMe, useReview, useTeamId } from '@/lib/query';
 import { adviceLine, rankMove } from '@/lib/review';
+import { reviewCard } from '@/lib/share-card';
+import { ShareCardButton } from '@/components/share-card';
 
 export default function Review() {
   const review = useReview(useTeamId());
+  const team = useMe(true).data?.fpl_accounts[0]?.team_name ?? '';
   return (
     <Screen testID="review-screen" belowHeader onRefresh={() => review.refetch()} refreshing={review.isRefetching}>
       {review.isPending ? <ThemedText themeColor="textSecondary">Putting your gameweek together…</ThemedText> : null}
       {review.isError ? <ErrorView error={review.error} onRetry={() => review.refetch()} /> : null}
-      {review.data ? <Body data={review.data} /> : null}
+      {review.data ? (
+        <>
+          <Body data={review.data} />
+          <ShareCardButton card={reviewCard(review.data, team)} title="Share your gameweek" />
+        </>
+      ) : null}
     </Screen>
   );
 }
