@@ -93,6 +93,7 @@ test('tapping a notification opens the right screen', () => {
   expect(targetFor({ type: 'alert', player_id: 7 })).toEqual({ pathname: '/player/[id]', params: { id: '7' } });
   expect(targetFor({ type: 'alert', player_id: null })).toBe('/news');
   expect(targetFor({ type: 'deadline' })).toBe('/transfers');
+  expect(targetFor({ type: 'live' })).toBe('/live');
   expect(targetFor({ type: 'something-new' })).toBeNull();
   expect(targetFor(undefined)).toBeNull();
 });

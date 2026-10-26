@@ -44,6 +44,8 @@ export interface NotificationSettings {
   availability: boolean;
   price: boolean;
   deadline: boolean;
+  /** Goals, assists, cards and full time for your players during matches. */
+  live: boolean;
 }
 
 export interface PendingConnection {

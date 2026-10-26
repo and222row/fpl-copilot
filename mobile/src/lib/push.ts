@@ -71,7 +71,7 @@ export async function unregisterPush(): Promise<void> {
   await api.unregisterDevice(token);
 }
 
-export type PushTarget = { pathname: '/player/[id]'; params: { id: string } } | '/news' | '/transfers' | null;
+export type PushTarget = { pathname: '/player/[id]'; params: { id: string } } | '/news' | '/transfers' | '/live' | null;
 
 /** Where tapping a notification should go, from the data the server attached. */
 export function targetFor(data: Record<string, unknown> | undefined): PushTarget {
@@ -81,5 +81,6 @@ export function targetFor(data: Record<string, unknown> | undefined): PushTarget
   }
   if (data.type === 'alert') return '/news';
   if (data.type === 'deadline') return '/transfers';
+  if (data.type === 'live') return '/live';
   return null;
 }

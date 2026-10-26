@@ -15,7 +15,7 @@ jest.mock('@/lib/push', () => ({ pushState: () => mockPushState(), enablePush: j
 jest.mock('@/lib/api', () => ({
   ApiError: class ApiError extends Error {},
   api: {
-    notificationSettings: async () => ({ availability: true, price: true, deadline: false }),
+    notificationSettings: async () => ({ availability: true, price: true, deadline: false, live: true }),
     updateNotificationSettings: (c: unknown) => mockUpdate(c),
   },
 }));
@@ -97,9 +97,10 @@ describe('notification settings', () => {
 
   test('switches reflect and update the server settings', async () => {
     mockPushState.mockResolvedValue('enabled');
-    mockUpdate.mockResolvedValue({ availability: true, price: false, deadline: false });
+    mockUpdate.mockResolvedValue({ availability: true, price: false, deadline: false, live: true });
     await show();
     expect(screen.getByLabelText('Deadline reminder').props.value).toBe(false);
+    expect(screen.getByLabelText('Goals and full time').props.value).toBe(true);
     await act(async () => {
       await fireEvent(screen.getByLabelText('Price changes'), 'valueChange', false);
     });
