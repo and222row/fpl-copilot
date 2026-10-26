@@ -29,12 +29,14 @@ jest.mock('@/lib/query', () => ({
   useTrackRecord: () => mockQueries.record,
   useLive: () => mockQueries.live,
   useLiveLeague: () => mockQueries.liveLeague,
+  useFixturePlanner: (weeks: number) => (mockQueries.planner as (...a: number[]) => unknown)(weeks),
   refreshSquadDerived: () => mockRefresh(),
 }));
 jest.mock('expo-image', () => ({ Image: () => null }));
 
 import Chips from '@/app/chips';
 import DreamTeam from '@/app/dream-team';
+import FixturePlannerScreen from '@/app/fixture-planner';
 import League from '@/app/league/[id]';
 import Leagues from '@/app/leagues';
 import Live from '@/app/live';
@@ -228,6 +230,15 @@ describe('live gameweek', () => {
       league: { id: 911741, name: 'Hossam Hassan Ball', size: 11 },
       gameweek: { id: 8, name: 'Gameweek 8' },
       managers_read: 11, partial: false, your_live_rank: 1, gap_to_leader: 0, gap_to_next: null,
+      swing: {
+        rival: { entry: 4276486, team_name: 'Poehlerboyz', gap: -7 },
+        managers: 10,
+        against_rival: [
+          { player_id: 5, name: 'Haaland', team: 'MCI', position: 'FWD', state: 'playing', you: 1, them: 2, net: -1 },
+        ],
+        for_you: [{ player_id: 4, name: 'Salah', team: 'LIV', position: 'MID', state: 'to_play', you: 2, eo: 0.6, net: 1.4 }],
+        against_you: [],
+      },
       standings: [
         { entry: 6727534, team_name: "Andrew's Team", manager_name: 'Andrew', rank: 3, last_rank: 3, live_rank: 1, gameweek_points: 70, total: 405, players_left: 2, captain: 'Salah', chip: null, is_you: true },
         { entry: 4276486, team_name: 'Poehlerboyz', manager_name: 'Jonas', rank: 1, last_rank: 1, live_rank: 2, gameweek_points: 40, total: 398, players_left: 0, captain: 'Haaland', chip: 'bboost', is_you: false },
@@ -239,9 +250,55 @@ describe('live gameweek', () => {
     expect(screen.getByText('(C) Salah · 2 to play')).toBeTruthy();
     expect(screen.getByText('(C) Haaland · 0 to play · Bench Boost')).toBeTruthy();
     expect(screen.getByText('▲')).toBeTruthy(); // you, 3rd at the start of the gameweek
+
+    // Who decides it: against the rival just behind, and against the league.
+    expect(screen.getByText('What decides it from here')).toBeTruthy();
+    expect(screen.getByText(/7 behind you/)).toBeTruthy();
+    expect(screen.getByText('You: owned · them: captain')).toBeTruthy();
+    expect(screen.getByText('−1 per point')).toBeTruthy();
+    expect(screen.getByText('You: captain · league: 0.6 per point')).toBeTruthy();
+    expect(screen.getByText('+1.4 per point')).toBeTruthy();
     await userEvent.setup().press(screen.getByTestId('live-standing-4276486'));
     expect(mockPush).toHaveBeenCalledWith({ pathname: '/rival/[id]', params: { id: '4276486', league: '911741' } });
   });
+});
+
+test('the fixture planner ranks runs by the chosen view and marks doubles, blanks and your clubs', async () => {
+  const user = userEvent.setup();
+  const m = (opponent: string, home: boolean, attack: number, defence: number) => ({
+    opponent, home, fpl: 3, attack, defence, overall: (attack + defence) / 2,
+  });
+  const team = (team_id: number, team: string, fixtures: ReturnType<typeof m>[][], ease: [number, number, number]) => ({
+    team_id, team, name: team, fixtures: fixtures.map((matches, i) => ({ gameweek: 9 + i, matches })),
+    ease: { overall: ease[0], attack: ease[1], defence: ease[2] }, doubles: [], blanks: [],
+  });
+  const weeks: number[] = [];
+  mockQueries.planner = (w: number) => {
+    weeks.push(w);
+    return ok({
+      gameweeks: [9, 10],
+      source: 'model',
+      teams: [
+        // Easier for defenders, harder for attackers.
+        team(1, 'ARS', [[m('bur', true, 3.5, 1.2)], []], [6, 2.5, 8]),
+        team(2, 'LIV', [[m('che', false, 1.5, 3.4), m('ful', true, 2, 3)], [m('eve', true, 1.6, 2.6)]], [7, 9, 5]),
+      ],
+    });
+  };
+  await render(<FixturePlannerScreen />);
+  expect(weeks.at(-1)).toBe(6);
+
+  const order = () => screen.getAllByTestId(/^planner-/).map((n) => n.props.testID);
+  expect(order()).toEqual(['planner-LIV', 'planner-ARS']); // overall ease 7 > 6
+  expect(screen.getByLabelText('Blank: no fixture')).toBeTruthy();
+  expect(screen.getByText('BUR')).toBeTruthy(); // home in capitals
+  expect(screen.getByText('che')).toBeTruthy(); // away in lower case
+  expect(screen.getByLabelText('3 of your players')).toBeTruthy(); // Raya, Gabriel and Saka are ARS
+
+  await user.press(screen.getByText('For defenders'));
+  expect(order()).toEqual(['planner-ARS', 'planner-LIV']);
+  await user.press(screen.getByText('Next 3'));
+  expect(weeks.at(-1)).toBe(3);
 });
 
 test('chips are ordered by urgency with a plain verdict', async () => {

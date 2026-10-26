@@ -25,6 +25,21 @@ tags: [features]
     id: "kit-pitch"
 - back
 
+# Fixture planner: every club's run, rated by the model.
+- scrollUntilVisible:
+    element:
+      id: "tool-fixtures"
+- tapOn:
+    id: "tool-fixtures"
+- extendedWaitUntil:
+    visible:
+      id: "fixture-planner-screen"
+    timeout: 30000
+- assertVisible: "For attackers"
+- assertNotVisible:
+    id: "error-view"
+- back
+
 # Mini-leagues: the seeded team is in FPL's own leagues at least.
 - scrollUntilVisible:
     element:

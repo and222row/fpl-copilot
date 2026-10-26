@@ -531,7 +531,34 @@ export interface LiveStandingRow {
   is_you: boolean;
 }
 
+/** A player whose points move you against a rival or the league. */
+export interface SwingPlayer {
+  player_id: number;
+  name: string;
+  team: string;
+  position: Position;
+  state: LiveState;
+  /** Your multiplier: 0 not counted, 1 owned, 2 captain, 3 triple captain. */
+  you: number;
+  /** The rival's multiplier (against a rival). */
+  them?: number;
+  /** Effective ownership: the average multiplier across the league read (against the league). */
+  eo?: number;
+  /** What each point he scores moves you: positive gains ground. */
+  net: number;
+}
+
+export interface Swing {
+  /** The manager just above you live, or just below if you lead. gap > 0 means they are ahead. */
+  rival: { entry: number; team_name: string; gap: number } | null;
+  managers: number;
+  against_rival: SwingPlayer[];
+  for_you: SwingPlayer[];
+  against_you: SwingPlayer[];
+}
+
 export interface LiveLeague extends LiveStatus {
+  swing: Swing | null;
   league: { id: number; name: string; size: number | null };
   gameweek: { id: number; name: string };
   managers_read: number;
@@ -541,6 +568,36 @@ export interface LiveLeague extends LiveStatus {
   gap_to_leader: number | null;
   gap_to_next: number | null;
   standings: LiveStandingRow[];
+}
+
+// ── Fixture planner ──────────────────────────────────────────────────────────
+
+export type FixtureView = 'overall' | 'attack' | 'defence';
+
+/** One match: difficulty 1 (easiest) to 5 for each view, and FPL's own rating. */
+export interface PlannerMatch extends Record<FixtureView, number> {
+  opponent: string;
+  home: boolean;
+  fpl: number;
+}
+
+export interface PlannerTeam {
+  team_id: number;
+  team: string;
+  name: string;
+  /** One entry per gameweek: none in a blank, two in a double. */
+  fixtures: { gameweek: number; matches: PlannerMatch[] }[];
+  /** How easy the run is: higher is easier; doubles add, blanks add nothing. */
+  ease: Record<FixtureView, number>;
+  doubles: number[];
+  blanks: number[];
+}
+
+export interface FixturePlanner {
+  gameweeks: number[];
+  teams: PlannerTeam[];
+  /** "model" once team-strength ratings exist, "fpl" before. */
+  source: 'model' | 'fpl' | null;
 }
 
 // ── Chips ────────────────────────────────────────────────────────────────────
@@ -817,6 +874,7 @@ export const api = {
   rival: (managerId: number, leagueId: number, rivalId: number) =>
     request<RivalView>(`/leagues/${managerId}/${leagueId}/rivals/${rivalId}`),
   live: (managerId: number) => request<LiveView>(`/live/${managerId}`),
+  fixturePlanner: (gameweeks: number) => request<FixturePlanner>(`/projections/fixture-planner?gameweeks=${gameweeks}`),
   // Reads up to thirty squads from FPL on a cold cache.
   liveLeague: (managerId: number, leagueId: number) =>
     request<LiveLeague>(`/live/${managerId}/leagues/${leagueId}`, { timeoutMs: 45_000 }),

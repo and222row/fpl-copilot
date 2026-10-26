@@ -7,8 +7,8 @@ import { Stat, StatRow } from '@/components/stat';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import type { LiveLeague, LiveStandingRow } from '@/lib/api';
-import { chipName, liveBadge } from '@/lib/live';
+import type { LiveLeague, LiveStandingRow, Swing, SwingPlayer } from '@/lib/api';
+import { chipName, liveBadge, perPoint, role } from '@/lib/live';
 import { useLiveLeague, useTeamId } from '@/lib/query';
 
 export default function LiveLeagueScreen() {
@@ -45,6 +45,8 @@ function Body({ data }: { data: LiveLeague }) {
         </StatRow>
       </Card>
 
+      {data.swing ? <SwingView swing={data.swing} finished={data.finished} /> : null}
+
       <SectionHeader title="Live table" />
       <Card style={styles.table}>
         {data.standings.map((row, i) => (
@@ -58,6 +60,73 @@ function Body({ data }: { data: LiveLeague }) {
         Points include provisional bonus and projected substitutions. Tap a manager to go head to head.
       </ThemedText>
     </>
+  );
+}
+
+/** Who decides the league from here, against the nearest rival and the field. */
+function SwingView({ swing, finished }: { swing: Swing; finished: boolean }) {
+  const empty = !swing.against_rival.length && !swing.for_you.length && !swing.against_you.length;
+  if (empty) {
+    return finished ? null : (
+      <Card>
+        <ThemedText type="small" themeColor="textSecondary">
+          Nothing left to decide between you and the league: the players still to play are owned the same way.
+        </ThemedText>
+      </Card>
+    );
+  }
+  const r = swing.rival;
+  return (
+    <>
+      <SectionHeader title="What decides it from here" />
+      {r && swing.against_rival.length ? (
+        <Card testID="swing-rival">
+          <ThemedText type="headline">
+            Against {r.team_name}
+            <ThemedText type="small" themeColor="textSecondary">
+              {r.gap > 0 ? `  ${r.gap} ahead of you` : r.gap < 0 ? `  ${-r.gap} behind you` : '  level'}
+            </ThemedText>
+          </ThemedText>
+          {swing.against_rival.map((p) => (
+            <SwingRow key={p.player_id} player={p} detail={`You: ${role(p.you)} · them: ${role(p.them ?? 0)}`} />
+          ))}
+        </Card>
+      ) : null}
+      {swing.for_you.length || swing.against_you.length ? (
+        <Card testID="swing-league">
+          <ThemedText type="headline">Against the league</ThemedText>
+          <ThemedText type="caption" themeColor="textSecondary">
+            Your share of each player against his average across {swing.managers} rivals.
+          </ThemedText>
+          {[...swing.for_you, ...swing.against_you].map((p) => (
+            <SwingRow key={p.player_id} player={p} detail={`You: ${role(p.you)} · league: ${(p.eo ?? 0).toFixed(1)} per point`} />
+          ))}
+        </Card>
+      ) : null}
+    </>
+  );
+}
+
+function SwingRow({ player, detail }: { player: SwingPlayer; detail: string }) {
+  const theme = useTheme();
+  const tone = player.net > 0 ? 'highlight' : 'danger';
+  return (
+    <View testID={`swing-${player.player_id}`} style={styles.swing}>
+      <View style={styles.grow}>
+        <ThemedText type="smallBold">
+          {player.name}{' '}
+          <ThemedText type="caption" themeColor="textSecondary">
+            {player.team} · {player.state === 'playing' ? 'playing now' : 'yet to play'}
+          </ThemedText>
+        </ThemedText>
+        <ThemedText type="caption" themeColor="textSecondary">
+          {detail}
+        </ThemedText>
+      </View>
+      <ThemedText type="smallBold" style={{ color: theme[tone] }}>
+        {perPoint(player.net)}
+      </ThemedText>
+    </View>
   );
 }
 
@@ -119,6 +188,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 10 },
   rank: { width: 34, alignItems: 'center' },
   points: { alignItems: 'flex-end' },
+  swing: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
   num: { fontVariant: ['tabular-nums'] },
   grow: { flex: 1 },
 });

@@ -30,6 +30,18 @@ export function liveBadge(s: LiveStatus): { label: string; color: ThemeColor; so
   return { label: `${s.matches_done} of ${s.matches_total} played`, color: 'accent', soft: 'accentSoft' };
 }
 
+/** How a team counts a player: "—", "owned", "captain" or "triple captain". */
+export function role(multiplier: number): string {
+  return ['—', 'owned', 'captain', 'triple captain'][multiplier] ?? `×${multiplier}`;
+}
+
+/** What each point a player scores moves you: "+1 per point", "−0.4 per point". */
+export function perPoint(net: number): string {
+  const n = Math.abs(net);
+  const shown = Number.isInteger(n) ? String(n) : n.toFixed(1);
+  return `${net >= 0 ? '+' : '−'}${shown} per point`;
+}
+
 export function chipName(chip: string | null): string | null {
   const names: Record<string, string> = { bboost: 'Bench Boost', '3xc': 'Triple Captain', freehit: 'Free Hit', wildcard: 'Wildcard' };
   return chip ? (names[chip] ?? chip) : null;

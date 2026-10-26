@@ -24,6 +24,7 @@ export const queryKeys = {
   rival: (managerId: number, leagueId: number, rivalId: number) => ['rival', managerId, leagueId, rivalId] as const,
   live: (managerId: number) => ['live', managerId] as const,
   liveLeague: (managerId: number, leagueId: number) => ['live-league', managerId, leagueId] as const,
+  fixturePlanner: (gameweeks: number) => ['fixture-planner', gameweeks] as const,
   chips: (managerId: number) => ['chips', managerId] as const,
   dreamTeam: (budget: number, horizon: number) => ['dream-team', budget, horizon] as const,
   accuracy: (managerId: number) => ['accuracy', managerId] as const,
@@ -201,6 +202,15 @@ export function useLiveLeague(teamId: number | undefined, leagueId: number) {
     enabled: !!teamId,
     staleTime: LIVE_POLL_MS,
     refetchInterval: (q) => livePoll(q.state.data),
+  });
+}
+
+// Ratings move only when the refresh rebuilds them.
+export function useFixturePlanner(gameweeks: number) {
+  return useQuery({
+    queryKey: queryKeys.fixturePlanner(gameweeks),
+    queryFn: () => api.fixturePlanner(gameweeks),
+    staleTime: 30 * 60_000,
   });
 }
 

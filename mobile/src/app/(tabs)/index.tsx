@@ -74,6 +74,12 @@ export default function Home() {
           onPress={() => router.push('/live')}
         />
         <ListRow
+          testID="tool-fixtures"
+          title="Fixture planner"
+          subtitle="Every club's next fixtures, rated for attackers and defenders"
+          onPress={() => router.push('/fixture-planner')}
+        />
+        <ListRow
           testID="tool-leagues"
           title="Mini-leagues"
           subtitle="Your rank, the gaps, and what rivals own that you don't"
