@@ -623,6 +623,70 @@ export interface GameweekReview {
   season: SeasonPoint[];
 }
 
+// ── Head-to-head and the cup ─────────────────────────────────────────────────
+
+export interface H2HMatch {
+  gameweek: number;
+  /** null for a bye. */
+  opponent: { entry: number; team_name: string; manager_name: string } | null;
+  your_points: number;
+  their_points: number;
+  /** Your result once settled. */
+  result: 'W' | 'D' | 'L' | null;
+  /** Cup rounds: "Round 1", "Final"… */
+  knockout: string | null;
+  /** Scored live by us while the gameweek is played. */
+  live?: boolean;
+}
+
+export interface H2HLeagues {
+  leagues: LeagueSummary[];
+  cup: { matches: H2HMatch[]; qualified: string | null; starts: number | null };
+}
+
+export interface H2HStandingRow {
+  rank: number;
+  last_rank: number | null;
+  entry: number;
+  team_name: string;
+  manager_name: string;
+  won: number;
+  drawn: number;
+  lost: number;
+  /** League points: 3 a win, 1 a draw. */
+  points: number;
+  points_for: number;
+  is_you: boolean;
+}
+
+export interface H2HLeague {
+  league: { id: number; name: string };
+  current: H2HMatch | null;
+  current_status: LiveStatus | null;
+  next: H2HMatch | null;
+  record: { W: number; D: number; L: number };
+  results: H2HMatch[];
+  standings: H2HStandingRow[];
+  partial: boolean;
+}
+
+// ── Guest preview ────────────────────────────────────────────────────────────
+
+export interface TeamPreview {
+  team: {
+    id: number;
+    name: string;
+    manager: string;
+    overall_rank: number | null;
+    total_points: number | null;
+    last_gameweek_points: number | null;
+  };
+  gameweek: { id: number; name: string; deadline_time: string | null };
+  squad: { name: string; team: string; position: Position }[];
+  flagged: { name: string; reason: string; news: string | null }[];
+  teaser: { transfers: number; gain: number; horizon: number | null; hit: number; projected: number; formation: string };
+}
+
 // ── Transfer trends ──────────────────────────────────────────────────────────
 
 /** When FPL expects a price change, from its own forecast. likelihood is 1-5. */
@@ -974,6 +1038,10 @@ export const api = {
     request<RivalView>(`/leagues/${managerId}/${leagueId}/rivals/${rivalId}`),
   live: (managerId: number) => request<LiveView>(`/live/${managerId}`),
   review: (managerId: number) => request<GameweekReview>(`/review/${managerId}`),
+  h2hLeagues: (managerId: number) => request<H2HLeagues>(`/h2h/${managerId}`),
+  h2hLeague: (managerId: number, leagueId: number) => request<H2HLeague>(`/h2h/${managerId}/${leagueId}`),
+  // Public: works signed out. Runs the optimiser on a cold cache, so allow for it.
+  preview: (teamId: number) => request<TeamPreview>(`/preview/${teamId}`, { timeoutMs: 45_000 }),
   transferTrends: () => request<TransferTrends>('/projections/transfer-trends'),
   fixturePlanner: (gameweeks: number) => request<FixturePlanner>(`/projections/fixture-planner?gameweeks=${gameweeks}`),
   // Reads up to thirty squads from FPL on a cold cache.

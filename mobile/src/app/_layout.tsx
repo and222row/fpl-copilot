@@ -86,6 +86,8 @@ function GatedStack() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Protected guard={gate === 'signed-out'}>
         <Stack.Screen name="sign-in" />
+        {/* A look at what the app would say, before signing up. */}
+        <Stack.Screen name="preview" options={{ headerShown: true, title: 'Have a look', headerBackTitle: 'Back' }} />
       </Stack.Protected>
       <Stack.Protected guard={gate === 'needs-team'}>
         <Stack.Screen name="onboarding" />
@@ -112,6 +114,7 @@ function GatedStack() {
         <Stack.Screen name="leagues" options={{ headerShown: true, title: 'Mini-leagues', headerBackTitle: 'Back' }} />
         <Stack.Screen name="league/[id]" options={{ headerShown: true, title: '', headerBackTitle: 'Back' }} />
         <Stack.Screen name="rival/[id]" options={{ headerShown: true, title: '', headerBackTitle: 'Back' }} />
+        <Stack.Screen name="h2h/[id]" options={{ headerShown: true, title: '', headerBackTitle: 'Back' }} />
         <Stack.Screen name="live" options={{ headerShown: true, title: 'Live gameweek', headerBackTitle: 'Back' }} />
         <Stack.Screen name="live-league/[id]" options={{ headerShown: true, title: '', headerBackTitle: 'Back' }} />
         <Stack.Screen name="fixture-planner" options={{ headerShown: true, title: 'Fixture planner', headerBackTitle: 'Back' }} />

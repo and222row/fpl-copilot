@@ -31,6 +31,8 @@ jest.mock('@/lib/query', () => ({
   useLiveLeague: () => mockQueries.liveLeague,
   useReview: () => mockQueries.review,
   useTransferTrends: () => mockQueries.trends,
+  useH2HLeagues: () => mockQueries.h2hLeagues,
+  useH2HLeague: () => mockQueries.h2hLeague,
   useMe: () => ({ data: { fpl_accounts: [{ team_name: "Andrew's Team" }] } }),
   useFixturePlanner: (weeks: number) => (mockQueries.planner as (...a: number[]) => unknown)(weeks),
   refreshSquadDerived: () => mockRefresh(),
@@ -43,6 +45,7 @@ jest.mock('expo-sharing', () => ({ isAvailableAsync: async () => true, shareAsyn
 jest.mock('@/lib/monitoring', () => ({ reportError: jest.fn() }));
 
 import Chips from '@/app/chips';
+import H2HScreen from '@/app/h2h/[id]';
 import DreamTeam from '@/app/dream-team';
 import FixturePlannerScreen from '@/app/fixture-planner';
 import League from '@/app/league/[id]';
@@ -73,6 +76,7 @@ beforeEach(() => {
   for (const k of Object.keys(mockQueries)) delete mockQueries[k];
   [mockRecord, mockBack, mockPush, mockRefresh].forEach((m) => m.mockReset());
   mockQueries.recommendation = ok({ bank: 5, free_transfers: 1, lineup: { starting: SQUAD_XI, bench: [] } });
+  mockQueries.h2hLeagues = ok(undefined);
 });
 
 describe('record transfers', () => {
@@ -135,6 +139,50 @@ describe('mini-leagues', () => {
     expect(screen.getByText('Hossam Hassan Ball')).toBeTruthy();
     expect(screen.getByText('3 of 11 ▲')).toBeTruthy();
     expect(screen.getByText('FPL leagues')).toBeTruthy();
+  });
+
+  test('head-to-head leagues and the cup are listed with your leagues', async () => {
+    const user = userEvent.setup();
+    mockQueries.leagues = ok({ leagues: [] });
+    const m = (gameweek: number, result: 'W' | 'L' | null, knockout: string | null) => ({
+      gameweek, opponent: { entry: 9, team_name: 'Beef', manager_name: 'G' }, your_points: 70, their_points: 55, result, knockout,
+    });
+    mockQueries.h2hLeagues = ok({
+      leagues: [{ id: 608496, name: 'Rigged', private: true, rank: 2, last_rank: 3, size: null }],
+      cup: { matches: [m(17, 'W', 'Round 1'), m(18, null, 'Round 2')], qualified: 'QUALIFIED', starts: 16 },
+    });
+    await render(<Leagues />);
+    expect(screen.getByText('Head-to-head leagues')).toBeTruthy();
+    expect(screen.getByText('Round 2 · Gameweek 18')).toBeTruthy();
+    expect(screen.getByLabelText('Won')).toBeTruthy();
+    await user.press(screen.getByTestId('h2h-league-608496'));
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/h2h/[id]', params: { id: '608496', name: 'Rigged' } });
+  });
+
+  test('a head-to-head league: this week live, next week, the table and your results', async () => {
+    mockQueries.params = { id: '608496' };
+    const opp = (entry: number, team_name: string) => ({ entry, team_name, manager_name: 'M' });
+    mockQueries.h2hLeague = ok({
+      league: { id: 608496, name: 'Rigged' },
+      current: { gameweek: 9, opponent: opp(9, 'Beef'), your_points: 41, their_points: 38, result: null, knockout: null, live: true },
+      current_status: { in_play: true, finished: false, matches_done: 3, matches_total: 10, next_kickoff: null },
+      next: { gameweek: 10, opponent: opp(8, 'Lacroixsant'), your_points: 0, their_points: 0, result: null, knockout: null },
+      record: { W: 5, D: 2, L: 1 },
+      results: [{ gameweek: 8, opponent: opp(7, 'Danube'), your_points: 62, their_points: 47, result: 'W', knockout: null }],
+      standings: [
+        { rank: 1, last_rank: 1, entry: 7, team_name: 'Forever 20', manager_name: 'A', won: 5, drawn: 1, lost: 1, points: 16, points_for: 496, is_you: false },
+        { rank: 2, last_rank: 3, entry: 1003, team_name: 'Beg', manager_name: 'O', won: 4, drawn: 2, lost: 1, points: 14, points_for: 470, is_you: true },
+      ],
+      partial: false,
+    });
+    await render(<H2HScreen />);
+    expect(within(screen.getByTestId('h2h-current')).getByText('41')).toBeTruthy();
+    expect(screen.getByText('Live')).toBeTruthy();
+    expect(screen.getByText('vs Lacroixsant')).toBeTruthy();
+    expect(screen.getByText('Beg (you)')).toBeTruthy();
+    expect(screen.getByText('W4 D2 L1 · 470 scored')).toBeTruthy();
+    expect(screen.getByText('Your results · 5W 2D 1L')).toBeTruthy();
+    expect(screen.getByText('62–47')).toBeTruthy();
   });
 
   test('the league shows gaps, threats and the table', async () => {

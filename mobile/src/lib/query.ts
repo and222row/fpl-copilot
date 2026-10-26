@@ -27,6 +27,8 @@ export const queryKeys = {
   fixturePlanner: (gameweeks: number) => ['fixture-planner', gameweeks] as const,
   review: (managerId: number) => ['review', managerId] as const,
   transferTrends: ['transfer-trends'] as const,
+  h2hLeagues: (managerId: number) => ['h2h-leagues', managerId] as const,
+  h2hLeague: (managerId: number, leagueId: number) => ['h2h-league', managerId, leagueId] as const,
   chips: (managerId: number) => ['chips', managerId] as const,
   dreamTeam: (budget: number, horizon: number) => ['dream-team', budget, horizon] as const,
   accuracy: (managerId: number) => ['accuracy', managerId] as const,
@@ -214,6 +216,26 @@ export function useReview(teamId: number | undefined) {
     queryFn: () => api.review(teamId!),
     enabled: !!teamId,
     staleTime: 10 * 60_000,
+  });
+}
+
+export function useH2HLeagues(teamId: number | undefined) {
+  return useQuery({
+    queryKey: queryKeys.h2hLeagues(teamId ?? 0),
+    queryFn: () => api.h2hLeagues(teamId!),
+    enabled: !!teamId,
+    staleTime: 10 * 60_000,
+  });
+}
+
+// Polls while this week's match is being played, like the live screens.
+export function useH2HLeague(teamId: number | undefined, leagueId: number) {
+  return useQuery({
+    queryKey: queryKeys.h2hLeague(teamId ?? 0, leagueId),
+    queryFn: () => api.h2hLeague(teamId!, leagueId),
+    enabled: !!teamId,
+    staleTime: LIVE_POLL_MS,
+    refetchInterval: (q) => (q.state.data?.current_status?.in_play ? LIVE_POLL_MS : false),
   });
 }
 

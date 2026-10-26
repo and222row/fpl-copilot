@@ -1,0 +1,41 @@
+# Signed out, a Team ID shows a preview before any account exists: the team's
+# public details and a teaser of the advice with the players locked.
+appId: com.fplcopilot.app
+name: A guest can preview a team before signing up
+tags: [onboarding, smoke]
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+    permissions:
+      notifications: deny
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: "sign-in-preview"
+- tapOn:
+    id: "sign-in-preview"
+- extendedWaitUntil:
+    visible:
+      id: "preview-screen"
+    timeout: 15000
+- tapOn:
+    id: "preview-input"
+- inputText: ${NEW_TEAM_ID}
+- hideKeyboard
+- tapOn:
+    id: "preview-go"
+- extendedWaitUntil:
+    visible:
+      id: "preview-teaser"
+    timeout: 60000
+- assertVisible: "Who to sell, who to buy and who to captain unlock when you sign in."
+- tapOn:
+    id: "preview-sign-in"
+- extendedWaitUntil:
+    visible:
+      id: "sign-in-screen"
+    timeout: 15000

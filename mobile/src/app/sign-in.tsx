@@ -1,4 +1,5 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { router } from 'expo-router';
 import { useEffect, useState, type ComponentType } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
@@ -103,6 +104,15 @@ export default function SignIn() {
           </ThemedText>
         ) : null}
       </View>
+      <ThemedText
+        testID="sign-in-preview"
+        type="smallBold"
+        themeColor="accent"
+        accessibilityRole="button"
+        onPress={() => router.push('/preview')}
+        style={styles.preview}>
+        Not sure yet? Have a look at your team first
+      </ThemedText>
       {E2ESignIn ? <E2ESignIn /> : null}
     </Screen>
   );
@@ -115,4 +125,5 @@ const styles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4 },
   buttons: { gap: Spacing.two, marginTop: Spacing.four },
   apple: { height: 52 },
+  preview: { textAlign: 'center', marginTop: Spacing.three },
 });
