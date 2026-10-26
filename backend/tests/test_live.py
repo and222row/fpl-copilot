@@ -164,6 +164,42 @@ def test_fpls_own_substitutions_are_kept():
     assert t.points == 10 * 2 + 2 + 6
 
 
+# ── Swing players ────────────────────────────────────────────────────────────
+
+def test_swing_against_a_rival_is_the_difference_in_multipliers():
+    players = everyone(p9=played(0, 0, state=TO_PLAY), p10=played(0, 0, state=TO_PLAY), p11=played(0, 0, state=TO_PLAY))
+    you = team_live(picks(captain=9, vice=10), players)
+    # The rival captains 10 instead, and has 14 where you have 11.
+    them = team_live(picks(captain=10, vice=9, order=[*range(1, 11), 14, 12, 13, 11, 15]), players)
+    out = live.swing(you, them, [them], players)
+    versus = {r["player_id"]: r for r in out["against_rival"]}
+    assert versus[9] == {"player_id": 9, "you": 2, "them": 1, "net": 1}
+    assert versus[10]["net"] == -1
+    assert versus[11]["net"] == 1
+    assert 5 not in versus  # same multiplier for both: decides nothing
+    assert 14 not in versus  # their MID 14 for your FWD 11 is a different position; 14 has played already
+
+
+def test_swing_lists_only_players_still_to_play():
+    players = everyone(p9=played(0, 0, state=TO_PLAY))
+    you = team_live(picks(captain=9), players)
+    them = team_live(picks(captain=10), players)
+    out = live.swing(you, them, [them], players)
+    assert [r["player_id"] for r in out["against_rival"]] == [9]  # 10's match is over
+
+
+def test_swing_against_the_league_uses_effective_ownership():
+    players = everyone(**{f"p{i}": played(0, 0, state=TO_PLAY) for i in TYPES})
+    you = team_live(picks(captain=9), players)
+    field = [team_live(picks(captain=10), players) for _ in range(3)]
+    out = live.swing(you, None, field, players)
+    for_you = {r["player_id"]: r for r in out["for_you"]}
+    against = {r["player_id"]: r for r in out["against_you"]}
+    assert for_you[9] == {"player_id": 9, "you": 2, "eo": 1.0, "net": 1.0}
+    assert against[10] == {"player_id": 10, "you": 1, "eo": 2.0, "net": -1.0}
+    assert out["against_rival"] == []
+
+
 # ── The API ──────────────────────────────────────────────────────────────────
 
 YOU, RIVAL, THIRD = 6727534, 4276486, 1055545
@@ -289,6 +325,15 @@ async def test_live_league_reranks_by_live_points(client, world):
     assert body["your_live_rank"] == 1 and body["gap_to_next"] is None
     assert you["captain"] == "P9" and rival["captain"] == "P4"
     assert body["partial"] is False
+
+    # You lead, so the swing is against the manager just behind you. Same
+    # squads; you captain 9 (match over), they captain 4 (still playing).
+    swing = body["swing"]
+    assert swing["rival"] == {"entry": RIVAL, "team_name": "Rivals", "gap": rival["total"] - you["total"]}
+    assert swing["managers"] == 2
+    versus = {r["name"]: r for r in swing["against_rival"]}
+    assert set(versus) == {"P4"}
+    assert (versus["P4"]["you"], versus["P4"]["them"], versus["P4"]["net"], versus["P4"]["state"]) == (1, 2, -1, PLAYING)
 
 
 async def test_a_manager_without_live_picks_keeps_fpls_figures(client, world):

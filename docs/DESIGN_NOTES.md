@@ -486,6 +486,29 @@ The live squad is the one FPL says was fielded, read directly rather than
 through `resolve_squad`, like `feedback.fetch_actual_squad`: it is what
 happened, not the squad advice is built on.
 
+### Swing players
+
+The live league table also says who decides the league from here. Each point
+a player scores is worth his multiplier to every team that counts him (1
+starting, 2 or 3 with the armband, 0 on the bench). Against one rival, the
+difference in the two multipliers is what each of his points moves the gap:
+you own Haaland, they captain him, so every point he scores costs you one.
+Against the league it is your multiplier less his effective ownership, the
+average multiplier across the managers read. The rival is the manager just
+above you live, or just below if you lead. Players whose matches are over
+decide nothing more, so only those still to play or playing are listed.
+
+## The fixture planner
+
+`app/services/fixture_planner.py` rates every club's next fixtures from the
+team-strength ratings the projections use rather than FPL's fixed scale, and
+splits them: for defenders, the goals the club is expected to concede (the
+custom FDR); for attackers, the goals it is expected to score, on the same
+1-5 scale. Overall is the mean, and FPL's own difficulty stands in until
+ratings exist. Clubs are ranked on the sum of how easy each fixture is (6
+minus its difficulty), so a double counts twice and a blank counts nothing,
+which is how they score.
+
 ### Live match pushes
 
 `app/services/live_alerts.py` pushes a manager's goals, assists, penalty saves

@@ -9,6 +9,7 @@ from app.models.projections import Projection, TeamStrength
 from app.services.projection import rebuild_projections, MODEL_VERSION
 from app.services.team_strength import rebuild_team_strength, MODEL_VERSION as FDR_VERSION
 from app.services.backtest import backtest, ingest_player_history
+from app.services.fixture_planner import plan
 from app.services.fpl_sync import get_next_open_gameweek
 
 router = APIRouter(prefix="/projections", tags=["projections"])
@@ -235,6 +236,18 @@ async def team_strength(db: AsyncSession = Depends(get_db)):
         }
         for ts, short, name in rows
     ]
+
+
+@router.get("/fixture-planner", dependencies=[Premium])
+async def fixture_planner(
+    gameweeks: int = Query(6, ge=1, le=10, description="Gameweeks ahead, from the next open one"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Every club's next fixtures rated for attackers, defenders and overall, from
+    the team-strength ratings, easiest run first, with doubles and blanks.
+    """
+    return await plan(db, gameweeks)
 
 
 # ── Backtest ──────────────────────────────────────────────────────────────────

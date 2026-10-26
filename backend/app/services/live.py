@@ -283,6 +283,61 @@ def team_live(picks: dict, players: dict[int, PlayerLive]) -> TeamLive:
     )
 
 
+SWING_SHOWN = 8
+# Below this, a player is owned by you and the field alike and decides nothing.
+LEAGUE_SWING_MIN = 0.25
+
+
+def _counting(team: TeamLive) -> dict[int, int]:
+    """Each player's multiplier for this team: 1 starting, 2 or 3 with the armband."""
+    return {r["element"]: r["multiplier"] for r in team.rows if r["multiplier"]}
+
+
+def swing(you: TeamLive, rival: TeamLive | None, field: list[TeamLive], players: dict[int, PlayerLive]) -> dict:
+    """
+    Who decides the league from here: the players whose points move you
+    against a rival, and against the league.
+
+    Each point a player scores is worth his multiplier to every team that
+    counts him. Against one rival the difference in multipliers is what a
+    point of his moves the gap (you x2 as captain, they x1: +1 for you per
+    point). Against the league it is your multiplier less his effective
+    ownership, the average multiplier across the managers read. Players whose
+    matches are over decide nothing more, so only those still to play or
+    playing are listed.
+    """
+    mine = _counting(you)
+    theirs = _counting(rival) if rival else {}
+    counted = [_counting(t) for t in field]
+    eo: Counter = Counter()
+    for c in counted:
+        eo.update(c)
+    n = max(1, len(counted))
+
+    def open_(pid: int) -> bool:
+        return players.get(pid, NOT_YET).state != DONE
+
+    def ranked(rows: list[dict]) -> list[dict]:
+        return sorted(rows, key=lambda r: (-abs(r["net"]), r["player_id"]))[:SWING_SHOWN]
+
+    versus = [
+        {"player_id": pid, "you": mine.get(pid, 0), "them": theirs.get(pid, 0), "net": mine.get(pid, 0) - theirs.get(pid, 0)}
+        for pid in set(mine) | set(theirs)
+        if mine.get(pid, 0) != theirs.get(pid, 0) and open_(pid)
+    ] if rival else []
+    league = []
+    for pid in set(mine) | set(eo):
+        share = eo.get(pid, 0) / n
+        net = mine.get(pid, 0) - share
+        if abs(net) >= LEAGUE_SWING_MIN and open_(pid):
+            league.append({"player_id": pid, "you": mine.get(pid, 0), "eo": round(share, 2), "net": round(net, 2)})
+    return {
+        "against_rival": ranked(versus),
+        "for_you": ranked([r for r in league if r["net"] > 0]),
+        "against_you": ranked([r for r in league if r["net"] < 0]),
+    }
+
+
 def total_before(picks: dict) -> int:
     """The manager's season total before this gameweek, from FPL's entry history."""
     h = picks.get("entry_history") or {}
@@ -355,6 +410,35 @@ async def live_view(db: AsyncSession, manager_id: int) -> dict:
     }
 
 
+async def _swing_view(db, gameweek, me, table, teams, players) -> dict | None:
+    """swing() for you against the manager just above you (just below if you lead)."""
+    if me is None or teams.get(me["entry"]) is None:
+        return None
+    others = [row for row in table if not row["is_you"] and teams.get(row["entry"])]
+    i = table.index(me)
+    ahead = [row for row in table[:i] if teams.get(row["entry"])]
+    behind = [row for row in table[i + 1:] if teams.get(row["entry"])]
+    rival = ahead[-1] if ahead else (behind[0] if behind else None)
+    field = [teams[row["entry"]][0] for row in others if row.get("in_sample", True)]
+    result = swing(teams[me["entry"]][0], teams[rival["entry"]][0] if rival else None, field, players)
+
+    ids = {r["player_id"] for rows in result.values() for r in rows}
+    info = await _player_rows(db, ids, gameweek)
+
+    def dress(rows: list[dict]) -> list[dict]:
+        return [
+            {**info.get(r["player_id"], {"name": f"#{r['player_id']}", "team": "", "position": "UNK"}), **r,
+             "state": players.get(r["player_id"], NOT_YET).state}
+            for r in rows
+        ]
+
+    return {
+        "rival": {"entry": rival["entry"], "team_name": rival["team_name"], "gap": rival["total"] - me["total"]} if rival else None,
+        "managers": len(field),
+        **{k: dress(v) for k, v in result.items()},
+    }
+
+
 async def league_live(db: AsyncSession, manager_id: int, league_id: int) -> dict:
     membership = await _membership(manager_id, league_id)
     gw = await _gameweek(db)
@@ -413,6 +497,7 @@ async def league_live(db: AsyncSession, manager_id: int, league_id: int) -> dict
     me = next((row for row in table if row["is_you"]), None)
     above = [row for row in table if me and row["live_rank"] and me["live_rank"] and row["total"] > me["total"]]
     return {
+        "swing": await _swing_view(db, gw.id, me, table, teams, players),
         "league": {"id": league["id"], "name": league["name"], "size": membership["size"]},
         "gameweek": {"id": gw.id, "name": gw.name},
         **_status(fixtures),

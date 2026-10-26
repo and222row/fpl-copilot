@@ -166,6 +166,7 @@ parameters and response shapes are in the Swagger UI.
 | GET | `/api/v1/projections` | premium | default | Top projected players for a gameweek. |
 | GET | `/api/v1/projections/player/{player_id}` | premium | default | Full projection breakdown for one player across upcoming gameweeks. |
 | GET | `/api/v1/projections/team-strength` | premium | default | Derived attack/defence ratings behind the custom FDR. |
+| GET | `/api/v1/projections/fixture-planner` | premium | default | Every club's next fixtures rated for attackers, defenders and overall, from the team-strength ratings, easiest run first, with doubles and blanks. |
 | POST | `/api/v1/projections/backtest/ingest-history` | operator | HEAVY | Pull per-GW actual results for the backtest ground truth. |
 | GET | `/api/v1/projections/backtest` | public | default | Score stored projections against recorded actuals. |
 

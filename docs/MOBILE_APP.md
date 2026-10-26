@@ -38,7 +38,14 @@ Supabase Auth, RevenueCat and the stores; it holds no backend credential.
   points as matches are played, with provisional bonus, projected automatic
   substitutions and captaincy, and points under each shirt on the pitch;
   each of your private leagues re-ranked live, with every manager's captain,
-  chip and players left. Refreshes every minute while a match is on.
+  chip and players left, and what decides it from here: the players still
+  to play whose points move you against the manager just above you (or just
+  below if you lead), and against the league by effective ownership.
+  Refreshes every minute while a match is on.
+- **Fixture planner** (Home → Tools): every club's next 3, 6 or 8 gameweeks
+  in FPL's colours, rated by the team-strength model for attackers, for
+  defenders or overall, easiest run first, with doubles, blanks and a badge
+  on the clubs you own players from.
 - **Mini-leagues** (Home → Tools): your leagues with rank and movement; a
   league's table, the gap to the leader and the next place, the players most
   of the top ten own that you don't, and your differentials; head to head
