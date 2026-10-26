@@ -430,7 +430,7 @@ async function accessToken(): Promise<string | undefined> {
   return (await supabase().auth.getSession()).data.session?.access_token;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = await accessToken();
   let res: Response;
   try {

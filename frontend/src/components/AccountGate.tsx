@@ -106,7 +106,7 @@ export function AccountGate({ children }: { children: (a: SignedInAccount) => Re
   });
 }
 
-function SignIn() {
+export function SignIn() {
   const [error, setError] = useState<string | null>(null);
 
   async function go(provider: "google" | "apple") {
