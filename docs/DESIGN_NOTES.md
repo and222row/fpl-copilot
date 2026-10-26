@@ -498,6 +498,25 @@ average multiplier across the managers read. The rival is the manager just
 above you live, or just below if you lead. Players whose matches are over
 decide nothing more, so only those still to play or playing are listed.
 
+## Head-to-head leagues and the cup
+
+`app/services/h2h.py` reads FPL's head-to-head tables and a manager's own
+fixtures (one call for the season, cached like classic tables). A settled
+match keeps FPL's numbers; one being played is scored by the live
+calculation for both sides, because FPL's match points lag. Your record
+counts settled matches, so it can include last gameweek before FPL's table
+does. The cup comes with the manager's entry and has no matches until FPL
+starts it, around gameweek 16.
+
+## The guest preview
+
+`/preview/{team_id}` is the only advice route that needs no sign-in, so it
+is built to give nothing away: the team's public FPL details, FPL's own
+injury flags, and the advice's size (transfers, net gain, projected XI) but
+not its players. It reads FPL's public squad and never transfers an owner
+recorded, saves nothing for the track record, and is cached per team for 30
+minutes and rate-limited per IP on the optimiser tier.
+
 ## Transfer trends
 
 `app/services/trends.py` sets the crowd against the model. The crowd's
@@ -546,7 +565,10 @@ multiplier and yours times the points: nothing if you captain him too, so
 that sends nothing. **The gameweek review**: once every match is over and
 its bonus confirmed (or near the end of the window if FPL is slow), one push
 per manager with the points, the best player and the captain. All of them
-share the "Goals and full time" switch.
+share the "Goals and full time" switch. All of them also go to the team's
+Telegram chat when one is linked and its alerts are on, recorded separately
+so the phone and Telegram each get every event once; a message Telegram
+refuses is tried again on the next tick.
 
 ## The gameweek review
 

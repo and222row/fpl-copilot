@@ -292,6 +292,19 @@ parameters and response shapes are in the Swagger UI.
 |---|---|---|---|---|
 | GET | `/api/v1/review/{manager_id}` | owner + premium | UPSTREAM | How a finished gameweek went. |
 
+### leagues
+
+| Method | Path | Access | Rate limit | Purpose |
+|---|---|---|---|---|
+| GET | `/api/v1/h2h/{manager_id}` | owner + premium | UPSTREAM | Your head-to-head leagues, and your FPL cup matches once the cup starts. |
+| GET | `/api/v1/h2h/{manager_id}/{league_id}` | owner + premium | UPSTREAM | A head-to-head league: the table, this week's match (live), the next one, and your results. |
+
+### preview
+
+| Method | Path | Access | Rate limit | Purpose |
+|---|---|---|---|---|
+| GET | `/api/v1/preview/{team_id}` | public | HEAVY | Public, no sign-in: a team's public FPL details and a teaser of the advice (the gain, not the players). |
+
 ### root
 
 | Method | Path | Access | Rate limit | Purpose |

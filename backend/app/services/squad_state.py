@@ -84,21 +84,26 @@ async def resolve_squad(
     manager_id: int,
     target_gw: int,
     picks_gw: int,
+    *,
+    use_override: bool = True,
 ) -> ResolvedSquad:
     """
     Best available view of what the manager holds for `target_gw`.
 
     Prefers a manager-supplied override; otherwise falls back to the last locked
-    squad from FPL and attaches a warning saying so.
+    squad from FPL and attaches a warning saying so. `use_override=False` reads
+    FPL's public squad only: for anyone other than the team's owner (the guest
+    preview), whose recorded transfers are private.
     """
-    await prune_stale_overrides(db)
-
-    override = (await db.execute(
-        select(SquadOverride).where(
-            SquadOverride.fpl_entry_id == manager_id,
-            SquadOverride.gameweek_id == target_gw,
-        )
-    )).scalars().first()
+    override = None
+    if use_override:
+        await prune_stale_overrides(db)
+        override = (await db.execute(
+            select(SquadOverride).where(
+                SquadOverride.fpl_entry_id == manager_id,
+                SquadOverride.gameweek_id == target_gw,
+            )
+        )).scalars().first()
 
     if override and override.player_ids:
         return ResolvedSquad(

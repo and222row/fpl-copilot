@@ -149,6 +149,24 @@ async def fetch_league_standings(league_id: int, page: int = 1) -> dict:
     )
 
 
+async def fetch_h2h_standings(league_id: int) -> dict:
+    """Page one of a head-to-head league's table. Cached briefly, like classic tables."""
+    return await cached_json(
+        cache.key_h2h(league_id),
+        lambda: _get(f"/leagues-h2h/{league_id}/standings/"),
+        ttl_seconds=LEAGUE_TTL_SECONDS,
+    )
+
+
+async def fetch_h2h_matches(league_id: int, entry: int) -> dict:
+    """One manager's head-to-head fixtures and results in a league, the whole season."""
+    return await cached_json(
+        cache.key_h2h_matches(league_id, entry),
+        lambda: _get(f"/leagues-h2h-matches/league/{league_id}/?page=1&entry={entry}"),
+        ttl_seconds=LEAGUE_TTL_SECONDS,
+    )
+
+
 # Match history only changes after a match, so ten minutes is safe. Separate
 # from fetch_player_detail on purpose: the history ingest walks every player
 # and would spend hundreds of cache writes against a 10k/day Redis allowance.

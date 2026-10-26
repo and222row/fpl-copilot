@@ -103,6 +103,8 @@ async def load_squad(
     manager_id: int,
     target_gw: int,
     picks_gw: int,
+    *,
+    use_override: bool = True,
 ) -> tuple[list[SquadEntry], dict]:
     """
     Fetch a manager's 15 players and pair each with his projection for
@@ -114,7 +116,7 @@ async def load_squad(
     # Prefers a manager-recorded override, because FPL cannot expose transfers
     # made for a gameweek that has not started yet.
     try:
-        resolved = await resolve_squad(db, manager_id, target_gw, picks_gw)
+        resolved = await resolve_squad(db, manager_id, target_gw, picks_gw, use_override=use_override)
     except Exception:
         logger.warning("squad lookup failed", exc_info=True, extra={"manager_id": manager_id})
         raise AdviceError(
@@ -354,9 +356,15 @@ async def full_advice(
     *,
     horizon: int = DEFAULT_HORIZON,
     captain_mode: str = DEFAULT_CAPTAIN_MODE,
+    record: bool = True,
+    use_override: bool = True,
 ) -> dict:
-    """Lineup, captain, squad issues and the recommended transfer."""
-    squad, meta = await load_squad(db, manager_id, gw.id, await picks_gameweek(db))
+    """
+    Lineup, captain, squad issues and the recommended transfer. `record` saves
+    it for the track record and `use_override` reads recorded transfers; the
+    guest preview turns both off, being nobody's advice and nobody's squad.
+    """
+    squad, meta = await load_squad(db, manager_id, gw.id, await picks_gameweek(db), use_override=use_override)
 
     lineup = best_starting_xi(squad)
     captain, vice, ranked = pick_captain_and_vice(lineup.starting, mode=captain_mode)
@@ -386,7 +394,7 @@ async def full_advice(
     # "prediction" of a result we can already see, which would flatter the
     # accuracy history into meaninglessness.
     snapshotted = False
-    if before_deadline(gw):
+    if record and before_deadline(gw):
         await _snapshot_advice(
             db,
             manager_id=manager_id,

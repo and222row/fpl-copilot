@@ -299,6 +299,52 @@ async def test_the_review_goes_out_late_if_fpl_never_confirms(session, world):
     assert any(m.data["type"] == "review" for m in expo.sent)
 
 
+@pytest.fixture
+async def telegram_chat(session, monkeypatch):
+    from app.models.news import TrackedManager
+    session.add(TrackedManager(fpl_entry_id=1001, telegram_chat_id="555", telegram_enabled=True))
+    await session.commit()
+    sent: list[tuple[str, str]] = []
+    state = {"up": True}
+
+    async def send_message(chat, text, **kw):
+        if state["up"]:
+            sent.append((chat, text))
+        return state["up"]
+
+    monkeypatch.setattr(live_alerts.telegram, "configured", lambda: True)
+    monkeypatch.setattr(live_alerts.telegram, "send_message", send_message)
+    return sent, state
+
+
+async def test_live_events_also_go_to_a_linked_telegram_chat_once(session, world, telegram_chat):
+    expo, _ = world
+    sent, _ = telegram_chat
+    result = await live_alerts.tick(session)
+    assert result["telegram"] == 4 and len(expo.sent) == 4  # both channels, each once
+    assert {chat for chat, _ in sent} == {"555"}
+    assert sent[0][1].startswith("<b>") and "Saka" in "".join(text for _, text in sent)
+    sent.clear()
+    assert (await live_alerts.tick(session))["telegram"] == 0
+
+
+async def test_telegram_down_is_retried_next_tick(session, world, telegram_chat):
+    sent, state = telegram_chat
+    state["up"] = False
+    assert (await live_alerts.tick(session))["telegram"] == 0
+    state["up"] = True
+    assert (await live_alerts.tick(session))["telegram"] == 4
+
+
+async def test_telegram_without_the_app_still_gets_them(session, world, telegram_chat):
+    from sqlalchemy import delete
+    await session.execute(delete(Device))
+    await session.commit()
+    expo, _ = world
+    assert (await live_alerts.tick(session))["telegram"] == 4
+    assert expo.sent == []
+
+
 @pytest.mark.parametrize("environment,explicit,on", [
     ("production", None, True), ("development", None, False), ("production", False, False), ("development", True, True),
 ])

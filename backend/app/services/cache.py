@@ -68,6 +68,18 @@ def key_league(league_id: int, page: int) -> str:
     return f"{PREFIX}:league:{league_id}:{page}"
 
 
+def key_h2h(league_id: int) -> str:
+    return f"{PREFIX}:h2h:{league_id}"
+
+
+def key_h2h_matches(league_id: int, entry: int) -> str:
+    return f"{PREFIX}:h2h-matches:{league_id}:{entry}"
+
+
+def key_preview(team_id: int, gameweek: int) -> str:
+    return f"{PREFIX}:preview:{team_id}:{gameweek}"
+
+
 def key_element_summary(player_id: int) -> str:
     return f"{PREFIX}:element:{player_id}"
 

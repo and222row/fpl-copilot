@@ -86,7 +86,7 @@ web, retire it, or limit it to free data), sign-in was chosen:
 | API1 Broken object level authorisation | Every `/{manager_id}` route requires ownership (`ManagerAccess`); structural test fails on any route without it. |
 | API2 Broken authentication | Supabase tokens verified locally: algorithm pinned per key type, issuer, audience, expiry; anon/service keys and anonymous sessions rejected. |
 | API3 Property level authorisation / mass assignment | Write bodies use Pydantic models with `extra="forbid"`; server derives user, plan and entitlement itself. |
-| API4 Unrestricted resource consumption | Per-user/IP rate limits by tier, 1 MB body limit, optimiser endpoints on the strictest tier. |
+| API4 Unrestricted resource consumption | Per-user/IP rate limits by tier, 1 MB body limit, optimiser endpoints on the strictest tier. The one public optimiser route, the guest preview (`/preview/{team_id}`), is on that tier per IP and cached per team for 30 minutes; it reads FPL's public squad only (never an owner's recorded transfers), names none of the advice's players, and stores nothing. |
 | API5 Function level authorisation | Operator routes need `X-Job-Token` and fail closed in production; structural test covers every write route. |
 | API6 Sensitive business flows | Team ownership proved by a code in the FPL team name; one trial per user and per team, ever; tombstones on deletion. |
 | API7 SSRF | No user-supplied URLs are fetched; FPL, RevenueCat, Supabase and Expo hosts are fixed. |

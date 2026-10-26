@@ -12,6 +12,10 @@ Supabase Auth, RevenueCat and the stores; it holds no backend credential.
 ## Features
 
 - **Sign in** with Apple (iOS) and Google (iOS and Android) through Supabase.
+- **Have a look first** (from sign-in, no account): a Team ID shows the
+  team's public FPL details, FPL's injury flags for its squad, and a teaser
+  of the advice (how much the recommended transfers gain, what the best XI
+  projects) with the players unlocked by signing in.
 - **Onboarding:** swipeable slides explain where the Team ID is. Enter it and
   the team connects straight away. The 30-day trial starts once the team is
   proven yours, by adding a short code to its name on the FPL website for a
@@ -63,6 +67,10 @@ Supabase Auth, RevenueCat and the stores; it holds no backend credential.
   in FPL's colours, rated by the team-strength model for attackers, for
   defenders or overall, easiest run first, with doubles, blanks and a badge
   on the clubs you own players from.
+- **Head-to-head leagues and the cup** (in Mini-leagues): each head-to-head
+  league's table (won, drawn, lost, points scored), this week's match scored
+  live while it is played, next week's opponent, and your results; and your
+  FPL cup run once it starts.
 - **Mini-leagues** (Home → Tools): your leagues with rank and movement; a
   league's table, the gap to the leader and the next place, the players most
   of the top ten own that you don't, and your differentials; head to head

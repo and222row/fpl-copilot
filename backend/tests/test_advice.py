@@ -45,7 +45,7 @@ async def world(session, monkeypatch):
 
     calls = []
 
-    async def resolved(db, manager_id, target_gw, picks_gw):
+    async def resolved(db, manager_id, target_gw, picks_gw, use_override=True):
         calls.append(manager_id)
         if manager_id == 666:
             raise RuntimeError("FPL hiccup")

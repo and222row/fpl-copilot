@@ -445,6 +445,8 @@ EXPECTED_PREMIUM_ROUTES = {
     "/api/v1/live/{manager_id}",
     "/api/v1/live/{manager_id}/leagues/{league_id}",
     "/api/v1/review/{manager_id}",
+    "/api/v1/h2h/{manager_id}",
+    "/api/v1/h2h/{manager_id}/{league_id}",
 }
 
 

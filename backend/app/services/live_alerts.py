@@ -14,6 +14,9 @@ second goal by one player in one match, and push.py records each key it sends
 and refuses it again, so a restart mid-match repeats nothing. Only matches
 inside their window count, so a server that starts on Monday does not send
 Saturday's goals.
+
+The same events go to the team's Telegram chat when one is linked and its
+alerts are on there, as the squad alerts already do.
 """
 import asyncio
 import logging
@@ -27,8 +30,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.accounts import FplAccount
 from app.models.fpl import Fixture, Gameweek, Player, Team, utcnow
+from app.models.news import TrackedManager
 from app.models.notifications import Device, PushDelivery
-from app.services import leagues, live, push
+from app.services import leagues, live, push, telegram
+from app.services.notifications import _escape
 from app.services.entitlements import get_entitlement
 
 logger = logging.getLogger("fpl_copilot.live_alerts")
@@ -38,6 +43,9 @@ IDLE_SECONDS = 300
 # From kick-off until FPL has confirmed the bonus, about an hour after full time.
 WINDOW = timedelta(hours=3, minutes=30)
 KIND = "live"
+# The same events sent to a linked Telegram chat; recorded separately so the
+# phone and Telegram each get every event once.
+TELEGRAM_KIND = "telegram"
 
 # FPL stat -> how the push names it.
 EVENTS = {
@@ -292,11 +300,20 @@ async def tick(db: AsyncSession, now: datetime | None = None) -> dict:
     for user_id, token in (await db.execute(select(Device.user_id, Device.token))).all():
         devices.setdefault(user_id, []).append(token)
     accounts = (await db.execute(select(FplAccount.user_id, FplAccount.fpl_entry_id))).all()
+    # Telegram chats linked to a team, where its alerts are switched on there.
+    chats = dict((await db.execute(
+        select(TrackedManager.fpl_entry_id, TrackedManager.telegram_chat_id).where(
+            TrackedManager.telegram_enabled.is_(True), TrackedManager.telegram_chat_id.is_not(None),
+        )
+    )).all()) if telegram.configured() else {}
 
     queued: list[tuple[uuid.UUID, push.Message]] = []
     claims: list[PushDelivery] = []
+    telegram_sent = 0
     for user_id, entry in accounts:
-        if not devices.get(user_id) or not await push._wants(db, user_id, KIND):
+        to_phone = bool(devices.get(user_id)) and await push._wants(db, user_id, KIND)
+        chat = chats.get(entry)
+        if not to_phone and not chat:
             continue
         if not (await get_entitlement(db, user_id)).premium:
             continue
@@ -315,15 +332,20 @@ async def tick(db: AsyncSession, now: datetime | None = None) -> dict:
         if review_due:
             events.append(review_event(picks, players, names, gameweek, gw_row.name if gw_row else f"GW{gameweek}"))
         for event in events:
-            row = await push._claim(db, user_id, KIND, event.key)
-            if row is None:
-                continue
-            claims.append(row)
-            kind = "review" if event.key.startswith("review:") else "live"
-            queued.extend(
-                (user_id, push.Message(t, event.title, event.body, {"type": kind})) for t in devices[user_id]
-            )
+            if to_phone and (row := await push._claim(db, user_id, KIND, event.key)) is not None:
+                claims.append(row)
+                kind = "review" if event.key.startswith("review:") else "live"
+                queued.extend(
+                    (user_id, push.Message(t, event.title, event.body, {"type": kind})) for t in devices[user_id]
+                )
+            if chat and (row := await push._claim(db, user_id, TELEGRAM_KIND, event.key)) is not None:
+                if await telegram.send_message(chat, f"<b>{_escape(event.title)}</b>\n{_escape(event.body)}"):
+                    telegram_sent += 1
+                elif row in db.new:  # Telegram refused or is down: try again next tick
+                    db.expunge(row)
+                else:
+                    await db.delete(row)
 
     result = await push._deliver(db, queued, claims)
     await db.commit()
-    return {"active": True, "matches": len(fixtures), **result}
+    return {"active": True, "matches": len(fixtures), **result, "telegram": telegram_sent}
