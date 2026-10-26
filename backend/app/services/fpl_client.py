@@ -112,6 +112,24 @@ async def fetch_live_points(gameweek: int) -> dict:
     return await _get(f"/event/{gameweek}/live/")
 
 
+async def fetch_event_fixtures(gameweek: int) -> list[dict]:
+    """
+    One gameweek's fixtures, with each match's live BPS and, once FPL confirms
+    it, its bonus. For the live screens only: the sync reads every fixture
+    through fetch_fixtures. Uncached here; services/live.py keeps it briefly.
+    """
+    return await _get(f"/fixtures/?event={gameweek}")
+
+
+async def fetch_event_picks(manager_id: int, gameweek: int) -> dict:
+    """
+    fetch_manager_picks without the Redis cache, for services/live.py, which
+    keeps picks in memory instead: polling a whole league every minute would
+    spend Redis's daily command allowance on its own.
+    """
+    return await _get(f"/entry/{manager_id}/event/{gameweek}/picks/")
+
+
 async def fetch_player_detail(player_id: int) -> dict:
     """Returns detailed history and fixture list for a single player."""
     return await _get(f"/element-summary/{player_id}/")

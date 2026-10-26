@@ -452,6 +452,40 @@ so the advisor now says so instead.
     GET /api/v1/chips/{manager_id}       full advice
     GET /api/v1/chips/fixtures/shape     doubles and blanks, squad-independent
 
+## The live gameweek
+
+`app/services/live.py` turns FPL's live data into your points as matches are
+played, and re-ranks your mini-leagues by them. FPL's own live numbers are
+incomplete in two ways, and both are filled in here:
+
+- **Bonus** is not in a player's live points until FPL confirms it, about an
+  hour after full time. Until then it is worked out from the match's BPS:
+  3, 2 and 1 to the top three, tied players sharing the higher award and the
+  next one skipped (3, 3, 1 for a tie at the top). Checked against FPL's
+  confirmed bonus for every match of GW5 to GW8: 40 of 40 agree.
+- **Automatic substitutions and the armband** are applied by FPL only as
+  matches finish (it swaps the players' slots in the picks). The rest are
+  projected: a starter whose matches are over without a minute played gives
+  way to the first bench player who has played, goalkeeper for goalkeeper,
+  if the formation keeps at least 3 defenders, 2 midfielders and 1 forward.
+  The vice-captain takes the armband when the captain didn't play; nobody
+  does if neither did. Bench Boost counts all 15 and makes no substitutions.
+
+`scripts/live_check.py` runs the same code against real teams. Once a
+gameweek's matches are over it must equal FPL's points: 100 teams checked on
+GW8, including Triple Captain and Free Hit, with no difference.
+
+Live points and fixtures are the same for every user, and the app polls
+once a minute while a match is on, so they are kept in process memory for a
+minute rather than in Redis, whose 10k daily commands one matchday of polling
+would spend. Picks are fixed once the deadline passes and are kept for ten
+minutes. A league's live table reads the top 30 managers' picks; in a larger
+league, managers below them keep FPL's figures and get no live rank.
+
+The live squad is the one FPL says was fielded, read directly rather than
+through `resolve_squad`, like `feedback.fetch_actual_squad`: it is what
+happened, not the squad advice is built on.
+
 ## The Redis cache, and what it deliberately does not cache
 
 Redis had been carrying nothing. The only operations against it were two health

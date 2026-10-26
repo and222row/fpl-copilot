@@ -101,6 +101,12 @@ reads the caller's state from RevenueCat and returns the new entitlement.
 (lineup, captain, issues and recommended transfer in one call; can take tens
 of seconds on a cold solve, so the app allows 60 s).
 
+**During a gameweek:** `GET /live/{manager_id}` (your live points, provisional
+bonus, projected automatic substitutions and captaincy) and
+`GET /live/{manager_id}/leagues/{league_id}` (a league re-ranked live). Both
+carry `in_play`; the app polls once a minute only while it is true. See
+[DESIGN_NOTES.md](DESIGN_NOTES.md#the-live-gameweek).
+
 **Recording transfers FPL cannot show yet:**
 `POST /fpl/manager/{manager_id}/squad-state/transfers` with
 `{"moves": [{"out": 1, "in": 572}]}`. See
@@ -270,6 +276,13 @@ parameters and response shapes are in the Swagger UI.
 | GET | `/api/v1/leagues/{manager_id}` | owner + premium | UPSTREAM | Your classic mini-leagues, your own first, with your rank in each. |
 | GET | `/api/v1/leagues/{manager_id}/{league_id}` | owner + premium | UPSTREAM | A league's table with your gaps, the players the leaders own that you don't, and your differentials. |
 | GET | `/api/v1/leagues/{manager_id}/{league_id}/rivals/{rival_id}` | owner + premium | UPSTREAM | Head to head with one rival: shared players, the differences, and who they favour. |
+
+### live
+
+| Method | Path | Access | Rate limit | Purpose |
+|---|---|---|---|---|
+| GET | `/api/v1/live/{manager_id}` | owner + premium | UPSTREAM | Your points in the gameweek being played. |
+| GET | `/api/v1/live/{manager_id}/leagues/{league_id}` | owner + premium | UPSTREAM | A mini-league re-ranked by live points, with each manager's captain and players left. |
 
 ### root
 
