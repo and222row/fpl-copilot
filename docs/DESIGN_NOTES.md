@@ -525,6 +525,28 @@ which goal of his it was), and push delivery records keys and refuses repeats,
 so a restart mid-match sends nothing twice. Only matches inside their window
 count, so a server that starts on Monday does not send Saturday's goals.
 
+The same loop sends two more. **Your rival's captain**: the rival is the
+manager just above you (just below if you lead) in your smallest private
+league, looked up once every few hours rather than every minute. Each goal,
+assist or card by his captain costs or gains you the difference between his
+multiplier and yours times the points: nothing if you captain him too, so
+that sends nothing. **The gameweek review**: once every match is over and
+its bonus confirmed (or near the end of the window if FPL is slow), one push
+per manager with the points, the best player and the captain. All of them
+share the "Goals and full time" switch.
+
+## The gameweek review
+
+`app/services/review.py` describes a finished gameweek from data already
+read elsewhere: FPL's live points and picks through `services/live.py` (so
+automatic substitutions and the vice-captain are FPL's own by then), the
+manager's FPL history for ranks and the season chart, and the graded advice
+from `services/feedback.py`. The default gameweek is the latest whose
+matches are all over by the synced fixtures, so the review never shows a
+gameweek still being played unless asked for one. "Missed" captain points
+are the armband on the XI's top scorer instead, at the multiplier the
+manager actually had (triple with Triple Captain).
+
 ## Advice worked out ahead
 
 The recommendation behind Home, My Team and Transfers took seconds per open,

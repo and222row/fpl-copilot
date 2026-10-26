@@ -42,6 +42,12 @@ Supabase Auth, RevenueCat and the stores; it holds no backend credential.
   to play whose points move you against the manager just above you (or just
   below if you lead), and against the league by effective ownership.
   Refreshes every minute while a match is on.
+- **Gameweek review** (Home → Tools, the live screen once every match is
+  over, and a push when the bonus is confirmed): points against the average
+  and highest, gameweek and overall rank with its movement, best and worst
+  picks, your captain against the best captain you had, points left on the
+  bench, how the advice did, your league ranks, and a season chart of points
+  per gameweek against the average (tap a bar to read it).
 - **Fixture planner** (Home → Tools): every club's next 3, 6 or 8 gameweeks
   in FPL's colours, rated by the team-strength model for attackers, for
   defenders or overall, easiest run first, with doubles, blanks and a badge
@@ -70,9 +76,10 @@ Supabase Auth, RevenueCat and the stores; it holds no backend credential.
 - **Push notifications:** availability alerts for your squad, price alerts,
   a deadline reminder two hours out carrying your recommended transfers and
   captain, and during matches your players' goals, assists, penalties, red
-  cards and each match's full-time points, each switchable in Profile →
+  cards, your nearest rival's captain when he moves the gap, each match's
+  full-time points and your gameweek review, each switchable in Profile →
   Notifications. Permission is asked from a button, never at launch. Tapping
-  one opens the player, News, Transfers or the live gameweek.
+  one opens the player, News, Transfers, the live gameweek or the review.
 - **Home opens fast:** the recommendation is worked out by the server after
   each data refresh and stored, so Home usually reads it rather than waiting.
 - **Profile:** account and connected team, subscription status, Manage

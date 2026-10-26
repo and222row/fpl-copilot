@@ -102,6 +102,38 @@ def test_matches_without_your_players_say_nothing():
     assert run(fixtures={99: match(fid=99, home=3, away=3, done=True)}) == []
 
 
+# ── The rival's captain ──────────────────────────────────────────────────────
+
+def rival(mine, theirs, name="Rivals"):
+    return live_alerts.rival_events(mine, theirs, name, EXPLAIN, {71: match()}, NAMES, SHORT, GW)
+
+
+def test_a_rival_captain_costs_you_the_difference_in_multipliers():
+    # They captain Saka; you own him without the armband: each goal costs 5.
+    events = {e.key: e for e in rival(picks(captain=1), picks(captain=2))}
+    goal = events["rival:8:71:2:goals_scored:1"]
+    assert goal.title == "Goal: Saka, Rivals' captain"
+    assert goal.body == "ARS 2-0 MCI · −5 for you against them"
+    assert events["rival:8:71:2:assists:1"].body.endswith("−3 for you against them")
+    assert "rival:8:71:2:goals_scored:2" in events
+
+
+def test_a_shared_captain_moves_nothing():
+    assert rival(picks(captain=2), picks(captain=2)) == []
+
+
+def test_a_rival_captain_you_do_not_own_costs_the_lot():
+    no_saka = {**picks(captain=1), "picks": [p for p in picks(captain=1)["picks"] if p["element"] != 2]}
+    goal = next(e for e in rival(no_saka, picks(captain=2)) if e.key.endswith("goals_scored:1"))
+    assert "−10 for you" in goal.body
+
+
+def test_a_triple_captained_rival_and_possessives():
+    goal = next(e for e in rival(picks(captain=1), picks(chip="3xc", captain=2), "Poehlerboyz") if e.key.endswith("goals_scored:1"))
+    assert goal.title == "Goal: Saka, Poehlerboyz's captain"
+    assert "−10 for you" in goal.body  # (3 - 1) x 5
+
+
 # ── Sending ──────────────────────────────────────────────────────────────────
 
 class FakeExpo:
@@ -141,13 +173,23 @@ async def world(session, monkeypatch):
 
     async def fake_live(gw):
         fpl["live"] += 1
-        return {"elements": [{"id": e, "stats": {}, "explain": x} for e, x in EXPLAIN.items()]}
+        def stats(x):
+            all_ = [s for a in x for s in a["stats"]]
+            return {"total_points": sum(s["points"] for s in all_),
+                    "minutes": next((s["value"] for s in all_ if s["identifier"] == "minutes"), 0)}
+
+        return {"elements": [{"id": e, "stats": stats(x), "explain": x} for e, x in EXPLAIN.items()]}
 
     async def fake_fixtures(gw):
         return fpl["fixtures"]
 
     async def fake_picks(entry, gw):
-        return picks()
+        return picks(captain=2 if entry == 2002 else fpl.get("your_captain", 2))
+
+    async def no_rival(entry, gw):
+        return None
+
+    monkeypatch.setattr(live_alerts, "_rival", no_rival)
 
     monkeypatch.setattr(live, "fetch_live_points", fake_live)
     monkeypatch.setattr(live, "fetch_event_fixtures", fake_fixtures)
@@ -202,6 +244,59 @@ async def test_an_old_match_in_the_same_gameweek_is_not_resent(session, world):
     fpl["fixtures"] = [match(kickoff=utcnow() - timedelta(days=2), done=True), match(fid=72, home=3, away=3)]
     await live_alerts.tick(session)
     assert expo.sent == []
+
+
+async def test_the_rival_captain_push_goes_out_once(session, world, monkeypatch):
+    expo, fpl = world
+    fpl["your_captain"] = 1  # the rival (2002) captains Saka; you captain Raya
+
+    async def rival_above(entry, gw):
+        return (2002, "Rivals")
+
+    monkeypatch.setattr(live_alerts, "_rival", rival_above)
+    await live_alerts.tick(session)
+    titles = [m.title for m in expo.sent]
+    assert titles.count("Goal: Saka, Rivals' captain") == 2
+    assert "Assist: Saka, Rivals' captain" in titles
+    expo.sent.clear()
+    await live_alerts.tick(session)
+    assert expo.sent == []
+
+
+def with_bonus(f: dict) -> dict:
+    return {**f, "stats": [{"identifier": "bonus", "h": [{"element": 2, "value": 3}], "a": []}]}
+
+
+async def test_the_review_push_waits_for_confirmed_bonus(session, world):
+    expo, fpl = world
+    fpl["fixtures"] = [match(done=True)]  # full time, bonus not confirmed
+    await live_alerts.tick(session)
+    assert not any(m.data["type"] == "review" for m in expo.sent)
+
+    expo.sent.clear()
+    fpl["fixtures"] = [with_bonus(match(done=True))]
+    live.clear_memo()
+    await live_alerts.tick(session)
+    review = [m for m in expo.sent if m.data["type"] == "review"]
+    assert [m.title for m in review] == ["Your gameweek review is ready"]
+    assert review[0].body.startswith("Gameweek 8: ")
+    assert "Captain Saka" in review[0].body
+
+    expo.sent.clear()
+    live.clear_memo()
+    await live_alerts.tick(session)
+    assert expo.sent == []
+
+
+async def test_the_review_goes_out_late_if_fpl_never_confirms(session, world):
+    expo, fpl = world
+    late = utcnow() - live_alerts.WINDOW + timedelta(minutes=10)
+    fixture = await session.get(Fixture, 71)
+    fixture.kickoff_time = late
+    await session.commit()
+    fpl["fixtures"] = [match(done=True, kickoff=late)]
+    await live_alerts.tick(session)
+    assert any(m.data["type"] == "review" for m in expo.sent)
 
 
 @pytest.mark.parametrize("environment,explicit,on", [

@@ -285,6 +285,12 @@ parameters and response shapes are in the Swagger UI.
 | GET | `/api/v1/live/{manager_id}` | owner + premium | UPSTREAM | Your points in the gameweek being played. |
 | GET | `/api/v1/live/{manager_id}/leagues/{league_id}` | owner + premium | UPSTREAM | A mini-league re-ranked by live points, with each manager's captain and players left. |
 
+### review
+
+| Method | Path | Access | Rate limit | Purpose |
+|---|---|---|---|---|
+| GET | `/api/v1/review/{manager_id}` | owner + premium | UPSTREAM | How a finished gameweek went. |
+
 ### root
 
 | Method | Path | Access | Rate limit | Purpose |
