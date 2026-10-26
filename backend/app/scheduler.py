@@ -7,18 +7,23 @@ and one less thing to install on a free tier.
 
 Off by default. It is only useful where the process stays alive — local
 development, or a host that does not idle out. On a free tier that sleeps after
-inactivity the loop dies with the process, so an external trigger (GitHub
-Actions hitting `/api/v1/jobs/refresh`) is the reliable path there.
+inactivity the loop dies with the process, so an external trigger (QStash
+hitting `/api/v1/jobs/refresh`) is the reliable path there.
+
+A second loop sends live match pushes (services/live_alerts.py). It is on in
+production by default; see _live_alerts_loop for why it runs in-process.
 """
 import asyncio
 import logging
 from app.config import settings
 from app.database import AsyncSessionLocal
+from app.services import live_alerts
 from app.services.jobs import refresh_everything
 
 logger = logging.getLogger("fpl_copilot")
 
 _task: asyncio.Task | None = None
+_live_task: asyncio.Task | None = None
 
 # Wait before the first run so startup is not competing with a heavy refresh.
 STARTUP_DELAY_SECONDS = 30
@@ -61,9 +66,37 @@ async def _loop() -> None:
         await asyncio.sleep(interval)
 
 
+async def _live_alerts_loop() -> None:
+    """
+    Goal and full-time pushes. Unlike the refresh, this one runs in-process on
+    Render: the QStash keepalive keeps the service awake, and polling through
+    QStash every minute of every match would exceed its free daily messages.
+    If the service does sleep, the next wake-up restarts the loop, and the
+    pushes it missed inside the match window go out then.
+    """
+    logger.info("live alerts started")
+    await asyncio.sleep(STARTUP_DELAY_SECONDS)
+    while True:
+        delay = live_alerts.IDLE_SECONDS
+        try:
+            async with AsyncSessionLocal() as db:
+                result = await live_alerts.tick(db)
+            if result.get("active"):
+                delay = live_alerts.POLL_SECONDS
+                if result.get("sent"):
+                    logger.info("live alerts sent", extra=result)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("live alerts tick raised")
+        await asyncio.sleep(delay)
+
+
 def start() -> bool:
-    """Start the loop if enabled. Returns whether it was started."""
-    global _task
+    """Start the loops that are enabled. Returns whether the refresh loop was started."""
+    global _task, _live_task
+    if settings.live_alerts_on and (_live_task is None or _live_task.done()):
+        _live_task = asyncio.create_task(_live_alerts_loop(), name="fpl-live-alerts")
     if not settings.scheduler_enabled:
         logger.info("scheduler disabled (set SCHEDULER_ENABLED=true to turn on)")
         return False
@@ -74,17 +107,18 @@ def start() -> bool:
 
 
 async def stop() -> None:
-    global _task
-    if _task is None:
-        return
-    _task.cancel()
-    try:
-        await _task
-    except asyncio.CancelledError:
-        pass
-    except Exception:
-        logger.exception("scheduler stopped with an error")
-    _task = None
+    global _task, _live_task
+    for task in (_task, _live_task):
+        if task is None:
+            continue
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            logger.exception("scheduler stopped with an error")
+    _task = _live_task = None
 
 
 def is_running() -> bool:

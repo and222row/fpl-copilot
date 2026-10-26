@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     # trigger POST /api/v1/jobs/refresh from an external cron instead.
     scheduler_enabled: bool = False
     refresh_interval_minutes: int = 30
+    # Goal, assist and full-time pushes while matches are on: an in-process
+    # loop that only calls FPL during match windows. Unset means on in
+    # production only, so a local server sharing the database stays quiet.
+    live_alerts_enabled: bool | None = None
 
     # Shared secret for the job endpoint. Leave empty to allow unauthenticated
     # calls (fine locally); set it before exposing the API publicly, or anyone
@@ -129,6 +133,10 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
+
+    @property
+    def live_alerts_on(self) -> bool:
+        return self.is_production if self.live_alerts_enabled is None else self.live_alerts_enabled
 
 
 settings = Settings()

@@ -76,10 +76,10 @@ async def test_unregister_only_your_own(client, session):
 
 async def test_preferences_default_on_and_update_partially(client):
     assert (await client.get("/api/v1/me/notifications", headers=bearer())).json() == {
-        "availability": True, "price": True, "deadline": True,
+        "availability": True, "price": True, "deadline": True, "live": True,
     }
     r = await client.put("/api/v1/me/notifications", json={"price": False}, headers=bearer())
-    assert r.json() == {"availability": True, "price": False, "deadline": True}
+    assert r.json() == {"availability": True, "price": False, "deadline": True, "live": True}
     assert (await client.get("/api/v1/me/notifications", headers=bearer())).json()["price"] is False
 
 

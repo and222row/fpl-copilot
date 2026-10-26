@@ -486,6 +486,42 @@ The live squad is the one FPL says was fielded, read directly rather than
 through `resolve_squad`, like `feedback.fetch_actual_squad`: it is what
 happened, not the squad advice is built on.
 
+### Live match pushes
+
+`app/services/live_alerts.py` pushes a manager's goals, assists, penalty saves
+and misses, own goals and red cards as they happen, with the points they are
+worth (doubled for the captain), and at full time what each player earned in
+that match. It runs as an in-process loop rather than through QStash: polling
+every minute of every match through QStash would exceed its 500 free daily
+messages, and the 10-minute keepalive keeps the service awake anyway. The loop
+reads the synced fixtures to decide whether a match window (kick-off to about
+an hour after full time) is open, and only then calls FPL.
+
+It keeps no state. Each event has a key (gameweek, match, player, stat, and
+which goal of his it was), and push delivery records keys and refuses repeats,
+so a restart mid-match sends nothing twice. Only matches inside their window
+count, so a server that starts on Monday does not send Saturday's goals.
+
+## Advice worked out ahead
+
+The recommendation behind Home, My Team and Transfers took seconds per open,
+mostly reading the squad and saving the advice, and was worked out again on
+every visit although its inputs rarely change. `app/services/advice.py` now
+stores the default recommendation per team in `advice_cache`, keyed by a
+fingerprint of what it depends on: the model version, the target and picks
+gameweeks, when projections were last rebuilt (stamped by every rebuild;
+prices, news and fixtures reach the advice only through it), and any
+transfers the manager recorded. Computing the fingerprint reads only our own
+database, so a cached answer costs no FPL call.
+
+The refresh job fills the cache for subscribers whose fingerprint changed,
+most recently active first, within 90 seconds (QStash allows the whole
+refresh five minutes). Anyone beyond the budget is worked out when they next
+open the app, as before. Six hours is a backstop for anything the fingerprint
+misses. Working it out ahead also saves the advice for the track record, so
+the deadline reminder can quote every subscriber's plan, not only the plans
+of those who opened the app that week.
+
 ## The Redis cache, and what it deliberately does not cache
 
 Redis had been carrying nothing. The only operations against it were two health

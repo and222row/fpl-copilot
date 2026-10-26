@@ -37,6 +37,8 @@ class NotificationPreference(Base):
     availability: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     price: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     deadline: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    # Goals, assists, cards and full time for your players, as matches are played.
+    live: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 

@@ -47,6 +47,7 @@ Production values live in Render's dashboard; `render.yaml` lists them, with
 |---|---|---|---|
 | `JOB_TOKEN` | empty | yes | Required in `X-Job-Token` for operator endpoints. Empty leaves them open outside production and closed (503) in production. Must match the GitHub secret and the QStash schedule. |
 | `SCHEDULER_ENABLED` | `false` | | Run the refresh in-process. Local only: a sleeping free-tier instance runs no loop. |
+| `LIVE_ALERTS_ENABLED` | unset | | Goal, assist and full-time pushes during matches, from an in-process loop that only calls FPL while a match is on. Unset means on in production and off elsewhere, so a local server sharing the database sends nothing. |
 | `REFRESH_INTERVAL_MINUTES` | `30` | | Interval for the in-process scheduler (floor 5 minutes). |
 | `CACHE_ENABLED` | `true` | | Redis cache for per-manager FPL reads. |
 | `FPL_CACHE_TTL_SECONDS` | `90` | | Cache lifetime; short because picks responses carry live points. |

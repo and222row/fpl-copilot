@@ -19,7 +19,7 @@ import math
 from dataclasses import dataclass, field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, func
-from app.models.fpl import Player, Fixture, Gameweek, utcnow
+from app.models.fpl import Player, Fixture, Gameweek, SyncState, utcnow
 from app.models.projections import Projection, ScoringRules, TeamStrength
 from app.services.team_strength import (
     load_strength_map, expected_goals_for_fixture, fdr_from_expected_goals,
@@ -27,6 +27,8 @@ from app.services.team_strength import (
 from app.services.news_parser import resolve_availability
 
 MODEL_VERSION = "proj-v1"
+# SyncState key stamped on every rebuild; services/advice.py keys stored advice on it.
+PROJECTIONS_BUILT_KEY = "projections_built"
 
 POS_GKP, POS_DEF, POS_MID, POS_FWD = 1, 2, 3, 4
 POS_KEY = {POS_GKP: "GKP", POS_DEF: "DEF", POS_MID: "MID", POS_FWD: "FWD"}
@@ -581,6 +583,12 @@ async def rebuild_projections(
             ))
             written += 1
 
+    # Stored advice is keyed on this: a rebuild means it may have changed.
+    stamp = await db.get(SyncState, PROJECTIONS_BUILT_KEY)
+    if stamp is None:
+        db.add(SyncState(key=PROJECTIONS_BUILT_KEY, at=utcnow()))
+    else:
+        stamp.at = utcnow()
     await db.commit()
     return {
         "model_version": MODEL_VERSION,

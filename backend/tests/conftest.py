@@ -19,6 +19,7 @@ os.environ.setdefault("ENVIRONMENT", "test")
 # developer enabling the scheduler locally would otherwise change test outcomes.
 # A test suite that depends on local config is not a test suite.
 os.environ["SCHEDULER_ENABLED"] = "false"
+os.environ["LIVE_ALERTS_ENABLED"] = "false"
 os.environ["JOB_TOKEN"] = ""
 
 # Off by default too. With it on, whether a test saw a cached response would

@@ -29,7 +29,7 @@ from app.services.fpl_sync import (
     get_latest_started_gameweek, get_next_open_gameweek, record_verified,
 )
 from app.services.change_detection import detect_changes, generate_alerts
-from app.services import feedback, job_monitor, notifications, push
+from app.services import advice, feedback, job_monitor, notifications, push
 from app.services import chips
 from app.services.team_strength import rebuild_team_strength
 from app.services.projection import rebuild_projections
@@ -147,6 +147,9 @@ async def refresh_everything(
         report.steps["alerts"] = await _alerts_for_tracked(db)
         # Model-free, and the one chip signal nobody spots by eye.
         await step("gameweek_shape", chips.alert_on_shape_changes(db))
+        # Before the pushes: it saves each subscriber's advice, which the
+        # deadline reminder quotes as their plan.
+        await step("advice", advice.precompute(db))
         # Push whatever that produced to anyone who opted in. Wrapped in the
         # same step() isolation as everything else: a Telegram outage must not
         # fail a refresh whose actual work already succeeded, and the alerts

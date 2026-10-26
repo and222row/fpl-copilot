@@ -355,6 +355,7 @@ class NotificationSettings(BaseModel):
     availability: bool | None = None
     price: bool | None = None
     deadline: bool | None = None
+    live: bool | None = None
 
 
 def _prefs_dict(p: NotificationPreference | None) -> dict:

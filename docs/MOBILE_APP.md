@@ -61,10 +61,13 @@ Supabase Auth, RevenueCat and the stores; it holds no backend credential.
 - **News** (from Home): your alerts (mark read), the availability feed by
   category with its source, price watch.
 - **Push notifications:** availability alerts for your squad, price alerts,
-  and a deadline reminder two hours out carrying your recommended transfers
-  and captain, each switchable in Profile →
+  a deadline reminder two hours out carrying your recommended transfers and
+  captain, and during matches your players' goals, assists, penalties, red
+  cards and each match's full-time points, each switchable in Profile →
   Notifications. Permission is asked from a button, never at launch. Tapping
-  one opens the player, News or Transfers.
+  one opens the player, News, Transfers or the live gameweek.
+- **Home opens fast:** the recommendation is worked out by the server after
+  each data refresh and stored, so Home usually reads it rather than waiting.
 - **Profile:** account and connected team, subscription status, Manage
   subscription, Restore purchases, notification settings, sign out,
   Disconnect team, **Delete account** (warns that a store subscription must be

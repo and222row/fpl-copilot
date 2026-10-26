@@ -96,6 +96,21 @@ class RecommendationOutcome(Base):
     )
 
 
+class AdviceCache(Base):
+    """
+    A team's default recommendation, worked out ahead of time so Home opens
+    without waiting for it. One row per team, replaced whenever the inputs
+    behind `fingerprint` change; see services/advice.py.
+    """
+    __tablename__ = "advice_cache"
+
+    fpl_entry_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    gameweek_id: Mapped[int] = mapped_column(Integer)
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    body: Mapped[Any] = mapped_column(JSON)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class SquadOverride(Base):
     """
     A manager-supplied correction to the squad we read from FPL.

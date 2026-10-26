@@ -31,7 +31,7 @@ EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
 BATCH_SIZE = 100
 TOKEN_PATTERN = re.compile(r"^Expo(nent)?PushToken\[[A-Za-z0-9_-]{10,100}\]$")
 
-KINDS = ("availability", "price", "deadline")
+KINDS = ("availability", "price", "deadline", "live")
 PRICE_EVENTS = {"price_change", "price_imminent"}
 PUSHED_SEVERITIES = {"critical", "warning"}
 # A device registered today should not receive yesterday's backlog.
