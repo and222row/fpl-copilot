@@ -5,13 +5,12 @@ Consent lives here. Nothing is sent to anyone who has not completed the link
 from the dashboard, and it can be paused or revoked from the same place.
 """
 import logging
-import secrets
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.auth import ManagerAccess
+from app.auth import ManagerAccess, secrets_match
 from app.database import get_db
 from app.rate_limit import limiter, READ, UPSTREAM
 from app.services import notifications, telegram
@@ -137,7 +136,7 @@ async def telegram_webhook(
     to gain from having it retry an update we have deliberately ignored.
     """
     expected = settings.telegram_webhook_secret
-    if not expected or not x_telegram_bot_api_secret_token or not secrets.compare_digest(
+    if not expected or not x_telegram_bot_api_secret_token or not secrets_match(
         x_telegram_bot_api_secret_token, expected
     ):
         logger.warning("rejected telegram webhook with a bad secret token")

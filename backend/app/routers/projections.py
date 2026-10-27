@@ -278,7 +278,7 @@ async def ingest_history(
     return await ingest_player_history(db, limit=limit)
 
 
-@router.get("/backtest")
+@router.get("/backtest", dependencies=[JobToken])
 async def run_backtest(
     gameweeks: str | None = Query(None, description="e.g. '1,2'; defaults to all finished"),
     min_expected_minutes: float = Query(0.0),

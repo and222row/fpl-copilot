@@ -11,6 +11,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Run unprivileged: a bug in the app should not be root in the container.
+RUN useradd --system --no-create-home --uid 10001 app && chown -R app /app
+USER app
+
 # Hosts inject the port they want the container to listen on ($PORT on Render,
 # Fly and Railway); 8000 is the local fallback. Shell form, not exec form, so
 # the variable is actually expanded rather than passed as the literal "$PORT".

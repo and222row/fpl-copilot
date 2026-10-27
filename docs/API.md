@@ -170,7 +170,7 @@ parameters and response shapes are in the Swagger UI.
 | GET | `/api/v1/projections/fixture-planner` | premium | default | Every club's next fixtures rated for attackers, defenders and overall, from the team-strength ratings, easiest run first, with doubles and blanks. |
 | GET | `/api/v1/projections/transfer-trends` | premium | default | This gameweek's most bought and sold players and tonight's likely price changes, each with the projections, and a better alternative for the same money where the model sees one. |
 | POST | `/api/v1/projections/backtest/ingest-history` | operator | HEAVY | Pull per-GW actual results for the backtest ground truth. |
-| GET | `/api/v1/projections/backtest` | public | default | Score stored projections against recorded actuals. |
+| GET | `/api/v1/projections/backtest` | operator | default | Score stored projections against recorded actuals. |
 
 ### decisions
 
@@ -191,7 +191,7 @@ parameters and response shapes are in the Swagger UI.
 | GET | `/api/v1/news/alerts/{manager_id}` | owner + premium | default | This manager's alerts, newest first. |
 | POST | `/api/v1/news/alerts/{manager_id}/read` | owner + premium | default | Mark one alert, or all of them, as read. |
 | GET | `/api/v1/news/price-watch` | public | default | Players near a price change, from FPL's own published projections. |
-| GET | `/api/v1/news/parse-check` | public | default | Show how the parser reads every current news string. |
+| GET | `/api/v1/news/parse-check` | operator | default | Show how the parser reads every current news string. |
 
 ### feedback
 

@@ -263,6 +263,17 @@ async def require_premium(
         })
 
 
+def secrets_match(supplied: str, expected: str) -> bool:
+    """
+    Constant-time comparison of a caller-supplied header with a secret.
+
+    Compares bytes: compare_digest raises TypeError on a str containing
+    non-ASCII characters, which a caller can put in any header, and that
+    would surface as a 500 (and a Sentry event) instead of a refusal.
+    """
+    return secrets.compare_digest(supplied.encode(), expected.encode())
+
+
 async def require_job_token(
     x_job_token: str | None = Header(None, alias="X-Job-Token"),
 ) -> None:
@@ -280,7 +291,7 @@ async def require_job_token(
         if settings.is_production:
             raise HTTPException(503, "Operator endpoints are disabled until JOB_TOKEN is set")
         return
-    if not x_job_token or not secrets.compare_digest(x_job_token, expected):
+    if not x_job_token or not secrets_match(x_job_token, expected):
         raise HTTPException(401, "Invalid or missing X-Job-Token header")
 
 

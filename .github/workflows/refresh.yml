@@ -52,6 +52,9 @@ concurrency:
   group: scheduled-refresh
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   refresh:
     runs-on: ubuntu-latest

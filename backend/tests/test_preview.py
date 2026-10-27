@@ -48,6 +48,15 @@ async def world(session, monkeypatch):
 
     monkeypatch.setattr(advice, "resolve_squad", resolved)
     monkeypatch.setattr(preview, "fetch_manager_info", info)
+    preview._reset_guards()
+    calls = seen.setdefault("lookups", [])
+    real_info = info
+
+    async def counted(entry):
+        calls.append(entry)
+        return await real_info(entry)
+
+    monkeypatch.setattr(preview, "fetch_manager_info", counted)
     return seen
 
 
@@ -82,3 +91,17 @@ async def test_unknown_team_is_404(client, world):
 @pytest.mark.parametrize("team", ["0", "-1", "100000001", "abc"])
 async def test_bad_ids_are_422(client, world, team):
     assert (await client.get(f"/api/v1/preview/{team}")).status_code == 422
+
+
+async def test_unknown_team_is_looked_up_once(client, world):
+    for _ in range(3):
+        assert (await client.get("/api/v1/preview/404")).status_code == 404
+    assert world["lookups"].count(404) == 1
+
+
+async def test_uncached_builds_share_a_global_budget(client, world, monkeypatch):
+    monkeypatch.setattr(preview, "MAX_BUILDS_PER_MINUTE", 2)
+    assert (await client.get("/api/v1/preview/2001")).status_code == 200
+    assert (await client.get("/api/v1/preview/2002")).status_code == 200
+    r = await client.get("/api/v1/preview/2003")
+    assert r.status_code == 503

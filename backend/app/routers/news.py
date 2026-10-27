@@ -236,7 +236,7 @@ async def get_price_watch(
 
 # ── Parser inspection ─────────────────────────────────────────────────────────
 
-@router.get("/parse-check")
+@router.get("/parse-check", dependencies=[JobToken])
 async def parse_check(
     limit: int = Query(200, ge=1, le=700),
     only_unparsed: bool = Query(False),

@@ -8,7 +8,6 @@ all beyond the caller's verified identity.
 import hashlib
 import hmac
 import logging
-import secrets
 import time
 import uuid
 from datetime import timedelta, timezone
@@ -19,7 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import AuthUser, current_user
+from app.auth import AuthUser, current_user, secrets_match
 from app.config import settings
 from app.database import get_db
 from app.models.accounts import User
@@ -136,7 +135,7 @@ async def revenuecat_webhook(
     # required there rather than optional.
     if settings.is_production and not settings.revenuecat_webhook_signing_secret:
         raise HTTPException(503, "Billing webhook signing is not configured")
-    if not authorization or not secrets.compare_digest(authorization, settings.revenuecat_webhook_auth):
+    if not authorization or not secrets_match(authorization, settings.revenuecat_webhook_auth):
         rejections.add("authorization")
         raise HTTPException(401, "Invalid webhook authorization")
 

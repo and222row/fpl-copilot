@@ -320,6 +320,8 @@ async def test_anonymous_allowed_only_while_auth_optional(client, monkeypatch):
     ("POST", "/api/v1/projections/rebuild/team-strength"),
     ("POST", "/api/v1/projections/rebuild"),
     ("POST", "/api/v1/projections/backtest/ingest-history"),
+    ("GET", "/api/v1/projections/backtest"),
+    ("GET", "/api/v1/news/parse-check"),
 ])
 async def test_operator_endpoints_need_the_job_token(client, monkeypatch, method, path):
     monkeypatch.setattr(settings, "job_token", "s3cret")
@@ -378,3 +380,26 @@ def test_rate_limit_keys_on_user_when_signed_in():
 def test_rate_limit_falls_back_to_ip_when_anonymous():
     assert rate_limit_key(_request()) == "10.0.0.1"
 
+
+
+# ── Non-ASCII secrets ────────────────────────────────────────────────────────
+
+async def test_non_ascii_secret_headers_are_refused_not_crashed(client, monkeypatch):
+    """compare_digest raises TypeError on non-ASCII str; that must not become a 500."""
+    monkeypatch.setattr(settings, "job_token", "s3cret")
+    r = await client.post("/api/v1/jobs/refresh", headers={"X-Job-Token": "caf\xe9".encode("latin-1")})
+    assert r.status_code == 401
+
+    monkeypatch.setattr(settings, "revenuecat_webhook_auth", "hook-secret")
+    r = await client.post(
+        "/api/v1/billing/revenuecat/webhook", content=b"{}",
+        headers={"Authorization": "caf\xe9".encode("latin-1")},
+    )
+    assert r.status_code == 401
+
+    monkeypatch.setattr(settings, "telegram_webhook_secret", "tg-secret")
+    r = await client.post(
+        "/api/v1/telegram/webhook", content=b"{}",
+        headers={"X-Telegram-Bot-Api-Secret-Token": "caf\xe9".encode("latin-1")},
+    )
+    assert r.status_code == 200
