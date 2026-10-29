@@ -115,6 +115,7 @@ function GatedStack() {
         <Stack.Screen name="league/[id]" options={{ headerShown: true, title: '', headerBackTitle: 'Back' }} />
         <Stack.Screen name="rival/[id]" options={{ headerShown: true, title: '', headerBackTitle: 'Back' }} />
         <Stack.Screen name="h2h/[id]" options={{ headerShown: true, title: '', headerBackTitle: 'Back' }} />
+        <Stack.Screen name="manager/[id]" options={{ headerShown: true, title: '', headerBackTitle: 'Back' }} />
         <Stack.Screen name="live" options={{ headerShown: true, title: 'Live gameweek', headerBackTitle: 'Back' }} />
         <Stack.Screen name="live-league/[id]" options={{ headerShown: true, title: '', headerBackTitle: 'Back' }} />
         <Stack.Screen name="fixture-planner" options={{ headerShown: true, title: 'Fixture planner', headerBackTitle: 'Back' }} />

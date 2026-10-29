@@ -1037,6 +1037,8 @@ export const api = {
   rival: (managerId: number, leagueId: number, rivalId: number) =>
     request<RivalView>(`/leagues/${managerId}/${leagueId}/rivals/${rivalId}`),
   live: (managerId: number) => request<LiveView>(`/live/${managerId}`),
+  // Another manager's team this gameweek, scored live (public FPL data).
+  liveManager: (managerId: number, entryId: number) => request<LiveView>(`/live/${managerId}/managers/${entryId}`),
   review: (managerId: number) => request<GameweekReview>(`/review/${managerId}`),
   h2hLeagues: (managerId: number) => request<H2HLeagues>(`/h2h/${managerId}`),
   h2hLeague: (managerId: number, leagueId: number) => request<H2HLeague>(`/h2h/${managerId}/${leagueId}`),

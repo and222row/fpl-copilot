@@ -11,8 +11,10 @@ tags: [features]
       id: "home-screen"
     timeout: 90000
 - scrollUntilVisible:
-    element: "News and alerts"
-- tapOn: "News and alerts"
+    element:
+      id: "tool-news"
+- tapOn:
+    id: "tool-news"
 - extendedWaitUntil:
     visible:
       id: "news-screen"

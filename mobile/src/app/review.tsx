@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Loading } from '@/components/loading';
 import { ErrorView } from '@/components/error-view';
 import { openPlayer } from '@/components/pitch';
 import { Card, Screen, SectionHeader } from '@/components/screen';
@@ -20,7 +21,7 @@ export default function Review() {
   const team = useMe(true).data?.fpl_accounts[0]?.team_name ?? '';
   return (
     <Screen testID="review-screen" belowHeader onRefresh={() => review.refetch()} refreshing={review.isRefetching}>
-      {review.isPending ? <ThemedText themeColor="textSecondary">Putting your gameweek together…</ThemedText> : null}
+      {review.isPending ? <Loading /> : null}
       {review.isError ? <ErrorView error={review.error} onRetry={() => review.refetch()} /> : null}
       {review.data ? (
         <>

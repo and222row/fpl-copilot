@@ -1,6 +1,7 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Loading } from '@/components/loading';
 import { ErrorView } from '@/components/error-view';
 import { Card, Pill, Screen, SectionHeader } from '@/components/screen';
 import { Stat, StatRow } from '@/components/stat';
@@ -22,7 +23,7 @@ export default function LiveLeagueScreen() {
   return (
     <Screen testID="live-league-screen" belowHeader onRefresh={() => league.refetch()} refreshing={league.isRefetching}>
       <Stack.Screen options={{ title: league.data?.league.name ?? name ?? 'Live table' }} />
-      {league.isPending ? <ThemedText themeColor="textSecondary">Working out everyone&apos;s live points…</ThemedText> : null}
+      {league.isPending ? <Loading label="Working out everyone's live points…" /> : null}
       {league.isError ? <ErrorView error={league.error} onRetry={() => league.refetch()} /> : null}
       {league.data ? <Body data={league.data} /> : null}
       {league.data?.your_live_rank ? <ShareCardButton card={leagueCard(league.data, team)} title="Share your rank" /> : null}

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
+import { Loading } from '@/components/loading';
 import { ErrorView } from '@/components/error-view';
 import { MatchScore, ResultChip } from '@/components/h2h';
 import { Card, ListGroup, ListRow, Screen, SectionHeader } from '@/components/screen';
@@ -33,7 +34,7 @@ export default function Leagues() {
         h2h.refetch();
       }}
       refreshing={leagues.isRefetching}>
-      {leagues.isPending ? <ThemedText themeColor="textSecondary">Loading your leagues…</ThemedText> : null}
+      {leagues.isPending ? <Loading /> : null}
       {leagues.isError ? <ErrorView error={leagues.error} onRetry={() => leagues.refetch()} /> : null}
 
       {mine.length > 0 ? (

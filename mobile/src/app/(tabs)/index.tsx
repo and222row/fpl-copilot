@@ -6,8 +6,10 @@ import { Button } from '@/components/button';
 import { Carousel } from '@/components/carousel';
 import { ErrorView } from '@/components/error-view';
 import { openPlayer } from '@/components/pitch';
-import { Card, ListGroup, ListRow, Pill, Screen, SectionHeader } from '@/components/screen';
+import { Loading } from '@/components/loading';
+import { Card, Pill, Screen, SectionHeader } from '@/components/screen';
 import { SquadBanner } from '@/components/squad-banner';
+import { ToolGrid } from '@/components/tool-grid';
 import { Stat, StatRow } from '@/components/stat';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
@@ -59,63 +61,44 @@ export default function Home() {
       onRefresh={refresh}
       refreshing={rec.isRefetching}>
       {live.data ? <LiveCard live={live.data} /> : null}
-      {rec.isPending ? <ThemedText themeColor="textSecondary">Working out your best moves…</ThemedText> : null}
+      {rec.isPending ? <Loading /> : null}
       {rec.isError ? <ErrorView error={rec.error} onRetry={() => rec.refetch()} /> : null}
       {rec.data ? <RecommendationView rec={rec.data} /> : null}
 
       <AlertsView alerts={alerts.data} />
 
-      <SectionHeader title="Tools" />
-      <ListGroup>
-        <ListRow
-          testID="tool-live"
-          title="Live gameweek"
-          subtitle="Your points as they happen, and your leagues live"
-          onPress={() => router.push('/live')}
-        />
-        <ListRow
-          testID="tool-review"
-          title="Gameweek review"
-          subtitle="How your last gameweek went, and your season so far"
-          onPress={() => router.push('/review')}
-        />
-        <ListRow
-          testID="tool-trends"
-          title="Transfer trends"
-          subtitle="Who everyone is buying and selling, and tonight's price changes"
-          onPress={() => router.push('/transfer-trends')}
-        />
-        <ListRow
-          testID="tool-fixtures"
-          title="Fixture planner"
-          subtitle="Every club's next fixtures, rated for attackers and defenders"
-          onPress={() => router.push('/fixture-planner')}
-        />
-        <ListRow
-          testID="tool-leagues"
-          title="Mini-leagues"
-          subtitle="Your rank, the gaps, and what rivals own that you don't"
-          onPress={() => router.push('/leagues')}
-        />
-        <ListRow testID="tool-chips" title="Chip advisor" subtitle="When to play each chip, doubles and blanks" onPress={() => router.push('/chips')} />
-        <ListRow testID="tool-dream-team" title="Dream team" subtitle="The best 15 your budget can buy: a wildcard draft" onPress={() => router.push('/dream-team')} />
-        <ListRow testID="tool-track-record" title="Track record" subtitle="How the advice has actually performed" onPress={() => router.push('/track-record')} />
-        <ListRow title="Planner" subtitle="Your best transfers, gameweek by gameweek" onPress={() => router.push('/planner')} />
-        <ListRow
-          title="News and alerts"
-          subtitle="Injuries, price changes and your alerts"
-          onPress={() => router.push('/news')}
-          last={push.data !== 'off'}
-        />
-        {push.data === 'off' ? (
-          <ListRow
-            title="Set up notifications"
-            subtitle="Injuries in your squad, price moves, the deadline"
-            onPress={() => router.push('/notifications')}
-            last
-          />
-        ) : null}
-      </ListGroup>
+      <ToolGrid
+        groups={[
+          {
+            title: 'This gameweek',
+            tools: [
+              { testID: 'tool-live', title: 'Live gameweek', subtitle: 'Points as they happen', icon: { ios: 'dot.radiowaves.left.and.right', android: 'sensors' }, onPress: () => router.push('/live') },
+              { testID: 'tool-review', title: 'Gameweek review', subtitle: 'How your week went', icon: { ios: 'chart.bar.fill', android: 'bar_chart' }, onPress: () => router.push('/review') },
+            ],
+          },
+          {
+            title: 'Plan ahead',
+            tools: [
+              { testID: 'tool-trends', title: 'Transfer trends', subtitle: "Who's in, who's out, price moves", icon: { ios: 'arrow.up.arrow.down', android: 'trending_up' }, onPress: () => router.push('/transfer-trends') },
+              { testID: 'tool-fixtures', title: 'Fixture planner', subtitle: 'Every run, rated', icon: { ios: 'calendar', android: 'calendar_month' }, onPress: () => router.push('/fixture-planner') },
+              { testID: 'tool-planner', title: 'Planner', subtitle: 'Transfers, week by week', icon: { ios: 'point.topleft.down.to.point.bottomright.curvepath', android: 'route' }, onPress: () => router.push('/planner') },
+              { testID: 'tool-chips', title: 'Chip advisor', subtitle: 'When to play each chip', icon: { ios: 'sparkles', android: 'auto_awesome' }, onPress: () => router.push('/chips') },
+              { testID: 'tool-dream-team', title: 'Dream team', subtitle: 'The best 15 you can afford', icon: { ios: 'star.fill', android: 'star' }, onPress: () => router.push('/dream-team') },
+            ],
+          },
+          {
+            title: 'Compete and keep up',
+            tools: [
+              { testID: 'tool-leagues', title: 'Mini-leagues', subtitle: 'Rank, gaps and rivals', icon: { ios: 'trophy.fill', android: 'emoji_events' }, onPress: () => router.push('/leagues') },
+              { testID: 'tool-track-record', title: 'Track record', subtitle: 'How the advice did', icon: { ios: 'checkmark.seal.fill', android: 'verified' }, onPress: () => router.push('/track-record') },
+              { testID: 'tool-news', title: 'News and alerts', subtitle: 'Injuries and price changes', icon: { ios: 'bell.fill', android: 'notifications' }, onPress: () => router.push('/news') },
+              ...(push.data === 'off'
+                ? [{ testID: 'tool-notifications', title: 'Notifications', subtitle: 'Turn on alerts', icon: { ios: 'bell.badge', android: 'notification_add' }, onPress: () => router.push('/notifications') }]
+                : []),
+            ],
+          },
+        ]}
+      />
     </Screen>
   );
 }

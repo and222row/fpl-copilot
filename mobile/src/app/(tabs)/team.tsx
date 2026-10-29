@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Loading } from '@/components/loading';
 import { Segmented } from '@/components/chip';
 import { ErrorView } from '@/components/error-view';
 import { openPlayer, Pitch } from '@/components/pitch';
@@ -26,7 +27,7 @@ export default function MyTeam() {
 
   return (
     <Screen testID="team-screen" title="My Team" onRefresh={() => rec.refetch()} refreshing={rec.isRefetching}>
-      {rec.isPending ? <ThemedText themeColor="textSecondary">Picking your best XI…</ThemedText> : null}
+      {rec.isPending ? <Loading /> : null}
       {rec.isError ? <ErrorView error={rec.error} onRetry={() => rec.refetch()} /> : null}
       {rec.data ? (
         <>

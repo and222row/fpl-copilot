@@ -24,7 +24,11 @@ const source = files(SRC, ['.tsx', '.ts'])
   .replace(/&quot;/g, '"');
 const flows = files(FLOWS, ['.yaml']).filter((f) => !f.endsWith('config.yaml'));
 
-const staticIds = new Set([...source.matchAll(/testID="([^"]+)"/g)].map((m) => m[1]));
+// As a JSX prop (testID="x"), or in data handed to a component ({ testID: 'x' }).
+const staticIds = new Set([
+  ...[...source.matchAll(/testID="([^"]+)"/g)].map((m) => m[1]),
+  ...[...source.matchAll(/testID: '([^']+)'/g)].map((m) => m[1]),
+]);
 const templatePrefixes = [...source.matchAll(/testID=\{`([^`$]+)\$\{/g)].map((m) => m[1]);
 
 // Text the app builds at runtime, so it cannot appear verbatim in source:

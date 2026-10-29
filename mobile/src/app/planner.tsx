@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { Loading } from '@/components/loading';
 import { Segmented } from '@/components/chip';
 import { ErrorView } from '@/components/error-view';
 import { Banner, Card, Screen, SectionHeader } from '@/components/screen';
@@ -28,11 +29,7 @@ export default function Planner() {
   return (
     <Screen testID="planner-screen" belowHeader onRefresh={() => plan.refetch()} refreshing={plan.isRefetching}>
       <Segmented options={HORIZONS} value={horizon} onChange={setHorizon} />
-      {plan.isPending ? (
-        <ThemedText themeColor="textSecondary">
-          Searching transfer paths across {horizon} gameweek{horizon > 1 ? 's' : ''}. This takes a few seconds.
-        </ThemedText>
-      ) : null}
+      {plan.isPending ? <Loading label={`Searching transfer paths across ${horizon} gameweek${horizon > 1 ? 's' : ''}…`} /> : null}
       {plan.isError ? <ErrorView error={plan.error} onRetry={() => plan.refetch()} /> : null}
       {plan.data ? <PlanView plan={plan.data} /> : null}
     </Screen>

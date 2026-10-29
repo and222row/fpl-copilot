@@ -24,6 +24,7 @@ export const queryKeys = {
   rival: (managerId: number, leagueId: number, rivalId: number) => ['rival', managerId, leagueId, rivalId] as const,
   live: (managerId: number) => ['live', managerId] as const,
   liveLeague: (managerId: number, leagueId: number) => ['live-league', managerId, leagueId] as const,
+  liveManager: (managerId: number, entryId: number) => ['live-manager', managerId, entryId] as const,
   fixturePlanner: (gameweeks: number) => ['fixture-planner', gameweeks] as const,
   review: (managerId: number) => ['review', managerId] as const,
   transferTrends: ['transfer-trends'] as const,
@@ -194,6 +195,16 @@ export function useLive(teamId: number | undefined) {
     queryKey: queryKeys.live(teamId ?? 0),
     queryFn: () => api.live(teamId!),
     enabled: !!teamId,
+    staleTime: LIVE_POLL_MS,
+    refetchInterval: (q) => livePoll(q.state.data),
+  });
+}
+
+export function useLiveManager(teamId: number | undefined, entryId: number) {
+  return useQuery({
+    queryKey: queryKeys.liveManager(teamId ?? 0, entryId),
+    queryFn: () => api.liveManager(teamId!, entryId),
+    enabled: !!teamId && entryId > 0,
     staleTime: LIVE_POLL_MS,
     refetchInterval: (q) => livePoll(q.state.data),
   });

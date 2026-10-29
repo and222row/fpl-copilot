@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { Loading } from '@/components/loading';
 import { ChipGroup } from '@/components/chip';
 import { ErrorView } from '@/components/error-view';
 import { Card, Screen } from '@/components/screen';
@@ -37,7 +38,7 @@ export default function FixturePlannerScreen() {
     <Screen testID="fixture-planner-screen" belowHeader onRefresh={() => planner.refetch()} refreshing={planner.isRefetching}>
       <ChipGroup options={VIEWS} value={view} onChange={setView} />
       <ChipGroup options={WINDOWS} value={weeks} onChange={setWeeks} />
-      {planner.isPending ? <ThemedText themeColor="textSecondary">Rating the fixtures…</ThemedText> : null}
+      {planner.isPending ? <Loading /> : null}
       {planner.isError ? <ErrorView error={planner.error} onRetry={() => planner.refetch()} /> : null}
       {planner.data ? <Grid data={planner.data} view={view} owned={owned} /> : null}
     </Screen>

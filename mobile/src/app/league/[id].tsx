@@ -1,6 +1,7 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Loading } from '@/components/loading';
 import { ErrorView } from '@/components/error-view';
 import { openPlayer } from '@/components/pitch';
 import { Card, Screen, SectionHeader } from '@/components/screen';
@@ -19,9 +20,7 @@ export default function League() {
   return (
     <Screen testID="league-screen" belowHeader onRefresh={() => league.refetch()} refreshing={league.isRefetching}>
       <Stack.Screen options={{ title: league.data?.league.name ?? name ?? 'League' }} />
-      {league.isPending ? (
-        <ThemedText themeColor="textSecondary">Reading the table and your rivals&apos; squads…</ThemedText>
-      ) : null}
+      {league.isPending ? <Loading label="Reading the table and your rivals' squads…" /> : null}
       {league.isError ? <ErrorView error={league.error} onRetry={() => league.refetch()} /> : null}
       {league.data ? <LeagueBody data={league.data} /> : null}
     </Screen>

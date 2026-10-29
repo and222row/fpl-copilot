@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Loading } from '@/components/loading';
 import { ChipGroup } from '@/components/chip';
 import { ErrorView } from '@/components/error-view';
 import { openPlayer } from '@/components/pitch';
@@ -28,7 +29,7 @@ export default function TransferTrendsScreen() {
   return (
     <Screen testID="trends-screen" belowHeader onRefresh={() => trends.refetch()} refreshing={trends.isRefetching}>
       <ChipGroup options={TABS} value={tab} onChange={setTab} />
-      {trends.isPending ? <ThemedText themeColor="textSecondary">Reading the transfer market…</ThemedText> : null}
+      {trends.isPending ? <Loading /> : null}
       {trends.isError ? <ErrorView error={trends.error} onRetry={() => trends.refetch()} /> : null}
       {trends.data ? <Body data={trends.data} tab={tab} owned={owned} /> : null}
     </Screen>

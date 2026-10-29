@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
+import { Loading } from '@/components/loading';
 import { ErrorView } from '@/components/error-view';
 import { Banner, Card, Pill, Screen, SectionHeader } from '@/components/screen';
 import { Stat, StatRow } from '@/components/stat';
@@ -21,7 +22,7 @@ export default function TrackRecord() {
   const record = useTrackRecord(teamId);
   return (
     <Screen testID="track-record-screen" belowHeader onRefresh={() => record.refetch()} refreshing={record.isRefetching}>
-      {record.isPending ? <ThemedText themeColor="textSecondary">Loading the track record…</ThemedText> : null}
+      {record.isPending ? <Loading /> : null}
       {record.isError ? <ErrorView error={record.error} onRetry={() => record.refetch()} /> : null}
       {record.data ? <Body summary={record.data.summary} history={record.data.history} pending={record.data.pending} /> : null}
     </Screen>

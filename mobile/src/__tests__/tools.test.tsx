@@ -29,6 +29,7 @@ jest.mock('@/lib/query', () => ({
   useTrackRecord: () => mockQueries.record,
   useLive: () => mockQueries.live,
   useLiveLeague: () => mockQueries.liveLeague,
+  useLiveManager: () => mockQueries.liveManager,
   useReview: () => mockQueries.review,
   useTransferTrends: () => mockQueries.trends,
   useH2HLeagues: () => mockQueries.h2hLeagues,
@@ -51,6 +52,7 @@ import FixturePlannerScreen from '@/app/fixture-planner';
 import League from '@/app/league/[id]';
 import Leagues from '@/app/leagues';
 import Live from '@/app/live';
+import ManagerScreen from '@/app/manager/[id]';
 import LiveLeagueScreen from '@/app/live-league/[id]';
 import RecordTransfers from '@/app/record-transfers';
 import Review from '@/app/review';
@@ -183,6 +185,37 @@ describe('mini-leagues', () => {
     expect(screen.getByText('W4 D2 L1 · 470 scored')).toBeTruthy();
     expect(screen.getByText('Your results · 5W 2D 1L')).toBeTruthy();
     expect(screen.getByText('62–47')).toBeTruthy();
+
+    // Any other team opens their squad: from the table, a result, or this week's match.
+    const user = userEvent.setup();
+    await user.press(screen.getByTestId('h2h-standing-7'));
+    expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/manager/[id]', params: { id: '7', name: 'Forever 20' } });
+    await user.press(screen.getByTestId('h2h-result-8'));
+    expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/manager/[id]', params: { id: '7', name: 'Danube' } });
+    await user.press(screen.getByTestId('h2h-current'));
+    expect(mockPush).toHaveBeenLastCalledWith({ pathname: '/manager/[id]', params: { id: '9', name: 'Beef' } });
+    mockPush.mockClear();
+    await user.press(screen.getByTestId('h2h-standing-1003')); // yourself: nothing to open
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  test("another manager's team on a pitch, scored live", async () => {
+    mockQueries.params = { id: '9', name: 'E99' };
+    mockQueries.liveManager = ok({
+      gameweek: { id: 8, name: 'Gameweek 8', average: 45, highest: 120 },
+      in_play: false, finished: true, matches_done: 10, matches_total: 10, next_kickoff: null,
+      points: 41, provisional_bonus: 0, transfer_cost: 0, players_left: 0, chip: null,
+      captain: 'Haaland', armband: 'Haaland', auto_subs: [], total: 472,
+      squad: [{
+        player_id: 5, name: 'Haaland', team: 'MCI', position: 'FWD', price: 15, xpts: 8, kit: null, fixtures: [],
+        slot: 11, starting: true, is_captain: true, is_vice_captain: false, you_own: false,
+        points: 8, provisional_bonus: 0, multiplier: 2, minutes: 90, state: 'done', subbed_in: false, subbed_out: false,
+      }],
+    });
+    await render(<ManagerScreen />);
+    expect(screen.getByTestId('live-points').props.children).toEqual([41, ' pts']);
+    expect(screen.getByText('Their team')).toBeTruthy();
+    expect(screen.getByLabelText('Haaland, MCI, 16 pts, captain')).toBeTruthy();
   });
 
   test('the league shows gaps, threats and the table', async () => {

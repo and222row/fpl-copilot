@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
+import { Loading } from '@/components/loading';
 import { Button } from '@/components/button';
 import { Segmented } from '@/components/chip';
 import { errorMessage, ErrorView } from '@/components/error-view';
@@ -49,7 +50,7 @@ export default function Transfers() {
   return (
     <Screen testID="transfers-screen" title="Transfers" onRefresh={() => query.refetch()} refreshing={query.isRefetching}>
       <Segmented options={HORIZONS} value={horizon as 1 | 3 | 5} onChange={setHorizon} />
-      {query.isPending ? <ThemedText themeColor="textSecondary">Running the optimiser…</ThemedText> : null}
+      {query.isPending ? <Loading label="Running the optimiser…" /> : null}
       {query.isError ? <ErrorView error={query.error} onRetry={() => query.refetch()} /> : null}
       {data && teamId ? <TransferView data={data} teamId={teamId} /> : null}
       <ListGroup>

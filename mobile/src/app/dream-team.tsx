@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Loading } from '@/components/loading';
 import { Segmented } from '@/components/chip';
 import { ErrorView } from '@/components/error-view';
 import { Card, Pill, Screen, SectionHeader } from '@/components/screen';
@@ -34,7 +35,7 @@ export default function DreamTeam() {
   return (
     <Screen testID="dream-team-screen" belowHeader onRefresh={() => dream.refetch()} refreshing={dream.isRefetching}>
       <Segmented options={HORIZONS} value={horizon} onChange={setHorizon} />
-      {dream.isPending ? <ThemedText themeColor="textSecondary">Picking the best 15 from every player…</ThemedText> : null}
+      {dream.isPending ? <Loading label="Picking the best 15…" /> : null}
       {dream.isError ? <ErrorView error={dream.error} onRetry={() => dream.refetch()} /> : null}
       {rec.isError ? <ErrorView error={rec.error} onRetry={() => rec.refetch()} /> : null}
       {dream.data ? <Body data={dream.data} owned={owned} /> : null}

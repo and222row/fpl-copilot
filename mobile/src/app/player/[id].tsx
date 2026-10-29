@@ -1,6 +1,7 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
+import { Loading } from '@/components/loading';
 import { ErrorView } from '@/components/error-view';
 import { PlayerPhoto } from '@/components/player-photo';
 import { Banner, Card, Screen, SectionHeader } from '@/components/screen';
@@ -27,7 +28,7 @@ export default function PlayerScreen() {
   return (
     <Screen testID="player-screen" belowHeader onRefresh={() => player.refetch()} refreshing={player.isRefetching}>
       <Stack.Screen options={{ title: player.data?.name ?? '' }} />
-      {player.isPending ? <ThemedText themeColor="textSecondary">Loading…</ThemedText> : null}
+      {player.isPending ? <Loading /> : null}
       {player.isError ? <ErrorView error={player.error} onRetry={() => player.refetch()} /> : null}
       {player.data ? <PlayerView p={player.data} rec={rec.data} /> : null}
     </Screen>

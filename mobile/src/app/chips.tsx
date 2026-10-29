@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
+import { Loading } from '@/components/loading';
 import { ErrorView } from '@/components/error-view';
 import { Banner, Card, Pill, Screen, SectionHeader } from '@/components/screen';
 import { Stat, StatRow } from '@/components/stat';
@@ -30,7 +31,7 @@ export default function Chips() {
   const chips = useChips(teamId);
   return (
     <Screen testID="chips-screen" belowHeader onRefresh={() => chips.refetch()} refreshing={chips.isRefetching}>
-      {chips.isPending ? <ThemedText themeColor="textSecondary">Valuing each chip over the coming gameweeks…</ThemedText> : null}
+      {chips.isPending ? <Loading label="Valuing each chip…" /> : null}
       {chips.isError ? <ErrorView error={chips.error} onRetry={() => chips.refetch()} /> : null}
       {chips.data ? <ChipsBody data={chips.data} /> : null}
     </Screen>

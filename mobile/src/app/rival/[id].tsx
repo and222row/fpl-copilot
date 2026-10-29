@@ -1,6 +1,7 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Loading } from '@/components/loading';
 import { ErrorView } from '@/components/error-view';
 import { KitPitch } from '@/components/kit-pitch';
 import { openPlayer } from '@/components/pitch';
@@ -19,7 +20,7 @@ export default function Rival() {
   return (
     <Screen testID="rival-screen" belowHeader onRefresh={() => rival.refetch()} refreshing={rival.isRefetching}>
       <Stack.Screen options={{ title: rival.data?.rival.team_name ?? 'Head to head' }} />
-      {rival.isPending ? <ThemedText themeColor="textSecondary">Comparing squads…</ThemedText> : null}
+      {rival.isPending ? <Loading /> : null}
       {rival.isError ? <ErrorView error={rival.error} onRetry={() => rival.refetch()} /> : null}
       {rival.data ? <RivalBody data={rival.data} /> : null}
     </Screen>
