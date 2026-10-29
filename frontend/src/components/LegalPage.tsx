@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 /** Where people write about privacy, deletion or the terms. */
-export const CONTACT_EMAIL = "and2222row@gmail.com";
+export const CONTACT_EMAIL = "and222row@gmail.com";
 
 export function Contact() {
   return (
