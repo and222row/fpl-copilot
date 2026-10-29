@@ -24,6 +24,8 @@ jest.mock('@/lib/api', () => {
   };
 });
 jest.mock('@/lib/query', () => ({ refreshAccount: () => mockRefresh() }));
+const mockBrowser = jest.fn();
+jest.mock('expo-web-browser', () => ({ openBrowserAsync: (...a: unknown[]) => mockBrowser(...a) }));
 
 import TeamId from '@/app/onboarding/team-id';
 import { ApiError } from '@/lib/api';
@@ -32,6 +34,16 @@ const TEAM = { fpl_entry_id: 1234, team_name: 'Gold Team', manager_name: 'Sam Do
 
 beforeEach(() => {
   for (const m of [mockPush, mockConnect, mockClaim, mockRefresh]) m.mockReset();
+});
+
+test('the Team ID help opens the FPL website, where the ID is shown', async () => {
+  const user = userEvent.setup();
+  await render(<TeamId />);
+  expect(screen.queryByTestId('team-id-open-fpl')).toBeNull(); // folded away until asked for
+  await user.press(screen.getByText('Where do I find my Team ID?'));
+  expect(screen.getByText('Open the Points tab.')).toBeTruthy();
+  await user.press(screen.getByTestId('team-id-open-fpl'));
+  expect(mockBrowser).toHaveBeenCalledWith('https://fantasy.premierleague.com/');
 });
 
 async function enter(id: string) {

@@ -1,3 +1,4 @@
+import { openBrowserAsync } from 'expo-web-browser';
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 
@@ -11,6 +12,9 @@ import { ThemedText } from '@/components/themed-text';
 import { ApiError, api, TEAM_TAKEN, type ConnectResult } from '@/lib/api';
 import { proveTeam } from '@/lib/prove';
 import { refreshAccount } from '@/lib/query';
+
+// The website, in an in-app browser: the FPL app does not show the Team ID.
+const FPL_SITE = 'https://fantasy.premierleague.com/';
 
 export default function TeamId() {
   const [value, setValue] = useState('');
@@ -116,6 +120,13 @@ export default function TeamId() {
           <Card variant="inset">
             <ThemedText type="code">fantasy.premierleague.com/entry/1234567/event/7</ThemedText>
           </Card>
+          <Button
+            testID="team-id-open-fpl"
+            title="Open the FPL website"
+            variant="secondary"
+            compact
+            onPress={() => openBrowserAsync(FPL_SITE)}
+          />
         </Card>
       ) : null}
     </Screen>
