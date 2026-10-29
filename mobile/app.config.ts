@@ -34,6 +34,9 @@ const config: ExpoConfig = {
   ios: {
     bundleIdentifier: BUNDLE_ID,
     usesAppleSignIn: true,
+    // Only standard HTTPS/TLS, which is exempt from export rules; saying so
+    // here skips App Store Connect's encryption question on every build.
+    config: { usesNonExemptEncryption: false },
   },
   android: {
     package: BUNDLE_ID,

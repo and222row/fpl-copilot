@@ -178,7 +178,9 @@ user id and payload are redacted and the row is kept for accounting.
   offer; Small Business Program; paid apps agreement, tax and banking.
 - **Google Play Console:** the same two subscriptions (base plans), no free
   trial offer; payments profile.
-- **RevenueCat:** both apps; entitlement `pro` attached to all four products;
+- **RevenueCat:** both apps; entitlement `pro` attached to all four products
+  (production's is `fpl_copilot_pro`, so Render sets
+  `REVENUECAT_ENTITLEMENT_ID`; identifiers cannot be renamed);
   a default offering with `$rc_monthly` and `$rc_annual`; Restore Behavior
   *Transfer if there are no active subscriptions*; webhook to
   `https://<api>/api/v1/billing/revenuecat/webhook` with a long random
