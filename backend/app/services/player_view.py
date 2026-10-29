@@ -13,9 +13,11 @@ STATUS_NAMES = {
 PHOTO_BASE = "https://resources.premierleague.com/premierleague/photos/players"
 
 
-def player_photo(code: int) -> str | None:
-    """FPL headshot URL, or None when the code is missing."""
-    return f"{PHOTO_BASE}/110x140/p{code}.png" if code else None
+def player_photo(code: int, large: bool = False) -> str | None:
+    """FPL headshot URL, or None when the code is missing. Large is 250x250, for cards and articles."""
+    if not code:
+        return None
+    return f"{PHOTO_BASE}/250x250/p{code}.png" if large else f"{PHOTO_BASE}/110x140/p{code}.png"
 
 
 def player_summary(p: Player, team_short: str) -> dict:

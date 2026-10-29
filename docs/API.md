@@ -189,6 +189,7 @@ parameters and response shapes are in the Swagger UI.
 | GET | `/api/v1/news/events` | public | default | Chronological availability feed, newest first. |
 | POST | `/api/v1/news/alerts/{manager_id}/generate` | owner + premium | UPSTREAM | Raise alerts for changes affecting this manager's squad. |
 | GET | `/api/v1/news/alerts/{manager_id}` | owner + premium | default | This manager's alerts, newest first. |
+| GET | `/api/v1/news/story/{manager_id}/{player_id}` | owner + premium | default | The article behind a squad warning or alert. |
 | POST | `/api/v1/news/alerts/{manager_id}/read` | owner + premium | default | Mark one alert, or all of them, as read. |
 | GET | `/api/v1/news/price-watch` | public | default | Players near a price change, from FPL's own published projections. |
 | GET | `/api/v1/news/parse-check` | operator | default | Show how the parser reads every current news string. |

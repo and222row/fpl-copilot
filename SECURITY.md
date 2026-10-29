@@ -133,3 +133,8 @@ web, retire it, or limit it to free data), sign-in was chosen:
 - [ ] Check first-deploy logs for distinct client IPs (H4).
 - [ ] Re-run `pip-audit` and `npm audit` (CI does) and this review on major
       dependency upgrades.
+- [ ] Rights, not security, but a release blocker: player headshots and club
+      shirts are loaded from the Premier League's and FPL's servers and are
+      their copyright, as are the "FPL" and Premier League names. The news
+      cards and articles show the headshots prominently. Confirm the usage is
+      acceptable (or swap to initials and neutral shirts) before submitting.

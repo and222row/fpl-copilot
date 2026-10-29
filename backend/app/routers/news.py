@@ -16,7 +16,9 @@ from app.services.news_taxonomy import categorise
 from app.services.fpl_sync import (
     get_active_gameweek, get_next_open_gameweek, get_latest_started_gameweek,
 )
+from app.services.player_view import player_photo
 from app.services.squad_state import resolve_squad
+from app.services.story import StoryNotFound, player_story
 
 router = APIRouter(prefix="/news", tags=["news"])
 logger = logging.getLogger("fpl_copilot.news")
@@ -177,8 +179,18 @@ async def list_alerts(
         # alerts on the basis of a failed lookup.
         owned = None
 
+    # Photo and club for the news-style cards.
+    ids = {a.player_id for a in alerts if a.player_id}
+    people = {
+        pid: (code, short)
+        for pid, code, short in (await db.execute(
+            select(Player.id, Player.code, Team.short_name).join(Team, Team.id == Player.team_id).where(Player.id.in_(ids))
+        )).all()
+    } if ids else {}
+
     out = []
     for a in alerts:
+        code, team = people.get(a.player_id, (None, None))
         still_owned = (
             None if owned is None or a.player_id is None
             else a.player_id in owned
@@ -192,11 +204,30 @@ async def list_alerts(
             "body": a.body,
             "payload": a.payload,
             "player_id": a.player_id,
+            "photo": player_photo(code, large=True) if code else None,
+            "team": team,
             "still_owned": still_owned,
             "read": a.read_at is not None,
             "created_at": a.created_at,
         })
     return out
+
+
+@router.get("/story/{manager_id}/{player_id}", dependencies=[ManagerAccess, Premium])
+async def story(
+    manager_id: int,
+    player_id: int,
+    alert_id: int | None = Query(None, description="The alert this story opens from, if any"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    The article behind a squad warning or alert: what happened, the player's
+    recent status history, what it means for your team, and replacements.
+    """
+    try:
+        return await player_story(db, manager_id, player_id, alert_id)
+    except StoryNotFound as e:
+        raise HTTPException(404, str(e))
 
 
 @router.post("/alerts/{manager_id}/read", dependencies=[ManagerAccess, Premium])

@@ -33,6 +33,7 @@ from app.services.entitlements import get_entitlement
 from app.services.feedback import KIND_CAPTAIN, KIND_LINEUP, KIND_TRANSFER, snapshot_recommendation
 from app.services.fpl_sync import deadline_has_passed, get_latest_started_gameweek, get_next_open_gameweek
 from app.services.lineup import SquadEntry, best_starting_xi, pick_captain_and_vice
+from app.services.player_view import player_photo
 from app.services.projection import MODEL_VERSION, PROJECTIONS_BUILT_KEY
 from app.services.squad_state import resolve_squad
 from app.services.transfer_reasons import explain_plans
@@ -40,6 +41,7 @@ from app.services.transfers import TransferCandidate, compare_transfer_counts
 
 logger = logging.getLogger("fpl_copilot.advice")
 
+ADVICE_SHAPE = 2  # 2: squad issues carry a photo
 DEFAULT_HORIZON = 5
 DEFAULT_CAPTAIN_MODE = "balanced"
 # A backstop: anything the fingerprint misses is put right within this long.
@@ -374,6 +376,8 @@ async def full_advice(
             **e.brief(),
             "news": e.player.news,
             "chance_of_playing": e.player.chance_of_playing_this_round,
+            # For the news-style cards on Home.
+            "photo": player_photo(e.player.code, large=True),
             "reason": (
                 "Unavailable" if e.player.status in ("i", "s", "u", "n")
                 else "Doubtful" if e.player.status == "d"
@@ -536,6 +540,8 @@ async def fingerprint(db: AsyncSession, manager_id: int, target_gw: int, picks_g
         SquadOverride.fpl_entry_id == manager_id, SquadOverride.gameweek_id == target_gw,
     ))
     parts = [
+        # Bumped when the stored body's shape changes, so old answers are redone.
+        ADVICE_SHAPE,
         MODEL_VERSION, target_gw, picks_gw,
         built.at.isoformat() if built and built.at else None,
         [sorted(override.player_ids or []), override.bank, override.free_transfers, override.transfers_applied]

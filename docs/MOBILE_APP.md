@@ -90,6 +90,14 @@ Supabase Auth, RevenueCat and the stores; it holds no backend credential.
 - **Players:** accent-insensitive search, filters, sorting, infinite scroll,
   compare two players; a player screen with fixtures, projections, recent
   matches, sourced news and a BUY / SELL / HOLD verdict.
+- **News cards and articles:** Home's squad warnings and latest alerts are
+  news-style cards (the player's photo, a label, a headline, a short summary,
+  and the club and time). Tapping one opens an article written from the
+  app's own data, since FPL publishes only one line per player: what
+  happened, the player's recent status history, what it means for your team
+  (starting, captain, his projection, and whether the recommended transfer
+  already sells him), three affordable replacements, and his club's next
+  fixtures. Alerts in News open the same article.
 - **News** (from Home): your alerts (mark read), the availability feed by
   category with its source, price watch.
 - **Push notifications:** availability alerts for your squad, price alerts,
