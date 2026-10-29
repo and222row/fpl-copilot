@@ -27,6 +27,7 @@ export const queryKeys = {
   liveManager: (managerId: number, entryId: number) => ['live-manager', managerId, entryId] as const,
   fixturePlanner: (gameweeks: number) => ['fixture-planner', gameweeks] as const,
   review: (managerId: number) => ['review', managerId] as const,
+  story: (managerId: number, playerId: number, alertId?: number) => ['story', managerId, playerId, alertId ?? 0] as const,
   transferTrends: ['transfer-trends'] as const,
   h2hLeagues: (managerId: number) => ['h2h-leagues', managerId] as const,
   h2hLeague: (managerId: number, leagueId: number) => ['h2h-league', managerId, leagueId] as const,
@@ -217,6 +218,15 @@ export function useLiveLeague(teamId: number | undefined, leagueId: number) {
     enabled: !!teamId,
     staleTime: LIVE_POLL_MS,
     refetchInterval: (q) => livePoll(q.state.data),
+  });
+}
+
+export function useStory(teamId: number | undefined, playerId: number, alertId?: number) {
+  return useQuery({
+    queryKey: queryKeys.story(teamId ?? 0, playerId, alertId),
+    queryFn: () => api.story(teamId!, playerId, alertId),
+    enabled: !!teamId && playerId > 0,
+    staleTime: 5 * 60_000,
   });
 }
 

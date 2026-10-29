@@ -142,6 +142,8 @@ export interface SquadIssue extends PlayerBrief {
   news: string;
   chance_of_playing: number | null;
   reason: string;
+  /** Large headshot for the news-style card; missing on advice stored before it existed. */
+  photo?: string | null;
 }
 
 export interface CaptainOption extends PlayerBrief {
@@ -389,9 +391,48 @@ export interface AlertItem {
   title: string;
   body: string;
   player_id: number | null;
+  /** Large headshot and club, for the news-style card. */
+  photo?: string | null;
+  team?: string | null;
   still_owned: boolean | null;
   read: boolean;
   created_at: string;
+}
+
+/** The article behind a squad warning or alert, written from the app's own data. */
+export interface Story {
+  player: {
+    id: number;
+    name: string;
+    full_name: string;
+    team: string;
+    team_name: string;
+    position: Position;
+    price: number;
+    photo: string | null;
+    kit: string | null;
+    status: string;
+    status_label: string;
+    news: string | null;
+    chance: number | null;
+  };
+  headline: string;
+  summary: string;
+  severity: 'critical' | 'warning' | 'info';
+  published_at: string | null;
+  history: { at: string | null; event_type: string; news: string | null; status: string | null; chance: number | null }[];
+  you: {
+    owned: boolean;
+    starting: boolean;
+    captain: boolean;
+    projected_next: number | null;
+    gameweek: string | null;
+    /** When the recommended transfer already sells him. */
+    plan: { out: string; in: string; in_player_id: number } | null;
+  };
+  replacements: { player_id: number; name: string; team: string; price: number; photo: string | null; kit: string | null; xpts_horizon: number }[];
+  horizon: number;
+  fixtures: { gameweek: number; opponents: string[] }[];
 }
 
 // ── Mini-leagues ─────────────────────────────────────────────────────────────
@@ -1004,6 +1045,8 @@ export const api = {
     }),
   captain: (managerId: number) => request<CaptainResponse>(`/decisions/${managerId}/captain`),
   alerts: (managerId: number) => request<AlertItem[]>(`/news/alerts/${managerId}`),
+  story: (managerId: number, playerId: number, alertId?: number) =>
+    request<Story>(`/news/story/${managerId}/${playerId}${alertId ? `?alert_id=${alertId}` : ''}`),
   markAlertsRead: (managerId: number) =>
     request<{ marked_read: number }>(`/news/alerts/${managerId}/read`, { method: 'POST' }),
   newsEvents: () => request<NewsEvent[]>('/news/events?hours=168&limit=100'),

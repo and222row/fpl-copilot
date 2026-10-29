@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Button } from '@/components/button';
 import { Carousel } from '@/components/carousel';
 import { ErrorView } from '@/components/error-view';
-import { openPlayer } from '@/components/pitch';
+import { NewsCard, openStory } from '@/components/news-card';
 import { Loading } from '@/components/loading';
 import { Card, Pill, Screen, SectionHeader } from '@/components/screen';
 import { SquadBanner } from '@/components/squad-banner';
@@ -15,7 +15,9 @@ import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { AlertItem, Entitlement, LiveView, Recommendation } from '@/lib/api';
+import { timeAgo } from '@/lib/format';
 import { liveBadge } from '@/lib/live';
+import { initials, warningHeadline, warningSummary } from '@/lib/news';
 import { useAlerts, useEntitlement, useLive, useMe, useRecommendation } from '@/lib/query';
 import { pushState } from '@/lib/push';
 import { money, signed } from '@/lib/squad';
@@ -214,13 +216,17 @@ function RecommendationView({ rec }: { rec: Recommendation }) {
           <Carousel
             testID="warnings-carousel"
             pages={rec.squad_issues.map((p) => (
-              <NoticeCard
+              <NewsCard
                 key={p.player_id}
-                tone={p.chance_of_playing === 0 ? 'danger' : 'warning'}
+                testID={`warning-${p.player_id}`}
+                photo={p.photo}
+                initials={initials(p.name)}
+                tone={p.chance_of_playing === 0 || ['i', 's', 'u', 'n'].includes(p.status) ? 'danger' : 'warning'}
                 label={p.reason}
-                title={p.name}
-                body={p.news}
-                onPress={() => openPlayer(p.player_id)}
+                title={warningHeadline(p)}
+                summary={warningSummary(p)}
+                meta={`${p.team} · ${p.position} · in your squad`}
+                onPress={() => openStory(p.player_id)}
               />
             ))}
           />
@@ -271,58 +277,21 @@ function AlertsView({ alerts }: { alerts: AlertItem[] | undefined }) {
       <Carousel
         testID="alerts-carousel"
         pages={important.map((a) => (
-          <NoticeCard
+          <NewsCard
             key={a.id}
+            testID={`alert-${a.id}`}
+            photo={a.photo}
+            initials={initials(a.title)}
             tone={a.severity === 'critical' ? 'danger' : 'warning'}
             label={a.severity === 'critical' ? 'Important' : 'Heads up'}
             title={a.title}
-            body={a.body}
-            onPress={a.player_id ? () => openPlayer(a.player_id!) : undefined}
+            summary={a.body}
+            meta={[a.team, timeAgo(a.created_at)].filter(Boolean).join(' · ')}
+            onPress={a.player_id ? () => openStory(a.player_id!, a.id) : undefined}
           />
         ))}
       />
     </>
-  );
-}
-
-/** One warning or alert as a carousel card: coloured label, title, detail. */
-function NoticeCard({
-  tone,
-  label,
-  title,
-  body,
-  onPress,
-}: {
-  tone: 'danger' | 'warning';
-  label: string;
-  title: string;
-  body?: string | null;
-  onPress?: () => void;
-}) {
-  const theme = useTheme();
-  return (
-    <Pressable accessibilityRole={onPress ? 'button' : undefined} disabled={!onPress} onPress={onPress}>
-      <Card style={[styles.notice, { borderTopColor: theme[tone] }]}>
-        <View style={[styles.noticeLabel, { backgroundColor: tone === 'danger' ? theme.dangerSoft : theme.warningSoft }]}>
-          <ThemedText type="caption" style={{ color: theme[tone], fontWeight: '800' }}>
-            {label}
-          </ThemedText>
-        </View>
-        <ThemedText type="headline" numberOfLines={2}>
-          {title}
-        </ThemedText>
-        {body ? (
-          <ThemedText type="small" themeColor="textSecondary" numberOfLines={3}>
-            {body}
-          </ThemedText>
-        ) : null}
-        {onPress ? (
-          <ThemedText type="caption" themeColor="accent" style={styles.noticeLink}>
-            See player ›
-          </ThemedText>
-        ) : null}
-      </Card>
-    </Pressable>
   );
 }
 
@@ -332,9 +301,6 @@ const styles = StyleSheet.create({
   moves: { gap: Spacing.two },
   move: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, borderRadius: Radius.md, padding: 12 },
   moveLabel: { fontWeight: '800', letterSpacing: 0.6 },
-  notice: { borderTopWidth: 4, minHeight: 150 },
-  noticeLabel: { alignSelf: 'flex-start', borderRadius: Radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
-  noticeLink: { marginTop: 'auto', fontWeight: '700' },
   grow: { flex: 1 },
   alignEnd: { alignItems: 'flex-end' },
   live: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },

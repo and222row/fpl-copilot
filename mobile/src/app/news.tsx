@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Button } from '@/components/button';
 import { ChipGroup, Segmented } from '@/components/chip';
 import { errorMessage, ErrorView } from '@/components/error-view';
+import { openStory } from '@/components/news-card';
 import { openPlayer } from '@/components/pitch';
 import { Card, Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
@@ -104,7 +105,7 @@ function AlertRow({ alert }: { alert: AlertItem }) {
     <Pressable
       accessibilityRole="button"
       disabled={!alert.player_id}
-      onPress={() => alert.player_id && openPlayer(alert.player_id)}>
+      onPress={() => alert.player_id && openStory(alert.player_id, alert.id)}>
       <Card style={[styles.stripeCard, { borderLeftColor: color }]}>
         <View style={styles.titleRow}>
           <ThemedText type="headline" style={styles.grow}>
