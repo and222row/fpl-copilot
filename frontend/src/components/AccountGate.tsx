@@ -1,6 +1,7 @@
 "use client";
 
 import type { Session } from "@supabase/supabase-js";
+import Image from "next/image";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { account, ApiError, type Entitlement, type Me, type PendingConnection } from "@/lib/api";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
@@ -124,7 +125,16 @@ export function SignIn() {
 
   return (
     <div className={CARD}>
-      <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Sign in</h2>
+      <div className="flex items-center gap-3">
+        <Image src="/logo.svg" alt="" width={48} height={48} />
+        <div>
+          <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">FPL Copilot</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Transfers, captaincy and live alerts for your Fantasy Premier League team.
+          </p>
+        </div>
+      </div>
+      <h2 className="mt-6 text-base font-semibold text-slate-900 dark:text-slate-100">Sign in</h2>
       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
         Use the same account as the FPL Copilot app.
       </p>

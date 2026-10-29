@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import {
   api,
@@ -96,7 +97,8 @@ function Dashboard({ account }: { account: SignedInAccount }) {
       {/* ── Header ──────────────────────────────────────────────────── */}
       <header className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
         <div className="min-w-0">
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-50">
+          <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-50">
+            <Image src="/logo.svg" alt="" width={32} height={32} />
             FPL Copilot
           </h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">

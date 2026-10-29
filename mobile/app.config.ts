@@ -32,14 +32,13 @@ const config: ExpoConfig = {
   scheme: 'fplcopilot',
   userInterfaceStyle: 'automatic',
   ios: {
-    icon: './assets/expo.icon',
     bundleIdentifier: BUNDLE_ID,
     usesAppleSignIn: true,
   },
   android: {
     package: BUNDLE_ID,
     adaptiveIcon: {
-      backgroundColor: '#E6F4FE',
+      backgroundColor: '#37003C',
       foregroundImage: './assets/images/android-icon-foreground.png',
       backgroundImage: './assets/images/android-icon-background.png',
       monochromeImage: './assets/images/android-icon-monochrome.png',

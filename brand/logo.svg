@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#5A0A63"/><stop offset="1" stop-color="#28002C"/>
+  </linearGradient>
+  <linearGradient id="arrow" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#04F5FF"/><stop offset="1" stop-color="#00FF87"/>
+  </linearGradient>
+  <clipPath id="ball"><circle cx="512" cy="512" r="330"/></clipPath>
+</defs><rect width="1024" height="1024" rx="0" fill="url(#bg)"/><g transform="translate(0 0) scale(1)">
+  <circle cx="512" cy="512" r="330" fill="#fff" fill-opacity="0.1"/>
+  <g clip-path="url(#ball)" fill="#fff" stroke="#fff" stroke-width="14" stroke-linejoin="round"><polygon points="512.0,274.0 424.5,210.4 457.9,107.6 566.1,107.6 599.5,210.4"/><polygon points="738.4,438.5 771.8,335.6 879.9,335.6 913.3,438.5 825.8,502.0"/><polygon points="651.9,704.5 760.0,704.5 793.5,807.4 706.0,871.0 618.5,807.4"/><polygon points="372.1,704.5 405.5,807.4 318.0,871.0 230.5,807.4 264.0,704.5"/><polygon points="285.6,438.5 198.2,502.0 110.7,438.5 144.1,335.6 252.2,335.6"/></g>
+  <circle cx="512" cy="512" r="330" fill="none" stroke="#fff" stroke-width="36"/>
+  <polygon points="512.0,360.0 638.5,673.5 512.0,607.5 385.5,673.5" fill="url(#arrow)" stroke="url(#arrow)" stroke-width="33" stroke-linejoin="round"/></g></svg>
