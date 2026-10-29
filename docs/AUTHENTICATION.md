@@ -182,7 +182,9 @@ audit trail with payloads redacted (accounting). A store subscription is not
 cancelled by deletion; the app says so before confirming.
 
 Google Play also requires a web page where users can request deletion without
-the app. That page is not built yet.
+the app: the website's `/delete-account`. Requests arrive by email from the
+account's sign-in address and are carried out with *Delete user* in `/admin`,
+which runs the same deletion.
 
 ## Setup checklist
 

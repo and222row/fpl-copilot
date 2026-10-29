@@ -286,8 +286,6 @@ steps are in [DEPLOYMENT.md](DEPLOYMENT.md#mobile-app).
 - No push for "your recommended transfer changed" (needs the optimiser run for
   every user in the background) or "unexpectedly benched" (needs a line-ups
   source).
-- Google Play requires a web page for requesting account deletion without the
-  app; not built yet.
 - `npm audit` reports high-severity issues in Expo's build tooling (H5) and a
   moderate one in `decode-uri-component` via expo-router (M5), neither in the
   shipped bundle and neither fixable within SDK 57.

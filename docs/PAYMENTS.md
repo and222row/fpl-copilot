@@ -89,10 +89,11 @@ There is no `entitlements` table: entitlement is computed from `trials` and
 
 ## The trial
 
-Started when a team is connected (`POST /me/fpl-accounts`, or
-`.../verify` after a takeover) by
-`start_trial_if_eligible`, only if neither this user nor this team has ever
-had one. The `trials` row is keyed by team and survives account deletion with
+Started when the user proves a team is theirs (the code in its team name,
+`.../verify`) by `start_trial_if_eligible`, only if neither this user nor
+this team has ever had one. An instant connection by Team ID starts none:
+eligibility is per team, so granting it on a public ID alone would let anyone
+spend a stranger's trial. The `trials` row is keyed by team and survives account deletion with
 its user detached, so deleting the account and signing up again with the same
 team gets no second trial.
 

@@ -199,6 +199,6 @@ change ships as a store build.
 
 The security items are in [SECURITY.md](../SECURITY.md#before-release-security):
 migrations and RLS verification, production secrets, Supabase Auth settings,
-RevenueCat Restore Behavior, monitoring. Store-specific requirements (privacy
-labels, data safety, review notes, screenshots) belong to the store readiness
-checklist.
+RevenueCat Restore Behavior, monitoring. Store-specific requirements (listing
+text, privacy labels, data safety, review notes and the review team) are in
+[STORE_LISTING.md](STORE_LISTING.md).

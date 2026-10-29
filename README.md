@@ -156,6 +156,7 @@ Everything else, including Maestro end-to-end tests: [docs/TESTING.md](docs/TEST
 | [API.md](docs/API.md) | Conventions, errors, rate limits, and every route with its access level |
 | [TESTING.md](docs/TESTING.md) | Suites, how to run them, CI, manual release checks |
 | [DEPLOYMENT.md](docs/DEPLOYMENT.md) | First deploy, routine deploys, migrations, rollback, app releases |
+| [STORE_LISTING.md](docs/STORE_LISTING.md) | Store text, App Review notes, the review team, privacy and data safety answers |
 | [ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md) | Every setting, where it is read and where it is set |
 | [OBSERVABILITY.md](docs/OBSERVABILITY.md) | Logging, error and crash tracking, job and webhook monitoring, runbook |
 | [SECURITY.md](SECURITY.md) | Security review findings, OWASP mapping, release checklist |
@@ -166,7 +167,7 @@ Everything else, including Maestro end-to-end tests: [docs/TESTING.md](docs/TEST
 The backend, web dashboard and mobile app are feature complete for a first
 release and covered by automated tests. Not yet done before launch: running
 the pending migrations and production configuration, real-device testing of
-sign-in, purchases and push, store listings, and the web page Google Play
-requires for account deletion requests. See
+sign-in, purchases and push, and submitting the store listings
+([STORE_LISTING.md](docs/STORE_LISTING.md)). See
 [DEPLOYMENT.md](docs/DEPLOYMENT.md) and the release checklist in
 [SECURITY.md](SECURITY.md#before-release-security).

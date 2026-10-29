@@ -44,6 +44,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <footer className="mt-auto flex justify-center gap-5 px-4 py-6 text-xs text-slate-500 dark:text-slate-400">
           <Link href="/privacy" className="hover:underline">Privacy Policy</Link>
           <Link href="/terms" className="hover:underline">Terms of Service</Link>
+          <Link href="/support" className="hover:underline">Support</Link>
         </footer>
       </body>
     </html>
