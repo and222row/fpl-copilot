@@ -17,6 +17,9 @@ export const metadata: Metadata = {
   title: "FPL Copilot",
   description:
     "AI-powered Fantasy Premier League decision platform — projections, transfers, captaincy and alerts for your squad.",
+  // Proves the site is ours to Google (Search Console), which Google's OAuth
+  // branding review requires. Public by design; removing it un-verifies.
+  verification: { google: "1_Kpcv8EBeCe2UyNEgXPAjQ5F6PG49L2xiIBROLuXTk" },
 };
 
 // Next sets the viewport meta tag itself, so only the colouring is declared
