@@ -353,5 +353,14 @@ async def test_you_outside_the_sample_get_no_live_rank(client, world, monkeypatc
     assert body["standings"][-1]["is_you"]
 
 
+async def test_another_managers_team_scored_live(client, world):
+    body = (await client.get(f"/api/v1/live/{YOU}/managers/{RIVAL}")).json()
+    # The rival's squad, captain 4, with the hit FPL charged them.
+    assert body["captain"] == "P4" and body["transfer_cost"] == 4
+    assert len(body["squad"]) == 15 and body["squad"][0]["kit"]
+    assert (await client.get(f"/api/v1/live/{YOU}/managers/999")).status_code == 404  # no squad this gameweek
+    assert (await client.get(f"/api/v1/live/{YOU}/managers/0")).status_code == 422
+
+
 async def test_a_league_you_are_not_in_is_404(client, world):
     assert (await client.get(f"/api/v1/live/{YOU}/leagues/999")).status_code == 404

@@ -27,6 +27,24 @@ async def my_live(request: Request, manager_id: int, db: AsyncSession = Depends(
         raise _fpl_error(e)
 
 
+@router.get("/{manager_id}/managers/{entry_id}", dependencies=[ManagerAccess, Premium])
+@limiter.limit(UPSTREAM)
+async def manager_live(request: Request, manager_id: int, entry_id: int, db: AsyncSession = Depends(get_db)):
+    """
+    Another manager's team in the gameweek being played, scored live: for an
+    opponent in a head-to-head league or a rival in a table. FPL publishes
+    every squad once the deadline has passed, so nothing private is shown.
+    """
+    if not 1 <= entry_id <= 100_000_000:
+        raise HTTPException(422, "Not an FPL team ID")
+    try:
+        return await live_view(db, entry_id)
+    except LiveUnavailable as e:
+        raise HTTPException(404, str(e).replace("for you", "for this manager"))
+    except httpx.HTTPError as e:
+        raise _fpl_error(e)
+
+
 @router.get("/{manager_id}/leagues/{league_id}", dependencies=[ManagerAccess, Premium])
 @limiter.limit(UPSTREAM)
 async def league(request: Request, manager_id: int, league_id: int, db: AsyncSession = Depends(get_db)):
