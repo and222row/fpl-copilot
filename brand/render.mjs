@@ -115,6 +115,24 @@ await png(monochrome, 1024, "mobile/assets/images/android-icon-monochrome.png");
 await png(svg({ background: false }), 512, "mobile/assets/images/splash-icon.png");
 await png(rounded, 48, "mobile/assets/images/favicon.png");
 
+// Google Play listing: the 512 icon and the 1024 × 500 feature graphic.
+// Play keeps the graphic's middle clear of its own overlays, so the mark
+// and name sit well inside the edges.
+const feature = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 500">${defs.replace(
+  'x2="1" y2="1">\n    <stop offset="0" stop-color="#5A0A63"/>',
+  'x2="1" y2="0.5">\n    <stop offset="0" stop-color="#5A0A63"/>',
+)}
+  <rect width="1024" height="500" fill="url(#bg)"/>
+  <g transform="translate(96 82) scale(0.33)">${mark()}</g>
+  <g font-family="Segoe UI, Helvetica, Arial, sans-serif" fill="#fff">
+    <text x="460" y="232" font-size="76" font-weight="700">FPL Copilot</text>
+    <text x="462" y="298" font-size="34" fill-opacity="0.85">Transfers, captain and alerts</text>
+  </g>
+</svg>`;
+await png(square, 512, "brand/play-icon.png", { flatten: true });
+await sharp(Buffer.from(feature)).flatten({ background: PURPLE }).png()
+  .toFile(join(root, "brand/play-feature-graphic.png"));
+
 // The template's Icon Composer bundle drew the Expo logo; iOS now uses icon.png.
 rmSync(join(root, "mobile/assets/expo.icon"), { recursive: true, force: true });
 
