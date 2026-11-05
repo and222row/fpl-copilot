@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+
 import type { ExpoConfig } from 'expo/config';
 
 // Permanent once the app is published to either store. Confirm before the
@@ -22,6 +24,14 @@ const sentryPlugin: [string, Record<string, string>][] =
       ]
     : [];
 
+// Firebase config, which Android needs to get a push token through FCM. EAS
+// builds receive it as the GOOGLE_SERVICES_JSON file variable (a path on the
+// build machine); a local build uses ./google-services.json if present. Left
+// out when neither exists, so builds without push set up still work.
+const googleServicesFile =
+  process.env.GOOGLE_SERVICES_JSON ||
+  (existsSync('./google-services.json') ? './google-services.json' : undefined);
+
 const config: ExpoConfig = {
   name: 'FPL Copilot',
   slug: 'fpl-copilot',
@@ -40,6 +50,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: BUNDLE_ID,
+    ...(googleServicesFile ? { googleServicesFile } : {}),
     adaptiveIcon: {
       backgroundColor: '#37003C',
       foregroundImage: './assets/images/android-icon-foreground.png',

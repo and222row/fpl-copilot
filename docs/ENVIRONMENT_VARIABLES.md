@@ -133,6 +133,7 @@ by `app.config.ts` at build time and do not reach the bundle.
 | `EXPO_PUBLIC_SENTRY_DSN` | yes | Sentry React Native DSN. Empty disables crash reporting. |
 | `EXPO_PUBLIC_E2E` | yes | `true` only in the `e2e` EAS profile: shows the email sign-in used by Maestro. CI fails if any other profile sets it; production pins `false`. |
 | `GOOGLE_IOS_URL_SCHEME` | no | The reversed iOS client ID, for the Google sign-in config plugin. |
+| `GOOGLE_SERVICES_JSON` | no | EAS **file** variable holding the Firebase `google-services.json`, which Android needs for push (FCM). EAS passes its path; a local build falls back to a git-ignored `mobile/google-services.json`. Without either, Android builds have no push. |
 | `EAS_PROJECT_ID` | no | Overrides the EAS project ID in `app.config.ts` (@and2row/fpl-copilot), e.g. to build under another Expo account. Push tokens are issued per EAS project. |
 | `SENTRY_ORG`, `SENTRY_PROJECT` | no | Turn on source map and debug symbol upload in EAS builds. |
 | `SENTRY_URL` | no | Sentry host for uploads; defaults to `https://sentry.io/`. |

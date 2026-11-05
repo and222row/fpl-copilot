@@ -201,8 +201,9 @@ Supabase (Authentication):
 - JWT expiry: 900 seconds.
 
 Google Cloud Console → Credentials: a Web client, an iOS client
-(`com.fplcopilot.app`) and an Android client (`com.fplcopilot.app` plus the
-SHA-1 of each signing key, including EAS's and Play App Signing's).
+(`com.fplcopilot.app`) and Android clients (`com.fplcopilot.app`, one per
+signing key SHA-1: EAS's upload key and Play App Signing's, since Google
+allows one fingerprint per Android client).
 
 Apple Developer: enable *Sign in with Apple* on the App ID.
 

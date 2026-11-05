@@ -17,6 +17,9 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
+# Firebase config for Android push. EAS builds get it from the
+# GOOGLE_SERVICES_JSON file variable; keep local copies out of the public repo.
+google-services.json
 
 # Metro
 .metro-health-check*

@@ -161,9 +161,11 @@ difference from the models.
 3. Confirm the bundle id `com.fplcopilot.app` in `app.config.ts`. It is
    permanent once either store has a build.
 4. Credentials: `npx eas-cli@latest credentials` for signing, the APNs key
-   (push on iOS) and the FCM v1 service account (push on Android). Add the
-   SHA-1 of the EAS and Play App Signing keys to the Google Android OAuth
-   client.
+   (push on iOS) and the FCM v1 service account (push on Android). Android
+   push also needs the Firebase app's `google-services.json` as the
+   `GOOGLE_SERVICES_JSON` file variable in EAS (`production` and `preview`).
+   Create one Google Android OAuth client per signing key (`com.fplcopilot.app`
+   with the SHA-1 of EAS's upload key, and again with Play App Signing's).
 5. EAS environment variables for `production` (and `preview`): every
    `EXPO_PUBLIC_*` value, `GOOGLE_IOS_URL_SCHEME`, and for crash reports
    `EXPO_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT`, and
