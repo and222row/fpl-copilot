@@ -47,8 +47,10 @@ jest.mock('expo-crypto', () => {
     constructor(payload: { key: string; aad: string; data: string }) {
       this.payload = payload;
     }
-    static fromCombined(b64: string) {
-      return new FakeSealed(JSON.parse(atob(b64)));
+    // Like Android, which accepts only bytes here (iOS also takes a string).
+    static fromCombined(bytes: Uint8Array) {
+      if (!(bytes instanceof Uint8Array)) throw new TypeError('fromCombined expects bytes');
+      return new FakeSealed(JSON.parse(String.fromCharCode(...bytes)));
     }
     async combined() {
       return btoa(JSON.stringify(this.payload));
@@ -141,6 +143,11 @@ test('missing entries are null and removal works', async () => {
   await storage.setItem('x', 'y');
   await storage.removeItem('x');
   expect(await storage.getItem('x')).toBeNull();
+});
+
+test('base64ToBytes decodes every byte value', () => {
+  const all = Uint8Array.from({ length: 256 }, (_, i) => i);
+  expect(helpers.base64ToBytes(btoa(String.fromCharCode(...all)))).toEqual(all);
 });
 
 test('non-ASCII text survives the base64 conversion', () => {

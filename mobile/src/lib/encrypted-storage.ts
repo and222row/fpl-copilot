@@ -43,12 +43,22 @@ export function base64ToUtf8(b64: string): string {
   return decodeURIComponent(escape(atob(b64)));
 }
 
+// Android's AESSealedData.fromCombined accepts only bytes; iOS also takes a
+// base64 string. Given the string, Android throws, and getItem below would
+// read every saved session as signed out.
+export function base64ToBytes(b64: string): Uint8Array {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
 export const encryptedStorage = {
   async getItem(name: string): Promise<string | null> {
     const sealed = await Storage.getItemAsync(name);
     if (!sealed) return null;
     try {
-      const plaintext = await aesDecryptAsync(AESSealedData.fromCombined(sealed), await getKey(), {
+      const plaintext = await aesDecryptAsync(AESSealedData.fromCombined(base64ToBytes(sealed)), await getKey(), {
         output: 'base64',
         additionalData: utf8ToBase64(name),
       });
